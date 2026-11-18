@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="robots" content="noindex,nofollow" />
-  <meta name="description" content="VYLENS full audit report: verified findings, evidence, fixes and checks performed." />
-  <title>Audit Report — VYLENS</title>
+  <meta name="description" content="Your VYLENS audit: clear findings and practical fixes." />
+  <title>Audit Results — VYLENS</title>
   <link rel="icon" type="image/webp" href="./assets/vylens-mark.webp" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,51 +15,35 @@
   <script src="./results.js" defer></script>
 </head>
 <body>
-  <a href="#main" class="skip-link">Skip to report</a>
-  <header class="page-header">
-    <nav class="floating-nav" aria-label="Main navigation">
-      <a href="./index.html" class="brand" aria-label="VYLENS home"><img src="./assets/vylens-mark.webp" alt="" width="38" height="38" /><strong>VYLENS<span>.</span></strong></a>
-      <span class="nav-label">AUDIT REPORT</span>
-      <a class="nav-back" href="./index.html"><span>New audit</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></a>
-    </nav>
-  </header>
-
+  <a class="skip-link" href="#main">Skip to results</a>
+  <header class="page-header"><nav class="floating-nav" aria-label="Main navigation">
+    <a href="./index.html" class="brand" aria-label="VYLENS home"><img src="./assets/vylens-mark.webp" alt="" width="38" height="38"/><strong>VYLENS<span>.</span></strong></a>
+    <a class="nav-back" href="./index.html">New audit <span aria-hidden="true">+</span></a>
+  </nav></header>
   <main id="main" class="report-wrap" hidden>
     <section class="report-hero" aria-labelledby="reportTitle">
-      <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> REPORT COMPLETE <span class="eyebrow-rule">/</span> <span id="reportType">WEBSITE AUDIT</span></div>
-      <div class="hero-heading"><div><h1 id="reportTitle">Your audit is ready<span>.</span></h1><p>What needs attention, why it matters, and how to improve it.</p></div><div class="hero-complete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Analysis finished</span></div></div>
-      <div class="source-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><span id="reportSubject">Your source</span><span class="source-separator" aria-hidden="true"></span><span id="reportDate">Checked today</span></div>
+      <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> AUDIT COMPLETE <span class="slash">/</span> <span id="reportType">WEBSITE</span></p>
+      <h1 id="reportTitle">Your audit is ready<span>.</span></h1>
+      <p class="source-line"><span id="reportSubject">Your website</span><span aria-hidden="true">·</span><span id="reportDate">Today</span></p>
     </section>
-
-    <section class="metrics-section" aria-label="Audit at a glance">
-      <div class="metric-card metric-critical" id="criticalCard"><div class="metric-top"><span>CRITICAL</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 2 6 0 7 7v6l-7 7H9l-7-7V9z"/><path d="M12 7v6m0 4h.01"/></svg></div><strong id="criticalCount">0</strong><small id="criticalCaption">Blocking issues found</small></div>
-      <div class="metric-card metric-high" id="highCard"><div class="metric-top"><span>HIGH PRIORITY</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg></div><strong id="highCount">0</strong><small>Major issues to review</small></div>
-      <div class="metric-card metric-checked"><div class="metric-top"><span>CHECKS RUN</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.5L16 9"/></svg></div><strong id="checksCount">0</strong><small>Checks actually attempted</small></div>
+    <section class="metrics-section" aria-label="Audit summary">
+      <div class="metric metric-critical" id="criticalCard"><span>Critical</span><strong id="criticalCount">0</strong></div>
+      <div class="metric metric-high" id="highCard"><span>High priority</span><strong id="highCount">0</strong></div>
+      <div class="metric metric-run"><span>Checks run</span><strong id="checksCount">0</strong></div>
     </section>
-    <p class="metric-footnote" id="metricFootnote">Counts reflect only checks supported by this inspection.</p>
-
-    <section class="priority-section" aria-labelledby="priorityTitle">
-      <div class="section-label"><span class="label-line"></span> WHERE TO START</div>
-      <div class="priority-content"><div class="priority-left"><span class="priority-tag" id="priorityTag">TOP PRIORITY</span><h2 id="priorityTitle">Start with what matters most.</h2><p id="priorityCopy">We'll highlight your most important finding here.</p><button id="priorityButton" class="text-action" type="button">See evidence &amp; fix <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></div><div class="priority-right" aria-hidden="true"><span class="priority-watermark">01</span><div class="priority-orbit"></div><span class="priority-glyph">↗</span></div></div>
+    <section class="report-content" aria-labelledby="summaryTitle">
+      <div class="report-summary" id="reportSummary"><span class="summary-icon" id="summaryIcon" aria-hidden="true">✓</span><div><h2 id="summaryTitle">Review complete.</h2><p id="summaryCopy"></p></div></div>
+      <section class="findings-section" id="urgentSection" hidden aria-labelledby="urgentTitle"><div class="section-heading"><h2 id="urgentTitle">Fix these first<span>.</span></h2><span class="section-meta" id="urgentCount"></span></div><div id="urgentList" class="result-list"></div></section>
+      <section class="notes-section" id="notesSection" hidden aria-labelledby="notesTitle"><div class="section-heading"><h2 id="notesTitle">Also worth improving<span>.</span></h2><span class="section-meta" id="notesCount"></span></div><div id="notesList" class="result-list"></div></section>
+      <p class="scope-note" id="scopeNote"></p>
     </section>
-
-    <section id="findings" class="findings-section" aria-labelledby="findingsTitle">
-      <div class="section-intro"><div><div class="section-label"><span class="label-line"></span> FINDINGS</div><h2 id="findingsTitle">The issues, explained<span>.</span></h2><p>Every reported problem includes a source observation and a practical next step.</p></div><span class="section-count" id="issuesLabel">0 prioritized issues</span></div>
-      <div class="filter-bar" role="group" aria-label="Filter findings"><button type="button" class="filter-chip is-active" data-filter="all" aria-pressed="true">All <span id="allCount">0</span></button><button type="button" class="filter-chip" data-filter="critical" aria-pressed="false">Critical <span id="filterCritical">0</span></button><button type="button" class="filter-chip" data-filter="high" aria-pressed="false">High <span id="filterHigh">0</span></button></div>
-      <div class="findings-workspace" id="findingsWorkspace"><div class="issue-list" id="issueList" aria-label="Select an issue"></div><article class="issue-detail" id="issueDetail" tabindex="-1" aria-live="polite"><div class="detail-top"><span class="detail-severity" id="detailSeverity">HIGH</span><span class="detail-index" id="detailIndex">01 / 01</span></div><h3 id="detailTitle">Your finding</h3><div class="detail-location" id="detailLocation"></div><div class="detail-divider"></div><section class="detail-section"><div class="detail-section-label">WHAT WE VERIFIED</div><p id="detailEvidence"></p></section><section class="detail-section detail-remedy"><div class="detail-section-label">RECOMMENDED FIX</div><p id="detailFix"></p></section><section class="detail-section"><div class="detail-section-label">HOW TO VERIFY</div><p id="detailVerify"></p></section><div class="detail-actions"><button type="button" id="copyFinding" class="outline-button">Copy this fix <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h11v14H8zM5 17H4V3h11v2"/></svg></button><span id="copyFeedback" role="status" class="inline-feedback"></span></div></article></div>
-      <div class="no-priority" id="noPriority" hidden><div class="no-priority-symbol" aria-hidden="true">✓</div><h3>No Critical or High issues detected.</h3><p>That's a useful result for the checks we could run, not proof that your website or product is flawless. Review the scope and observations below.</p></div>
+    <section class="report-actions" aria-label="Report actions">
+      <button id="savePdf" class="primary-button" type="button">Save report as PDF <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button>
+      <button id="recheck" class="secondary-button" type="button">Scan again <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-6h6"/></svg></button>
     </section>
-
-    <section class="notes-section" id="notesSection" hidden aria-labelledby="notesTitle"><div class="section-intro compact"><div><div class="section-label"><span class="label-line"></span> ADDITIONAL OBSERVATIONS</div><h2 id="notesTitle">Worth a closer look<span>.</span></h2><p>Useful context, without exaggerating these suggestions into urgent problems.</p></div></div><div class="notes-list" id="notesList"></div></section>
-
-    <section class="plan-section" id="actionPlan" aria-labelledby="planTitle"><div class="section-intro compact"><div><div class="section-label"><span class="label-line"></span> YOUR ACTION PLAN</div><h2 id="planTitle">Know exactly what to do<span>.</span></h2><p>Tick a task when you've completed it. A tick is your own progress, not a verified re-audit.</p></div><span class="plan-progress" id="planProgress">0 of 0 done</span></div><div class="plan-track" aria-hidden="true"><div id="planTrackFill"></div></div><div id="planList" class="plan-list"></div><div id="planEmpty" class="plan-empty" hidden>No urgent fixes were generated from this scan. Check the observations and coverage before making changes.</div></section>
-
-    <section class="coverage-section" id="coverage" aria-labelledby="coverageTitle"><div class="section-intro compact"><div><div class="section-label"><span class="label-line"></span> INSPECTION COVERAGE</div><h2 id="coverageTitle">What we actually checked<span>.</span></h2><p>Passed means the specific source-level requirement was met. It doesn't certify the entire product.</p></div></div><div class="coverage-body"><div class="coverage-summary"><div class="coverage-summary-number"><strong id="passedCount">0</strong><span>Verified passes</span></div><p id="coverageScope">Inspection scope</p></div><div class="coverage-list" id="coverageList"></div></div></section>
-
-    <section class="report-end" aria-labelledby="endTitle"><div><div class="section-label"><span class="label-line"></span> TAKE IT WITH YOU</div><h2 id="endTitle">A clearer path forward<span>.</span></h2><p>Keep your full findings, or run another inspection after your changes.</p></div><div class="end-actions"><button id="savePdf" class="primary-button" type="button">Save full report as PDF <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button><button id="recheck" class="secondary-button" type="button">Run a new audit <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-6h6"/></svg></button></div></section>
-    <div id="printAllFindings" class="print-only" aria-label="Full issue details for printing"></div>
-    <footer class="report-footer"><span>© <span id="year">2026</span> VYLENS</span><nav aria-label="Legal and support"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./refunds.html">Refunds</a><a href="./contact.html">Contact</a></nav><a href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a></footer>
+    <div id="printAppendix" class="print-only" aria-label="Full finding details for export"></div>
+    <footer class="report-footer"><span>© <span id="year">2026</span> VYLENS</span><nav aria-label="Legal and support"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./contact.html">Contact</a></nav><a href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a></footer>
   </main>
-  <main id="missingReport" class="missing-screen" hidden><div class="missing-icon">V</div><h1>No report yet.</h1><p>Start an audit first. Your report stays in this browser session.</p><a href="./index.html">Start a free audit ↗</a></main>
+  <main id="missingReport" class="missing-screen" hidden><div class="missing-icon">V</div><h1>No report yet.</h1><p>Run an audit to see your findings here.</p><a href="./index.html">Start an audit ↗</a></main>
 </body>
 </html>
