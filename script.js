@@ -7,7 +7,7 @@
   const auditData = {
     website: {
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
-      description: "See what's stopping visitors from becoming customers. See what our source checks can actually verify.",
+      description: "Check real page-source problems before they reach your visitors. See the exact evidence and fixes.",
       cta: 'Find My Conversion Leaks',
       mobileTitle: 'Example CTA blends in',
       mobileDescription: 'The sample button needs more contrast.',
@@ -20,7 +20,7 @@
     },
     product: {
       title: 'Looks good.<br>But not <span class="swoosh-underline" id="heroEmphasis">selling?</span>',
-      description: "Your product might be better than its presentation. Inspect the file for structural and delivery issues supported by its contents.",
+      description: "Inspect your product file for real delivery, accessibility and content-structure issues. Add your sales page for extra context.",
       cta: 'Find My Sales Blockers',
       mobileTitle: 'The buyer outcome is unclear',
       mobileDescription: 'The benefit is too broad to feel convincing.',
@@ -229,16 +229,42 @@
       }
       input.removeAttribute('aria-invalid');
       $('#websiteError').hidden = true;
-    } else if (!selectedFile) {
-      uploadZone.setAttribute('aria-invalid','true');
-      $('#productError').textContent = 'Choose a supported product file to continue.';
-      $('#productError').hidden = false;
-      uploadZone.focus();
-      return;
+    } else {
+      if (!selectedFile) {
+        uploadZone.setAttribute('aria-invalid','true');
+        $('#productError').textContent = 'Choose a supported product file to continue.';
+        $('#productError').hidden = false;
+        uploadZone.focus();
+        return;
+      }
+      const salesField=$('#salesPageUrl');
+      const sales=salesField.value.trim();
+      if (sales) {
+        let normalized=sales;
+        try {
+          if (!/^https?:\/\//i.test(normalized))normalized='https://'+normalized;
+          const target=new URL(normalized);
+          if (!['https:','http:'].includes(target.protocol)||target.username||target.password||
+              !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(target.hostname) || target.port || /\s/.test(sales))
+            throw new Error('invalid');
+          salesField.value=normalized;
+        } catch {
+          $('#optionalFields').hidden=false;
+          $('#optionalToggle').setAttribute('aria-expanded','true');
+          $('#productError').textContent='Enter a public sales page URL or leave the optional field blank.';
+          $('#productError').hidden=false;
+          salesField.setAttribute('aria-invalid','true');
+          salesField.focus();
+          return;
+        }
+      }
+      salesField.removeAttribute('aria-invalid');
+      $('#productError').hidden=true;
     }
     beginInspection();
   });
   $('#websiteUrl').addEventListener('input', () => {$('#websiteError').hidden = true;$('#websiteUrl').removeAttribute('aria-invalid');});
+  $('#salesPageUrl').addEventListener('input', () => {$('#productError').hidden=true;$('#salesPageUrl').removeAttribute('aria-invalid');});
 
   // Sample report interactions
   $$('.mini-finding, .finding-card').forEach(button => button.addEventListener('click', () => openReport(Number(button.dataset.issueIndex))));

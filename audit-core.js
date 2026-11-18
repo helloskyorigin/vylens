@@ -1,124 +1,248 @@
-/* Local product file inspection utilities. File bytes never leave this browser. */
+/* VYLENS local digital product inspection v2. Original file bytes never leave this tab. */
 (() => {
   'use strict';
-  const MAX_FILE = 15 * 1024 * 1024;
-  async function takeFile(){
+  const MAX_FILE=15*1024*1024;
+  const MAX_TEXT=400_000;
+  const progress=(heading,description)=>window.VylensCore?.onProgress?.(heading,description);
+  async function takeFile() {
     return new Promise((resolve,reject)=>{
-      if(!('indexedDB' in window)){reject(new Error('Your browser cannot access the selected file. Please choose a newer browser.'));return}
+      if (!('indexedDB' in window))return reject(new Error('This browser cannot access temporary file storage.'));
       const request=indexedDB.open('vylens-transient',1);
-      request.onupgradeneeded=()=>request.result.createObjectStore('transfer');
-      request.onerror=()=>reject(new Error('The browser could not open temporary file storage.'));
+      request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('transfer'))request.result.createObjectStore('transfer')};
+      request.onerror=()=>reject(new Error('Could not open temporary file storage.'));
       request.onsuccess=()=>{
-        const db=request.result;const transaction=db.transaction('transfer','readwrite');const store=transaction.objectStore('transfer');const get=store.get('product');
+        const db=request.result,tx=db.transaction('transfer','readwrite'),store=tx.objectStore('transfer'),get=store.get('product');
         get.onsuccess=()=>{const item=get.result;store.delete('product');resolve(item)};
-        get.onerror=()=>reject(new Error('The selected file could not be read.'));
-        transaction.oncomplete=()=>db.close();
-        transaction.onerror=()=>reject(new Error('Temporary file retrieval failed.'));
+        get.onerror=()=>reject(new Error('The selected file is no longer accessible.'));
+        tx.oncomplete=()=>db.close();tx.onerror=()=>reject(new Error('Could not recover the selected file.'));
       };
     });
   }
-  function addIssue(issues,category,severity,title,evidence,fix){issues.push({id:issues.length+1,category,severity,title,evidence,fix})}
-  function sourceTextReview(text,kind,filename,extra={}){
-    const issues=[];const normalized=text.replace(/\s+/g,' ').trim();const words=normalized?normalized.split(/\s+/).length:0;
-    const headings=kind==='markdown'? (text.match(/^#{1,4}\s+\S/gm)||[]).length : (text.match(/^[^\n]{3,70}\n(?:[-=]{3,})/gm)||[]).length;
-    if(words===0)addIssue(issues,'Readability','high','Readable text not found',`No readable text was extracted from ${filename}. This could be a scanned or image-only document.`, 'Add a searchable text layer, or share pages that can be inspected visually.');
-    else if(words<120)addIssue(issues,'Content depth','medium','Very little readable content',`Only ${words} words were available in this first-look extract. Whether that is enough depends on the intended format.`, 'Check that the file includes everything promised in your product description.');
-    if(words>700 && headings===0 && kind!=='pdf')addIssue(issues,'Content structure','medium','Long text without clear section markers',`Around ${words.toLocaleString()} words were found, but this ${kind.toUpperCase()} file has no recognized heading markers.`, 'Use clear section headings, shorter paragraphs and navigational structure to improve scanning.');
-    if(kind==='markdown' && text.includes('TODO'))addIssue(issues,'Completeness','low','Unfinished placeholder text found','The text contains “TODO”, which could be an internal note not meant for buyers.', 'Review internal notes and placeholders before publishing.');
-    if(kind!=='pdf' && words>1000 && !/copyright|license|terms of use|usage rights|personal use/i.test(text))addIssue(issues,'Distribution details','low','Usage rights not immediately detectable','This content extract does not mention a license or permitted usage. That may be intentional, depending on how you sell the product.','If buyers need usage or redistribution rights, explain those terms clearly at purchase or in the file.');
-    return {issues,words,headings};
+  function issue(issues,category,severity,title,evidence,fix,location='',verify=''){
+    issues.push({category,severity,title,evidence:String(evidence||'').slice(0,650),fix,location,verify});
   }
-  async function pdfReview(file,issues){
-    window.VylensCore.onProgress?.('Reading document pages…', 'Extracting text from your PDF locally.');
-    let library;
-    try{library=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs')}
-    catch{throw new Error('PDF text reader could not load. Please check your internet connection and retry; your file has not been uploaded.')}
-    library.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
-    let doc;
-    try{doc=await library.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise}
-    catch{throw new Error('This PDF could not be opened. If it is password protected, unlock it before inspecting.')}
-    const pages=doc.numPages;let text='';let sampled=0;
-    const limit=Math.min(pages,12);
-    for(let i=1;i<=limit;i++){
-      const page=await doc.getPage(i);const content=await page.getTextContent();text+='\n'+content.items.map(x=>x.str||'').join(' ');sampled++;
+  function check(checks,name,status,detail){checks.push({name,status,detail:String(detail||'').slice(0,480)});}
+  function wordCount(text){return (String(text).trim().match(/\S+/g)||[]).length}
+  function inspectText(text,kind,filename,{pageMap=[]}={}){
+    const issues=[],checks=[];
+    const words=wordCount(text),lines=text.split(/\r?\n/);
+    const headingLines=kind==='markdown'?lines.filter(x=>/^#{1,6}\s+\S/.test(x)):
+      kind==='text'?lines.filter((x,i)=>i+1<lines.length&&x.trim().length>=3&&x.trim().length<=90&&/^[-=]{3,}$/.test(lines[i+1].trim())):[];
+    const placeholders=[...text.matchAll(/\b(?:TODO|TBD|FIXME|lorem ipsum|insert (?:text|content|image|here)|your (?:company|name|brand) here|placeholder)\b/gi)]
+      .slice(0,15).map(x=>x[0]);
+    check(checks,'Readable content extracted',words?'passed':'attention',`${words.toLocaleString()} whitespace-separated words extracted.`);
+    if(!words)issue(issues,'Readability','high','No searchable text was extracted',
+      `The inspected ${filename} has no extractable text. This may be intentional for visual assets or a scanned document.`,
+      'If buyers need to search or copy instructions, provide a selectable text layer or accessible text version.','File content','Open the file and try selecting or searching a sentence.');
+    else if(words<90)issue(issues,'Content coverage','note','Very little readable text was found',
+      `${words} words were extracted. This may be fine for a visual template, but check the promised deliverables.`,
+      'Compare the actual content to your sales-page promises; add missing instructions if necessary.','File content','Open the purchased deliverable and compare it against the offer.');
+    check(checks,'Placeholder markers',placeholders.length===0?'passed':'attention',placeholders.length?
+      `${placeholders.length} marker(s) found, including “${placeholders.slice(0,4).join(', ')}”.`:'No common unfinished-draft markers found in readable text.');
+    if(placeholders.length)issue(issues,'Completeness','note','Possible template or draft placeholders detected',
+      `Detected ${placeholders.length} occurrences of common draft markers, e.g. “${placeholders.slice(0,5).join(', ')}”.`,
+      'Review these passages before selling the file. Intentional template placeholders can remain if clearly explained.','Extracted text','Search the file for the listed words and verify each occurrence.');
+    if(kind==='markdown'||kind==='text'){
+      check(checks,'Section heading markers',headingLines.length?'passed':'observed',`${headingLines.length} recognized heading marker(s).`);
+      if(words>900 && !headingLines.length)issue(issues,'Navigation','note','Long text has no recognized section headings',
+        `${words.toLocaleString()} words were found without a supported heading marker.`,
+        'Consider short section headings to make long guides easier to navigate.','Text structure','Check how quickly readers can locate each section.');
+      if(kind==='markdown'){
+        const malformed=lines.filter(line=>/!?(?:\[[^\]]+\]\(\s*\)|\[[^\]]*\]\(\s*#\s*\))/.test(line));
+        check(checks,'Markdown link destinations',malformed.length?'attention':'passed',malformed.length?
+          `${malformed.length} link(s) have empty/placeholder destinations.`:'No empty Markdown link destinations detected.');
+        if(malformed.length)issue(issues,'Navigation','high','Markdown links contain empty destinations',
+          `${malformed.length} text line(s) include a blank link target.`,
+          'Replace placeholder links with working URLs or remove them.','Markdown links','Open the rendered Markdown and click each marked link.');
+      }
     }
-    const review=sourceTextReview(text,'pdf',file.name);
-    issues.push(...review.issues);
-    if(pages>12)addIssue(issues,'Review coverage','low','Only the first 12 pages were sampled',`This PDF contains ${pages} pages. Initial text extraction covered the first 12, not the entire document.`, 'Check the remaining pages before making publishing decisions.');
-    return {pages,sampled,words:review.words,text};
+    if(pageMap.length>2){
+      const empty=pageMap.filter(p=>p.words===0).map(p=>p.page);
+      check(checks,'Text available on document pages',empty.length?'attention':'passed',empty.length?
+        `${empty.length} of ${pageMap.length} inspected pages have no extractable words.`:'All inspected pages have at least some extractable text.');
+      if(empty.length>=Math.max(3,Math.ceil(pageMap.length*.6)))issue(issues,'Accessibility','note','Many pages have no extractable text',
+        `${empty.length}/${pageMap.length} inspected pages have no text layer (e.g. pages ${empty.slice(0,8).join(', ')}). Visual-only content is not necessarily defective.`,
+        'If the PDF is intended to be read, provide searchable text or an accessible alternative.','PDF page text','Open the listed pages and try text selection.');
+      const hashes=new Map();for(const p of pageMap){if(p.words<40)continue;const key=p.text.replace(/\s+/g,' ').slice(0,220); hashes.set(key,[...(hashes.get(key)||[]),p.page])}
+      const duplicates=[...hashes.values()].filter(pages=>pages.length>=2);
+      if(duplicates.length)issue(issues,'Content review','note','Similar page text detected',
+        `Several pages share similar opening content, such as pages ${duplicates[0].slice(0,6).join(', ')}. This may be expected with repeated layouts.`,
+        'Verify that repeated pages are intentional, not accidental duplicates.','PDF pages','Compare the referenced pages side by side.');
+    }
+    return {issues,checks,words,headings:headingLines.length};
   }
-  function parseZipNames(bytes){
-    const d=new DataView(bytes);let eocd=-1;
-    for(let i=bytes.byteLength-22;i>=Math.max(0,bytes.byteLength-65557);i--){if(d.getUint32(i,true)===0x06054b50){eocd=i;break}}
-    if(eocd<0)throw new Error('This ZIP archive has no readable central directory.');
-    const n=d.getUint16(eocd+10,true);const offset=d.getUint32(eocd+16,true);
-    if(n>2000||offset>bytes.byteLength)throw new Error('This ZIP archive is too complex for a quick file-list check.');
-    let ptr=offset;const names=[];
-    for(let i=0;i<n;i++){
-      if(ptr+46>bytes.byteLength||d.getUint32(ptr,true)!==0x02014b50)break;
-      const size=d.getUint16(ptr+28,true),ext=d.getUint16(ptr+30,true),com=d.getUint16(ptr+32,true);
-      if(ptr+46+size>bytes.byteLength)break;
-      names.push(new TextDecoder().decode(new Uint8Array(bytes,ptr+46,size)).slice(0,220));
-      ptr+=46+size+ext+com;
-    }
-    if(!names.length)throw new Error('Could not read files inside this ZIP.');
-    return names;
+  async function loadPDFReader(){
+    const urls=['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs',
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs'];
+    for(const url of urls){try{const pdf=await import(/* webpackIgnore: true */ url);
+      pdf.GlobalWorkerOptions.workerSrc=url.replace('pdf.min.mjs','pdf.worker.min.mjs');return pdf;}catch{}}
+    throw new Error('Could not load the PDF reader. Check your connection and retry; your file was not uploaded.');
   }
-  async function productReview(file,payload){
-    if(!file || !file.name || file.size<=0 || file.size>MAX_FILE)throw new Error('The selected file is missing or outside the supported 15 MB limit.');
-    const name=file.name,ext=(name.match(/\.([a-z0-9]+)$/i)?.[1]||'').toLowerCase();
-    if(!['pdf','txt','md','zip','png','jpg','jpeg','webp'].includes(ext))throw new Error('This file type is not supported in the first-look inspection.');
-    const checked=[],issues=[];let pageTitle=name;let summary='This is a local file check, not an AI visual design review.';
-    let coverageLabel='File basics';let meta=`${(file.size/1024/1024).toFixed(2)} MB · local file`;
-    if(['txt','md'].includes(ext)){
-      const text=await file.text();const rev=sourceTextReview(text,ext==='md'?'markdown':'text',name);
-      issues.push(...rev.issues);checked.push('Readable content','Word count','Section markers','Common placeholders');
-      pageTitle=name;summary=`${rev.words.toLocaleString()} readable words found. Use these findings as an initial structural review.`;
-      coverageLabel='Text content';meta=`${rev.words.toLocaleString()} words · text only`;
-    }else if(ext==='pdf'){
-      const rev=await pdfReview(file,issues);checked.push('PDF access','Readable text in sampled pages','Page count','Basic content completeness');
-      summary=`${rev.pages} document page${rev.pages===1?'':'s'}; first ${rev.sampled} page${rev.sampled===1?'':'s'} checked for text.`;
-      coverageLabel='PDF text extract';meta=`${rev.pages} pages · ${rev.words.toLocaleString()} extracted words`;
-    }else if(ext==='zip'){
-      const bytes=await file.arrayBuffer();const names=parseZipNames(bytes);const files=names.filter(x=>!x.endsWith('/'));
-      const hasGuide=names.some(x=>/(^|\/)(readme|start[-_ ]?here|instructions|how[-_ ]?to)\b/i.test(x));
-      if(!hasGuide && files.length>2)addIssue(issues,'Onboarding','medium','No getting-started file detected',`Found ${files.length} files, but no filename resembling README, START HERE or instructions.`, 'Include short usage instructions so buyers can confidently open and use the bundle.');
-      if(files.length===0)addIssue(issues,'Completeness','critical','Archive contains no regular files','The archive listing appears to contain only folders.','Include the actual product deliverables before publishing.');
-      if(files.length>30 && !names.some(x=>x.includes('/')))addIssue(issues,'File organization','low','Many files are stored at the archive root',`There are ${files.length} regular files and no visible folder hierarchy.`, 'Group related assets into clearly named folders when helpful.');
-      checked.push('Archive file list','Basic organization','Getting-started file presence');
-      summary=`${files.length} file${files.length===1?'':'s'} found. File contents were not opened or evaluated.`;
-      coverageLabel='ZIP file list';meta=`${files.length} files · archive structure`;
-    }else{
-      let bitmap;
-      try{bitmap=await createImageBitmap(file)}catch{throw new Error('The image could not be decoded by this browser.')}
-      const w=bitmap.width,h=bitmap.height;bitmap.close();
-      if(w<650||h<450)addIssue(issues,'Presentation','medium','Image resolution may limit reuse',`The image is ${w} × ${h} pixels. It may look soft in larger marketing layouts.`, 'Keep a higher-resolution master if this image is meant for large previews or print.');
-      if(file.size>5*1024*1024)addIssue(issues,'Delivery','low','Large single-image file',`This image is ${(file.size/1024/1024).toFixed(1)} MB. Large files can slow previews and downloads.`, 'Test an optimized export while keeping the source-quality original.');
-      checked.push('Readable image','Pixel dimensions','File size');
-      summary=`Image dimensions: ${w} × ${h}. The image itself has not been visually judged or understood by AI.`;
-      coverageLabel='Image metadata';meta=`${w} × ${h} px · local image`;
+  async function pdfReview(file){
+    progress('Reading your PDF…','Inspecting document pages on your device.');
+    const reader=await loadPDFReader();
+    let doc;try{doc=await reader.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise}
+    catch{throw new Error('This PDF could not be opened. If it requires a password, unlock it first.');}
+    const total=doc.numPages;
+    // Bound CPU and memory; sample the beginning and end for very long documents.
+    const pages=total<=120?Array.from({length:total},(_,i)=>i+1):
+      [...Array.from({length:110},(_,i)=>i+1),...Array.from({length:10},(_,i)=>total-9+i)];
+    const extracted=[];let stored=0;
+    for(let i=0;i<pages.length;i++){
+      const page=await doc.getPage(pages[i]); const content=await page.getTextContent();
+      const raw=content.items.map(x=>x.str||'').join(' ').trim();
+      const capped=raw.slice(0,Math.max(0,MAX_TEXT-stored));stored+=capped.length;
+      extracted.push({page:pages[i],words:wordCount(raw),text:capped});
+      page.cleanup();
+      if(i%12===0)progress('Checking document content…',`Reading page ${pages[i]} of ${total}.`);
     }
-    if(payload.price && !/^\s*[\$€£₹]?\s*\d+(?:[.,]\d{1,2})?\s*$/.test(payload.price)){
-      addIssue(issues,'Offer context','low','Price context needs clarification',`The price field contains “${payload.price.slice(0,30)}”, which was not recognized as a simple amount.`, 'State the price and currency clearly on your sales page.');
-    }
-    const order={critical:0,high:1,medium:2,low:3};issues.sort((a,b)=>order[a.severity]-order[b.severity]);issues.forEach((v,i)=>v.id=i+1);
-    // Only label checks as passed when the inspected bytes establish a narrow fact.
-    const checks = checked.map(name=>({name,status:'observed',detail:'This source property was examined; it is not a complete quality certification.'}));
-    if(['txt','md'].includes(ext)){
-      checks.unshift({name:'Local file access',status:'passed',detail:'The submitted text file was readable.'});
-      if(!issues.some(x=>x.title==='Readable text not found'))checks.push({name:'Readable text present',status:'passed',detail:'Text content could be extracted.'});
-    }else if(ext==='pdf'){
-      checks.unshift({name:'PDF opens',status:'passed',detail:'The PDF was opened and its page count read locally.'});
-      if(!issues.some(x=>x.title==='Readable text not found'))checks.push({name:'Readable PDF text present',status:'passed',detail:'Text was extracted from the pages sampled.'});
-    }else if(ext==='zip'){
-      checks.unshift({name:'ZIP directory readable',status:'passed',detail:'The archive central directory could be parsed.'});
-      if(!issues.some(x=>x.title==='Archive contains no regular files'))checks.push({name:'Regular files present',status:'passed',detail:'At least one regular file was found in the archive listing.'});
-    }else{
-      checks.unshift({name:'Image decodes',status:'passed',detail:'The browser successfully decoded the image file.'});
-      checks.push({name:'Image dimensions available',status:'passed',detail:'Pixel dimensions were read without interpreting the image.'});
-    }
-    return {mode:'product',subject:name,pageTitle,summary,meta,coverageLabel,checked,checks,checksRun:checks.length,checkedAt:new Date().toISOString(),issues,totalDetected:issues.length,scope:'Local first-look file inspection only. Visual design, buyer intent, sales performance and claims about why a product is not selling cannot be established from metadata or text alone. Your file is not uploaded.',passed:issues.length===0};
+    const all=extracted.map(p=>p.text).join('\n'),review=inspectText(all,'pdf',file.name,{pageMap:extracted});
+    const issues=review.issues,checks=review.checks;
+    for(const item of issues)if(item.title==='No searchable text was extracted')item.severity='note';
+    check(checks,'PDF opens and has pages','passed',`${total} page(s) opened successfully.`);
+    check(checks,'Page review coverage',pages.length===total?'passed':'observed',
+      pages.length===total?`All ${total} pages were read for text content.`:
+      `${pages.length}/${total} pages sampled: first 110 and final 10; remaining pages not assessed.`);
+    if(pages.length!==total)issue(issues,'Coverage','note','Large PDF reviewed by sampling',
+      `Read ${pages.length}/${total} pages rather than the entire PDF.`,
+      'Review any untouched pages before drawing conclusions about the complete product.','PDF coverage','Reinspect the remaining pages manually.');
+    if(stored>=MAX_TEXT)issue(issues,'Coverage','note','Text evidence was truncated',
+      'Extracted text exceeded the local review limit; word counts and draft-marker checks may omit later content.',
+      'Review long sections beyond the extracted text limit.','PDF text','Review later PDF pages directly.');
+    let outline=[];try{outline=(await doc.getOutline())||[]}catch{}
+    check(checks,'PDF navigation outline',outline.length?'passed':'observed',outline.length?
+      `${outline.length} top-level bookmark(s) are present.`:'No navigation outline found; this may be fine for short or visual PDFs.');
+    if(total>25&&!outline.length)issue(issues,'Usability','note','Long PDF has no bookmark outline',
+      `${total} pages were found with no top-level bookmark outline.`,
+      'Consider PDF bookmarks or a linked table of contents to help readers navigate long guides.','PDF navigation','Open the bookmark sidebar and verify navigation.');
+    const words=extracted.reduce((n,p)=>n+p.words,0);
+    await doc.destroy();
+    return {issues,checks,summary:`${total} PDF pages. Extracted text from ${pages.length} page(s), with ${words.toLocaleString()} words.`,
+      meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation'};
   }
-
-  window.VylensCore = { takeFile, productReview, onProgress: null };
+  function parseZip(bytes){
+    const d=new DataView(bytes),u=new Uint8Array(bytes),start=Math.max(0,bytes.byteLength-65557);
+    let eocd=-1;
+    for(let i=bytes.byteLength-22;i>=start;i--){if(d.getUint32(i,true)===0x06054b50){eocd=i;break}}
+    if(eocd<0)throw new Error('This ZIP has no readable central directory.');
+    const count=d.getUint16(eocd+10,true),size=d.getUint32(eocd+12,true),offset=d.getUint32(eocd+16,true);
+    if(count>2000||offset+size>bytes.byteLength)throw new Error('This ZIP is too complex or has an invalid file list.');
+    const entries=[];let pos=offset;
+    for(let i=0;i<count;i++){
+      if(pos+46>bytes.byteLength||d.getUint32(pos,true)!==0x02014b50)throw new Error('The ZIP file list is damaged.');
+      const flags=d.getUint16(pos+8,true),method=d.getUint16(pos+10,true),comp=d.getUint32(pos+20,true),raw=d.getUint32(pos+24,true),nameLength=d.getUint16(pos+28,true),extra=d.getUint16(pos+30,true),comment=d.getUint16(pos+32,true),local=d.getUint32(pos+42,true);
+      if(pos+46+nameLength+extra+comment>bytes.byteLength)throw new Error('ZIP entries are truncated.');
+      const name=new TextDecoder('utf-8',{fatal:false}).decode(u.subarray(pos+46,pos+46+nameLength)).slice(0,300);
+      entries.push({name,flags,method,compressed:comp,uncompressed:raw,local});
+      pos+=46+nameLength+extra+comment;
+    }
+    return entries;
+  }
+  async function getZipText(buffer,entry){
+    if(entry.compressed>250_000||entry.uncompressed>450_000 || entry.flags&1)return null;
+    const data=new DataView(buffer),u=new Uint8Array(buffer),pos=entry.local;
+    if(pos+30>buffer.byteLength||data.getUint32(pos,true)!==0x04034b50)return null;
+    const start=pos+30+data.getUint16(pos+26,true)+data.getUint16(pos+28,true);
+    if(start+entry.compressed>buffer.byteLength)return null;
+    const compressed=u.subarray(start,start+entry.compressed);
+    if(entry.method===0)return new TextDecoder().decode(compressed.subarray(0,250_000));
+    if(entry.method!==8||!('DecompressionStream' in window))return null;
+    try{
+      const stream=new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      const reader=stream.getReader();let total=0;const chunks=[];
+      while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>450_000){await reader.cancel();return null}chunks.push(value)}
+      const out=new Uint8Array(total);let p=0;for(const chunk of chunks){out.set(chunk,p);p+=chunk.byteLength}
+      return new TextDecoder().decode(out).slice(0,250_000);
+    }catch{return null}
+  }
+  async function zipReview(file){
+    progress('Inspecting product bundle…','Reading file names, sizes and usage instructions.');
+    const buffer=await file.arrayBuffer(),entries=parseZip(buffer),regular=entries.filter(e=>!e.name.endsWith('/'));
+    const issues=[],checks=[];
+    check(checks,'ZIP directory readable','passed',`${entries.length} entries enumerated.`);
+    check(checks,'Product files present',regular.length?'passed':'attention',`${regular.length} regular file(s) listed.`);
+    if(!regular.length)issue(issues,'Completeness','critical','ZIP contains no product files',
+      'The central directory contains folders but no actual deliverable files.',
+      'Include the downloadable product files before offering this ZIP to buyers.','Archive contents','Extract the ZIP and confirm at least one usable file exists.');
+    const total=regular.reduce((n,e)=>n+e.uncompressed,0),empty=regular.filter(e=>!e.uncompressed);
+    check(checks,'Nonempty files',regular.length>0&&empty.length<regular.length?'passed':'attention',`${empty.length} zero-byte file(s) of ${regular.length}.`);
+    if(empty.length===regular.length&&regular.length)issue(issues,'Completeness','critical','All packaged files are empty',
+      `${regular.length} files have zero bytes in the ZIP listing.`, 'Replace empty placeholders with the real deliverables.','ZIP content','Extract several files and confirm they open.');
+    else if(empty.length)issue(issues,'Completeness','note','Some ZIP entries are empty',
+      `${empty.length} zero-byte files, including ${empty.slice(0,4).map(x=>x.name).join(', ')}.`,
+      'Check that empty files are intentional and not missing deliverables.','ZIP file list','Open the named files.');
+    const encrypted=regular.filter(e=>e.flags&1),traversal=regular.filter(e=>e.name.startsWith('/')||e.name.split('/').includes('..'));
+    check(checks,'Archive entry paths',traversal.length?'attention':'passed',traversal.length?`${traversal.length} path(s) contain unsafe directory traversal.`:'No absolute or parent-traversal entry paths detected.');
+    if(traversal.length)issue(issues,'Delivery safety','high','Unsafe paths inside ZIP',
+      `${traversal.length} entry name(s) contain parent-directory segments or absolute paths.`,
+      'Repackage without ../ or absolute-path entries.','ZIP paths','Verify archive extraction stays in the chosen folder.');
+    check(checks,'Encrypted entries',!encrypted.length?'passed':'observed',`${encrypted.length} encrypted file(s).`);
+    if(encrypted.length)issue(issues,'Access','note','Some files need a password',
+      `${encrypted.length} entries are encrypted; their contents could not be reviewed.`,
+      'Make sure buyers receive the password and access instructions.','ZIP content','Verify the buyer can extract the product.');
+    const names=new Map();for(const e of regular){let key=e.name.toLowerCase();names.set(key,(names.get(key)||0)+1)}
+    const repeats=[...names].filter(([,v])=>v>1).map(([k])=>k);
+    check(checks,'Unique product filenames',!repeats.length?'passed':'attention',repeats.length?`Repeated paths: ${repeats.slice(0,4).join(', ')}.`:'No case-insensitive duplicate names found.');
+    if(repeats.length)issue(issues,'File delivery','high','Product files have duplicate paths',
+      `Duplicate (case-insensitive) ZIP names: ${repeats.slice(0,5).join(', ')}. Extraction may overwrite files.`,
+      'Rename collisions before publishing.','ZIP file list','Extract on Windows/macOS and check for missing files.');
+    const guide=regular.find(e=>/(^|\/)(readme|start[\s_-]?here|instructions|how[\s_-]?to|guide)\b/i.test(e.name)&&/\.(txt|md)$/i.test(e.name));
+    const readable=guide?await getZipText(buffer,guide):null;
+    check(checks,'Getting-started instructions',guide?'passed':'observed',guide?
+      `Guide filename found: ${guide.name}. ${readable===null?'Content not decoded.':'Text content sampled.'}`:'No README/START HERE/instructions filename detected.');
+    if(!guide&&regular.length>3)issue(issues,'Onboarding','note','Bundle has no recognizable getting-started file',
+      `${regular.length} deliverables were found without a recognizable README/START HERE file.`,
+      'Add clear usage and installation instructions where needed.','ZIP onboarding','Give the ZIP to a new user and ask them to locate instructions.');
+    if(readable!==null){const rev=inspectText(readable,'text',guide.name);for(const i of rev.issues){
+      if(i.severity==='high'&&i.title==='No searchable text was extracted')i.severity='note';
+      i.location=`Instructions → ${guide.name}`;
+      issues.push(i)
+    }
+      check(checks,'Instructions readability',rev.words>30?'passed':'observed',`${rev.words} readable words found in guide.`);
+    }
+    if(total>200*1024*1024)issue(issues,'Delivery','note','Bundle expands to a large download',
+      `${(total/1048576).toFixed(1)} MB uncompressed from a ${(file.size/1048576).toFixed(1)} MB ZIP.`,
+      'Mention the expanded size and test extraction on common devices.','ZIP download','Extract and inspect available storage requirements.');
+    return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${guide?' and reviewed the included guide':''}.`,
+      meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions'};
+  }
+  async function imageReview(file){
+    progress('Reading image properties…','Checking dimensions and file integrity locally.');
+    let bitmap;try{bitmap=await createImageBitmap(file)}catch{throw new Error('The image could not be decoded by this browser.');}
+    const w=bitmap.width,h=bitmap.height;bitmap.close();
+    const issues=[],checks=[];
+    check(checks,'Image decodes','passed',`Image opened successfully (${w} × ${h}).`);
+    check(checks,'Pixel dimensions available','passed',`${w} × ${h} pixels.`);
+    if(w<640||h<360)issue(issues,'Asset suitability','note','Image may be small for some uses',
+      `Image is ${w} × ${h} px; this is not necessarily an error for icons or thumbnails.`,
+      'Keep a higher-resolution export if you plan to use this asset in large layouts.','Image dimensions','Preview the image at intended display size.');
+    if(file.size>5*1024*1024)issue(issues,'Delivery','note','Large image file',
+      `${(file.size/1048576).toFixed(1)} MB in one image.`,
+      'Consider a smaller web export for previews while retaining the original.','Image size','Compare load time and quality at intended sizes.');
+    return {issues,checks,summary:`Decoded a ${w} × ${h} image. Visual content and design quality were not judged.`,meta:`${w} × ${h} px`,coverageLabel:'Image metadata'};
+  }
+  async function productReview(file,payload={}){
+    if(!file||!file.name||!file.size||file.size>MAX_FILE)throw new Error('Select a nonempty file no larger than 15 MB.');
+    const ext=file.name.split('.').pop().toLowerCase();
+    if(!['pdf','txt','md','zip','png','jpg','jpeg','webp'].includes(ext))throw new Error('Choose a supported PDF, TXT, Markdown, ZIP or image file.');
+    let result;
+    if(ext==='pdf')result=await pdfReview(file);
+    else if(ext==='zip')result=await zipReview(file);
+    else if(['txt','md'].includes(ext)){
+      progress('Reading your content…','Checking the real text and structure.');
+      const raw=await file.text(); const r=inspectText(raw,ext==='md'?'markdown':'text',file.name);
+      result={issues:r.issues,checks:r.checks,summary:`Read ${r.words.toLocaleString()} words in ${file.name}.`,
+        meta:`${r.words.toLocaleString()} words · ${ext.toUpperCase()}`,coverageLabel:'Readable text + structure'};
+    }else result=await imageReview(file);
+    const issues=result.issues,checks=result.checks;
+    check(checks,'Original file accessible','passed',`Read the selected ${ext.toUpperCase()} file locally (${(file.size/1048576).toFixed(2)} MB).`);
+    const rank={critical:0,high:1,note:2};issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
+    issues.forEach((item,i)=>item.id=i+1);
+    return {mode:'product',subject:file.name,pageTitle:file.name,summary:result.summary,
+      meta:result.meta+(payload.price?` · Listed price: ${String(payload.price).slice(0,30)}`:''),coverageLabel:result.coverageLabel,checkedAt:new Date().toISOString(),
+      checked:checks.map(x=>x.name),checks,checksRun:checks.length,issues,totalDetected:issues.length,
+      scope:'Local file inspection only; files are not uploaded to VYLENS. PDF text, file structure, ZIP metadata, instruction files and image properties are examined where supported. Visual layout, claim accuracy, buyer intent and sales conversion cannot be determined from these checks alone.',
+      engine:'vylens-file-v2',passed:issues.length===0};
+  }
+  window.VylensCore={takeFile,productReview,onProgress:null,_test:{inspectText,parseZip}};
 })();

@@ -81,20 +81,55 @@
         const url = payload.url;
         if (!url) throw new Error('No website URL was provided. Please start from the homepage.');
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 18000);
+        const timeout = setTimeout(() => controller.abort(), 28000);
         let response;
         try {response = await fetch('./api/inspect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});}
         finally {clearTimeout(timeout);}
         let data;
         try {data = await response.json();} catch {throw new Error('We received an unreadable response from the inspection service.');}
         if (!response.ok) throw new Error(data?.error || 'Unable to inspect this website right now.');
-        result={...data, summary:data.pageTitle?'Page title read from the initial HTML.':'No title was found in the initial HTML.',meta:'Public HTML · no visual rendering',coverageLabel:'Page source'};
+        result={...data,summary:data.summary||'Public source checks completed.',meta:data.meta||'Public HTML · no visual rendering',coverageLabel:data.coverageLabel||'Page source'};
       } else {
         if (!selectedFile) { const transfer = await window.VylensCore.takeFile(); selectedFile = transfer?.file || null; }
         const file = selectedFile;
         if (!file) throw new Error('The selected file is no longer available. Please select it again from the homepage.');
         window.VylensCore.onProgress = (headline,description) => { if(!isFinished)changeMessage(headline,description); };
         result=await window.VylensCore.productReview(file,payload);
+        // An optional sales URL is audited separately; the file itself is NEVER uploaded.
+        if (payload.salesPage && /^https?:\/\//i.test(payload.salesPage)) {
+          changeMessage('Checking your sales page…', 'Comparing the public offer page with your product file.');
+          const salesTimeout=new AbortController();
+          const salesTimer=setTimeout(()=>salesTimeout.abort(),18000);
+          try {
+            const response=await fetch('./api/inspect', {
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({url:payload.salesPage}),signal:salesTimeout.signal,cache:'no-store'
+            });
+            const scan=await response.json();
+            if (!response.ok) throw new Error(scan.error||'The sales page could not be checked.');
+            const url=new URL(scan.url).hostname;
+            result.issues.push(...scan.issues.map(item=>({
+              ...item,id:result.issues.length+item.id,
+              category:'Sales page · '+item.category,
+              location:`${url} · ${item.location||'public page source'}`
+            })));
+            result.checks.push(...scan.checks.map(item=>({...item,name:'Sales page · '+item.name})));
+            result.checked.push('Public sales page checks');
+            result.checksRun=result.checks.length;
+            result.scope+=' Optional sales page was also checked using public HTML source and selected same-origin links. No actual purchase was attempted or conversion analytics measured.';
+            result.salesPage=scan.url;
+            result.summary+=' Public sales-page source checks completed.';
+            result.issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-({critical:0,high:1,note:2}[b.severity]??2));
+            result.issues.forEach((item,index)=>item.id=index+1);
+            result.totalDetected=result.issues.length;
+            result.passed=result.issues.length===0;
+          } catch (error) {
+            result.checks.push({name:'Optional sales page fetch',status:'unverified',detail:
+              `Sales URL could not be inspected: ${String(error?.message||'request failed').slice(0,160)}. No conclusions about sales performance were made.`});
+            result.checksRun=result.checks.length;
+            result.scope+=' The optional sales page could not be verified.';
+          } finally {clearTimeout(salesTimer)}
+        }
       }
       const report = normalizeResults(result);
       stopWaitingMessages();
@@ -119,7 +154,7 @@
     }
     $('#analysisType').textContent = payload.mode==='website'?'WEBSITE AUDIT':'DIGITAL PRODUCT AUDIT';
     $('#analysisSubject').textContent = payload.mode==='website' ? (() => { try {return new URL(payload.url).hostname;}catch{return 'Your website';}})() : 'Your uploaded file';
-    $('#analysisScope').textContent = payload.mode==='website' ? 'Checking public HTML only. Visual design and conversion performance are not measured in this free pass.' : 'Your file is read locally; only the supported structural checks are performed.';
+    $('#analysisScope').textContent = payload.mode==='website' ? 'Reading public HTML and testing supported page checks. Visual design and conversion rates are not measured.' : 'Your file stays local. When provided, a public sales-page URL is checked separately.';
     if(payload.mode==='product') $('#subjectGlyph').innerHTML='<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v6h6M8 13h8m-8 4h6"/>';
     $('#analysisRetry').addEventListener('click',run);
     run();
