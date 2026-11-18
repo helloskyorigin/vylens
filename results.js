@@ -122,11 +122,9 @@
   }
   function printDetails(issues, impacts, areas, report) {
     const root = $('printAppendix');
-    root.append(by('h2', '', 'Potential impact'));
-    impacts.forEach(impact => root.append(by('p','print-line', impact.title + ' — ' + impact.description)));
-    if (areas.length) root.append(by('p','print-line', 'Affected areas: ' + areas.map(x => x.name + ' (' + x.count + ')').join(', ')));
-    root.append(by('h2','','Full findings'));
-    if (!issues.length) root.append(by('p','','No problems were detected in the checks completed.'));
+    // The impact and affected areas already appear on the printable page.
+    // Keep one complete list of findings rather than repeating each section.
+    if (issues.length) root.append(by('h2','','Full findings'));
     issues.forEach((issue, index) => {
       const item = by('section','print-finding');
       item.append(by('h3','', String(index + 1) + '. ' + clean(issue.title || 'Finding',160) + ' — ' + severity(issue).toUpperCase()));
@@ -175,8 +173,7 @@
         left.setAttribute('aria-hidden','true');
         const center = by('div','impact-copy');
         center.append(by('h3','',impact.title),by('p','',impact.description));
-        const countText = by('span','impact-count', impact.count + (impact.count===1?' finding':' findings'));
-        entry.append(left,center,countText);
+        entry.append(left,center);
         impactList.append(entry);
       });
       $('areasSection').hidden = false;
