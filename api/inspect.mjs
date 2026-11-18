@@ -47,11 +47,14 @@ function validateURL(input) {
   u.hash='';
   return u;
 }
-async function resolvePublic(host) {
-  const addresses=await dns.lookup(host,{all:true,verbatim:true});
+function choosePublicAddress(addresses) {
   if (!addresses.length || addresses.some(a=>!isPublicIP(a.address))) throw new Error('This address cannot be inspected safely.');
-  // Use a resolved address for the actual socket connection to prevent DNS rebinding.
-  return addresses[0];
+  // Some serverless networks cannot open outbound IPv6 sockets. Prefer a vetted
+  // IPv4 address when available while preserving DNS-pinned socket connections.
+  return addresses.find(a=>a.family===4) || addresses[0];
+}
+async function resolvePublic(host) {
+  return choosePublicAddress(await dns.lookup(host,{all:true,verbatim:true}));
 }
 async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxBytes=MAX_HTML,probe=false,expectedOrigin=null}={}) {
   if (redirects>3) throw new Error('The website redirected too many times.');
@@ -303,10 +306,21 @@ async function readSmallJSON(request){
 export async function POST(request){
   if(!/^application\/json\b/i.test(request.headers.get('content-type')||''))
     return reply({error:'Send application/json for website scans.'},415);
+  // Vercel's internal deployment hostname can differ from the public alias.
+  // Sec-Fetch-Site is browser-controlled and remains same-origin in that case.
   const origin=request.headers.get('origin');
   if(origin){
-    try{if(new URL(origin).origin!==new URL(request.url).origin)return reply({error:'Cross-origin scan requests are not supported.'},403);}
-    catch{return reply({error:'Invalid request origin.'},403);}
+    try{
+      const caller=new URL(origin);
+      const context=request.headers.get('sec-fetch-site');
+      const forwarded=(request.headers.get('x-forwarded-host')||request.headers.get('host')||'').split(',')[0].trim();
+      const functionOrigin=new URL(request.url).origin;
+      const forwardedOrigin=forwarded ? new URL(new URL(request.url).protocol+'//'+forwarded).origin : null;
+      if((caller.protocol!=='https:' && caller.protocol!=='http:') ||
+         context==='cross-site' ||
+         !(context==='same-origin' || caller.origin===functionOrigin || caller.origin===forwardedOrigin))
+        return reply({error:'Cross-origin scan requests are not supported.'},403);
+    }catch{return reply({error:'Invalid request origin.'},403);}
   }
   const key=(request.headers.get('x-forwarded-for')||'unidentified').split(',')[0].slice(0,100);
   if(!rateAllowed(key))return reply({error:'Too many scans. Try again in a minute.'},429);
@@ -322,4 +336,4 @@ export async function POST(request){
     return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.'},bad?400:422);
   }
 }
-export const _test={isPublicIP,validateURL,review,scan,decode,getAttr};
+export const _test={isPublicIP,choosePublicAddress,validateURL,review,scan,decode,getAttr};

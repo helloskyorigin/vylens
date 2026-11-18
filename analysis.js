@@ -83,11 +83,17 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 28000);
         let response;
-        try {response = await fetch('./api/inspect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});}
-        finally {clearTimeout(timeout);}
+        try {
+          response = await fetch('./api/inspect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});
+        } finally {clearTimeout(timeout);}
+        const type=response.headers.get('content-type')||'';
+        if (!type.includes('application/json')) {
+          if(response.status===404) throw new Error('The scanner service is not available on this deployment (HTTP 404).');
+          throw new Error(`Scanner service returned an unexpected response (HTTP ${response.status}).`);
+        }
         let data;
-        try {data = await response.json();} catch {throw new Error('We received an unreadable response from the inspection service.');}
-        if (!response.ok) throw new Error(data?.error || 'Unable to inspect this website right now.');
+        try {data = await response.json();} catch {throw new Error('The scanner service returned invalid JSON.');}
+        if (!response.ok) throw new Error(data?.error || `Scanner service returned HTTP ${response.status}.`);
         result={...data,summary:data.summary||'Public source checks completed.',meta:data.meta||'Public HTML · no visual rendering',coverageLabel:data.coverageLabel||'Page source'};
       } else {
         if (!selectedFile) { const transfer = await window.VylensCore.takeFile(); selectedFile = transfer?.file || null; }
