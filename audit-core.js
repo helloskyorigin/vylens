@@ -11,10 +11,25 @@
       request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('transfer'))request.result.createObjectStore('transfer')};
       request.onerror=()=>reject(new Error('Could not open temporary file storage.'));
       request.onsuccess=()=>{
-        const db=request.result,tx=db.transaction('transfer','readwrite'),store=tx.objectStore('transfer'),get=store.get('product');
-        get.onsuccess=()=>{const item=get.result;store.delete('product');resolve(item)};
-        get.onerror=()=>reject(new Error('The selected file is no longer accessible.'));
-        tx.oncomplete=()=>db.close();tx.onerror=()=>reject(new Error('Could not recover the selected file.'));
+        const db=request.result;
+        const tx=db.transaction('transfer','readwrite');
+        const store=tx.objectStore('transfer');
+        const get=store.get('product');
+        let result=null;
+        get.onsuccess=()=>{
+          result=get.result||null;
+          // Always remove temporary file bytes, even when the previous tab left stale data.
+          store.delete('product');
+        };
+        get.onerror=()=>tx.abort();
+        tx.oncomplete=()=>{
+          db.close();
+          if(result && (!Number.isFinite(result.addedAt)||Date.now()-result.addedAt>15*60_000))
+            reject(new Error('This file selection expired. Choose the file again to keep it private.'));
+          else resolve(result);
+        };
+        tx.onerror=()=>{db.close();reject(new Error('Could not recover the selected file.'))};
+        tx.onabort=()=>{db.close();reject(new Error('The temporary file handoff was interrupted.'))};
       };
     });
   }
@@ -120,12 +135,17 @@
     return {issues,checks,summary:`${total} PDF pages. Extracted text from ${pages.length} page(s), with ${words.toLocaleString()} words.`,
       meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation'};
   }
+  function unsafeZipPath(name){
+    const normalized=String(name).replace(/\\/g,'/');
+    return normalized.startsWith('/') || /^[a-z]:\//i.test(normalized) || normalized.split('/').includes('..') || normalized.includes('\0');
+  }
   function parseZip(bytes){
     const d=new DataView(bytes),u=new Uint8Array(bytes),start=Math.max(0,bytes.byteLength-65557);
     let eocd=-1;
     for(let i=bytes.byteLength-22;i>=start;i--){if(d.getUint32(i,true)===0x06054b50){eocd=i;break}}
     if(eocd<0)throw new Error('This ZIP has no readable central directory.');
     const count=d.getUint16(eocd+10,true),size=d.getUint32(eocd+12,true),offset=d.getUint32(eocd+16,true);
+    if(count===0xffff||size===0xffffffff||offset===0xffffffff)throw new Error('ZIP64 archives are not supported in this beta. Please provide a standard ZIP.');
     if(count>2000||offset+size>bytes.byteLength)throw new Error('This ZIP is too complex or has an invalid file list.');
     const entries=[];let pos=offset;
     for(let i=0;i<count;i++){
@@ -171,7 +191,7 @@
     else if(empty.length)issue(issues,'Completeness','note','Some ZIP entries are empty',
       `${empty.length} zero-byte files, including ${empty.slice(0,4).map(x=>x.name).join(', ')}.`,
       'Check that empty files are intentional and not missing deliverables.','ZIP file list','Open the named files.');
-    const encrypted=regular.filter(e=>e.flags&1),traversal=regular.filter(e=>e.name.startsWith('/')||e.name.split('/').includes('..'));
+    const encrypted=regular.filter(e=>e.flags&1),traversal=regular.filter(e=>unsafeZipPath(e.name));
     check(checks,'Archive entry paths',traversal.length?'attention':'passed',traversal.length?`${traversal.length} path(s) contain unsafe directory traversal.`:'No absolute or parent-traversal entry paths detected.');
     if(traversal.length)issue(issues,'Delivery safety','high','Unsafe paths inside ZIP',
       `${traversal.length} entry name(s) contain parent-directory segments or absolute paths.`,
@@ -180,7 +200,7 @@
     if(encrypted.length)issue(issues,'Access','note','Some files need a password',
       `${encrypted.length} entries are encrypted; their contents could not be reviewed.`,
       'Make sure buyers receive the password and access instructions.','ZIP content','Verify the buyer can extract the product.');
-    const names=new Map();for(const e of regular){let key=e.name.toLowerCase();names.set(key,(names.get(key)||0)+1)}
+    const names=new Map();for(const e of regular){let key=e.name.replace(/\\/g,'/').toLowerCase();names.set(key,(names.get(key)||0)+1)}
     const repeats=[...names].filter(([,v])=>v>1).map(([k])=>k);
     check(checks,'Unique product filenames',!repeats.length?'passed':'attention',repeats.length?`Repeated paths: ${repeats.slice(0,4).join(', ')}.`:'No case-insensitive duplicate names found.');
     if(repeats.length)issue(issues,'File delivery','high','Product files have duplicate paths',
@@ -188,7 +208,7 @@
       'Rename collisions before publishing.','ZIP file list','Extract on Windows/macOS and check for missing files.');
     const guide=regular.find(e=>/(^|\/)(readme|start[\s_-]?here|instructions|how[\s_-]?to|guide)\b/i.test(e.name)&&/\.(txt|md)$/i.test(e.name));
     const readable=guide?await getZipText(buffer,guide):null;
-    check(checks,'Getting-started instructions',guide?'passed':'observed',guide?
+    check(checks,'Getting-started instructions',guide?(readable===null?'unverified':'passed'):'observed',guide?
       `Guide filename found: ${guide.name}. ${readable===null?'Content not decoded.':'Text content sampled.'}`:'No README/START HERE/instructions filename detected.');
     if(!guide&&regular.length>3)issue(issues,'Onboarding','note','Bundle has no recognizable getting-started file',
       `${regular.length} deliverables were found without a recognizable README/START HERE file.`,
@@ -203,7 +223,7 @@
     if(total>200*1024*1024)issue(issues,'Delivery','note','Bundle expands to a large download',
       `${(total/1048576).toFixed(1)} MB uncompressed from a ${(file.size/1048576).toFixed(1)} MB ZIP.`,
       'Mention the expanded size and test extraction on common devices.','ZIP download','Extract and inspect available storage requirements.');
-    return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${guide?' and reviewed the included guide':''}.`,
+    return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${readable!==null?' and read the included guide':guide?' (guide content unavailable)':''}.`,
       meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions'};
   }
   async function imageReview(file){
@@ -242,7 +262,7 @@
       meta:result.meta+(payload.price?` · Listed price: ${String(payload.price).slice(0,30)}`:''),coverageLabel:result.coverageLabel,checkedAt:new Date().toISOString(),
       checked:checks.map(x=>x.name),checks,checksRun:checks.length,issues,totalDetected:issues.length,
       scope:'Local file inspection only; files are not uploaded to VYLENS. PDF text, file structure, ZIP metadata, instruction files and image properties are examined where supported. Visual layout, claim accuracy, buyer intent and sales conversion cannot be determined from these checks alone.',
-      engine:'vylens-file-v2',passed:issues.length===0};
+      engine:'vylens-file-v3',passed:issues.length===0&&!checks.some(c=>c.status==='unverified')};
   }
-  window.VylensCore={takeFile,productReview,onProgress:null,_test:{inspectText,parseZip}};
+  window.VylensCore={takeFile,productReview,onProgress:null,_test:{inspectText,parseZip,unsafeZipPath}};
 })();

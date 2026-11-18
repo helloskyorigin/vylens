@@ -73,6 +73,8 @@ async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxB
       if(status<200 || status>=300){res.resume();
         if(probe){resolve({url:url.toString(),status,headers:res.headers,html:''});return;}
         reject(new Error(`The website returned HTTP ${status}. Try another public URL.`));return;}
+      // Link probes only need the final status. Don't download or parse entire pages.
+      if(probe){res.destroy();resolve({url:url.toString(),status,headers:res.headers,html:''});return;}
       const type=String(res.headers['content-type']||'').toLowerCase();
       if(type && !/text\/html|application\/xhtml\+xml/.test(type)){res.resume();reject(new Error('The URL did not return an HTML webpage.'));return;}
       let size=0;const chunks=[];
@@ -105,7 +107,7 @@ function paired(html,tag){return [...html.matchAll(new RegExp('<'+tag+'\\b[^>]*>
 const squash=s=>String(s||'').replace(/\s+/g,' ').trim().slice(0,160);
 function review(html,pageUrl, response={}) {
   const url=new URL(pageUrl);
-  const initialHead=(html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)||[])[1]||html.slice(0,50000);
+  const initialHead=((html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)||[])[1]||html.slice(0,50000)).replace(/<!--[\s\S]*?-->/g,'');
   const stripped=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi,'')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi,'').replace(/<template\b[^>]*>[\s\S]*?<\/template\s*>/gi,'');
   const meta=tags(initialHead,'meta');
@@ -115,6 +117,7 @@ function review(html,pageUrl, response={}) {
   const desc=getAttr(metas('description'),'content');
   const viewport=getAttr(metas('viewport'),'content');
   const robots=getAttr(metas('robots'),'content').toLowerCase();
+  const robotsHeader=String(response.headers?.['x-robots-tag']||'').toLowerCase();
   const root=tags(stripped,'html')[0]||'';
   const headings=paired(stripped,'h1').map(x=>textOnly(x.inside)).filter(Boolean);
   const allHeadings=[...stripped.matchAll(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1\s*>/gi)]
@@ -160,6 +163,8 @@ function review(html,pageUrl, response={}) {
         internalLinks.push({url:target.toString(),label:getAttr(t,'aria-label')||anchors.find(a=>a.opening===t)?.inside||''});
     }catch{}
   }
+  const jsShell = !headings.length && /<script\b[^>]*(?:src\s*=|type\s*=\s*['"]module['"])/i.test(html) &&
+    /(?:id\s*=\s*['"](?:root|app|__next|__nuxt|svelte|app-root)['"]|data-reactroot|<noscript\b)/i.test(html);
   const issues=[],checks=[];
   function add(category,severity,title,evidence,fix,location='',verify=''){
     issues.push({category,severity,title,evidence:squash(evidence).slice(0,320),fix,location,verify});
@@ -175,8 +180,8 @@ function review(html,pageUrl, response={}) {
   else if(title.length<16||title.length>75)add('Discoverability','note','Page title length deserves review',`Title contains ${title.length} characters: “${squash(title)}”.`,'Use a concise, descriptive title; length alone is not an SEO score.','HTML → <title>','Review how the title appears in search previews.');
   check('Meta description',!!desc,desc?`Description present (${desc.length} characters).`:'No meta name="description" in source.');
   if(!desc)add('Discoverability','note','Meta description missing','No meta description found in the returned head.','Write a specific description of the actual offer.','HTML → <head>','Inspect the page source for name="description".');
-  check('Primary H1 heading',headings.length>0,`Found ${headings.length} non-empty H1 heading(s).`);
-  if(!headings.length)add('Page structure','high','No primary H1 heading in page source','No non-empty H1 element was found in the returned HTML.','Add a real H1 that describes the page purpose; for JS-rendered pages, verify the rendered DOM separately.','Page content','Open the rendered page and inspect the heading hierarchy.');
+  check('Primary H1 heading',headings.length>0,jsShell?'This page uses a JavaScript app shell. Rendered headings were not inspected.':`Found ${headings.length} non-empty H1 heading(s).`,{unverified:jsShell});
+  if(!headings.length)add('Page structure',jsShell?'note':'high','No primary H1 heading in page source','No non-empty H1 element was found in the returned HTML.','Add a real H1 that describes the page purpose; for JS-rendered pages, verify the rendered DOM separately.','Page content','Open the rendered page and inspect the heading hierarchy.');
   else if(headings.length>1)add('Page structure','note','Multiple H1 headings found',`Found ${headings.length} non-empty H1 elements. This may be intentional.`, 'Confirm the heading structure reads sensibly for assistive technology.','Page content','Inspect the rendered page headings in DOM order.');
   if(allHeadings.length>1){
     const skips=[]; for(let i=1;i<allHeadings.length;i++)if(allHeadings[i].level>allHeadings[i-1].level+1)skips.push(`${allHeadings[i-1].level} → ${allHeadings[i].level}`);
@@ -197,10 +202,14 @@ function review(html,pageUrl, response={}) {
   if(emptyLinks.length)add('Accessibility','note','Links with no readable label detected',`${emptyLinks.length} anchors have no text or detected accessible name.`, 'Ensure icon-only and image-only links have an accessible name.','HTML → Links','Inspect the affected links in the accessibility tree.');
   check('Unique element IDs',duplicateIDs.length===0,duplicateIDs.length?`Repeated IDs: ${duplicateIDs.map(([id,count])=>id+' ×'+count).join(', ')}.`:`${ids.size} unique IDs found.`);
   if(duplicateIDs.length)add('Document structure','high','Duplicate element IDs found',`IDs reused in the initial HTML: ${duplicateIDs.map(([id,count])=>id+' (${count})').join(', ')}.`, 'Give elements unique IDs; this prevents label/anchor conflicts.','HTML → id attributes','Search the DOM for each repeated ID and confirm only one occurrence.');
-  check('In-page anchor targets',brokenFragments.length===0,brokenFragments.length?`Links reference missing targets: ${brokenFragments.join(', ')}.`:'No missing fragment targets detected among same-page links.');
-  if(brokenFragments.length)add('Navigation','high','In-page links point to missing sections',`Targets not found in source: ${brokenFragments.map(s=>'#'+s).join(', ')}.`, 'Update fragment links or add matching IDs (confirm JS-rendered targets first).','Page navigation','Click each link on the rendered page and confirm it scrolls to the right section.');
-  const robotsBlocked=/\bnoindex\b/.test(robots);check('Indexability directive',!robotsBlocked,robots?`Meta robots: ${robots}.`:'No noindex directive detected in page metadata.');
-  if(robotsBlocked)add('Discoverability','high','Page explicitly requests noindex','Meta robots includes noindex. This can be intentional on staging or private pages.', 'If this is a public marketing page intended for search, remove noindex; otherwise keep it.','HTML → Meta robots','Inspect the live response headers and indexing settings.');
+  check('In-page anchor targets',brokenFragments.length===0,brokenFragments.length?`Links reference missing targets: ${brokenFragments.join(', ')}.`:'No missing fragment targets detected among same-page links.',{unverified:jsShell});
+  if(brokenFragments.length)add('Navigation',jsShell?'note':'high','In-page links point to missing sections',`Targets not found in source: ${brokenFragments.map(s=>'#'+s).join(', ')}.`, 'Update fragment links or add matching IDs (confirm JS-rendered targets first).','Page navigation','Click each link on the rendered page and confirm it scrolls to the right section.');
+  const robotsBlocked=/\bnoindex\b/.test(robots)||/\bnoindex\b/.test(robotsHeader);
+  check('Indexability directive',!robotsBlocked,[robots?`Meta robots: ${robots}.`:null,robotsHeader?`X-Robots-Tag: ${robotsHeader}.`:null].filter(Boolean).join(' ')||'No noindex directive found in the initial response.');
+  if(robotsBlocked)add('Discoverability','note','Page explicitly requests noindex',
+    `A noindex directive is present${robotsHeader?' in response headers':''}. This is often intentional for staging or private pages.`,
+    'If this is a public page intended for search, remove noindex; otherwise keep it.','Metadata / X-Robots-Tag',
+    'Confirm that search indexing is intended, then inspect both the rendered document and HTTP headers.');
   const canonical=tags(initialHead,'link').find(t=>getAttr(t,'rel').toLowerCase().split(/\s+/).includes('canonical'));
   check('Canonical URL',!!canonical,'Canonical link '+(canonical?`found: ${squash(getAttr(canonical,'href'))}.`:'not declared.'));
   if(!canonical)add('Discoverability','note','Canonical URL not declared','No rel="canonical" was found in initial HTML.','Consider a canonical URL for public pages with duplicates or query variants.','HTML → <head>','Review canonical settings in source.');
@@ -212,8 +221,13 @@ function review(html,pageUrl, response={}) {
   if(!icon)add('Branding','note','Favicon not declared','No <link rel="icon"> appeared in the initial head.','Declare a favicon to support recognition in tabs and bookmarks.','HTML → <head>','Open the page in a browser tab.');
   const insecureActions=forms.filter(f=>{try{return new URL(getAttr(f,'action')||pageUrl,pageUrl).protocol==='http:' && url.protocol==='https:'}catch{return false}});
   check('Secure form actions',insecureActions.length===0,forms.length?`${insecureActions.length} of ${forms.length} form actions point from HTTPS to HTTP.`:'No forms in source.',{unverified:!forms.length});
-  if(insecureActions.length)add('Security','critical','Form submits to insecure HTTP endpoint',`${insecureActions.length} form(s) on an HTTPS page declare an HTTP submission action.`, 'Use a secure HTTPS form action and verify the full submission flow.','HTML → Form action','Inspect the form destination and confirm encryption on submission.');
-  const jsShell = html.length<16000 && !headings.length && /<script\b[^>]*src\s*=/i.test(html);
+  if(insecureActions.length){
+    const insecurePost=insecureActions.filter(f=>(getAttr(f,'method')||'get').toLowerCase()==='post');
+    add('Security',insecurePost.length?'high':'note','Form uses an insecure HTTP destination',
+      `${insecureActions.length} form(s) declare an HTTP destination on an HTTPS page (${insecurePost.length} POST). This is a source-level risk, not proof that data was submitted.`,
+      'Use HTTPS form destinations, especially when collecting user data; verify the rendered form and server endpoint.',
+      'HTML → Form action','Confirm the actual form method and destination in DevTools; test only your own forms.');
+  }
   if(jsShell){ // No false strong claims about client-rendered sites.
     for(const issue of issues){if(['No primary H1 heading in page source','In-page links point to missing sections'].includes(issue.title))issue.severity='note'}
   }
@@ -232,48 +246,72 @@ async function scan(url,{fetcher=fetchPublic}={}) {
     throw new Error('The page did not return a usable HTML document.');
   const main=review(primary.html,primary.url,{status:primary.status});
   const {navLinks}=main;delete main.navLinks;
-  const observed=[];
-  for(const link of navLinks){
+  const observed=Array(navLinks.length);
+  await Promise.all(navLinks.map(async (link, linkIndex)=>{
     try{
       const origin=new URL(primary.url).origin;
       const options={method:'HEAD',timeout:3000,probe:true,expectedOrigin:origin};
       const response=await fetcher(link.url,options);
       // Some sites reject or misroute HEAD. A second public GET is required to
       // confirm a 404/410 before publishing a broken-link finding.
-      const confirmed=response.status===404||response.status===410 ?
+      const useGet=[403,404,405,410,501].includes(response.status);
+      const confirmed=useGet ?
         await fetcher(link.url,{method:'GET',timeout:3000,maxBytes:60_000,probe:true,expectedOrigin:origin}):response;
       const broken=[404,410].includes(confirmed.status);
-      observed.push({name:`Internal link ${new URL(link.url).pathname.slice(0,70)}`,status:broken?'attention':confirmed.status>=200&&confirmed.status<400?'passed':'unverified',
-        detail:`HTTP ${confirmed.status}${confirmed!==response?' confirmed with GET':' from HEAD'} for a same-origin link.`});
+      observed[linkIndex]={name:`Internal link ${new URL(link.url).pathname.slice(0,70)}`,status:broken?'attention':confirmed.status>=200&&confirmed.status<400?'passed':'unverified',
+        detail:`HTTP ${confirmed.status}${useGet?' confirmed with GET':' from HEAD'} for a same-origin link.`};
       if(broken)main.issues.push({category:'Navigation',severity:'high',title:'Internal link is broken',
         evidence:`${new URL(link.url).pathname} returned HTTP ${confirmed.status} on both HEAD and GET.`,
         fix:'Update the internal destination, or restore the linked page.',location:`Link → ${new URL(link.url).pathname}`,
         verify:'Open the link and confirm it loads a real page without an error.'});
-    }catch(error){observed.push({name:`Internal link ${new URL(link.url).pathname.slice(0,70)}`,status:'unverified',
-      detail:'Could not verify the internal page safely. No broken-link claim was made.'});}
-  }
-  main.checks.push(...observed);
+    }catch(error){observed[linkIndex]={name:`Internal link ${new URL(link.url).pathname.slice(0,70)}`,status:'unverified',
+      detail:'Could not verify the internal page safely. No broken-link claim was made.'};}
+  }));
+  main.checks.push(...observed.filter(Boolean));
   const rank={critical:0,high:1,note:2};main.issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
   main.issues.forEach((issue,i)=>issue.id=i+1);
   const checked=['HTTP response','HTTPS','Page title and description','Heading hierarchy','Mobile viewport','Accessibility names','On-page links','Indexability','Social metadata','Up to 3 same-origin links'];
   return {mode:'website',url:primary.url,subject:new URL(primary.url).hostname,pageTitle:main.pageTitle,
-    summary:`Inspected real public HTML for ${new URL(primary.url).hostname}. Found ${main.issues.length} evidence-backed observations across ${main.checks.length} attempted checks.`,
+    summary:`Inspected public HTML for ${new URL(primary.url).hostname}. Found ${main.issues.length} source-backed observations across ${main.checks.length} attempted checks; rendered visual and checkout behavior were not tested.`,
     meta:`HTTP ${primary.status} · Source inspection`,coverageLabel:'Public HTML + link verification',scope:main.scope,
     checked,checkedAt:new Date().toISOString(),checks:main.checks,checksRun:main.checks.length,
-    issues:main.issues,totalDetected:main.issues.length,passed:main.issues.length===0,
-    stats:main.stats,engine:'vylens-source-v2'};
+    issues:main.issues,totalDetected:main.issues.length,passed:main.issues.length===0&&!main.checks.some(c=>c.status==='unverified'),
+    stats:main.stats,engine:'vylens-source-v3'};
 }
 const recent=new Map();
 function rateAllowed(key){const now=Date.now();const current=recent.get(key)||{since:now,count:0};if(now-current.since>60000){current.since=now;current.count=0}current.count++;recent.set(key,current);if(recent.size>1000)recent.clear();return current.count<=8}
 const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"};
 const reply=(value,status=200)=>Response.json(value,{status,headers});
-export function GET(){return reply({status:'ok',engine:'vylens-source-v2',checks:'public HTML and bounded same-origin links',visualRendering:false});}
+export function GET(){return reply({status:'ok',engine:'vylens-source-v3',checks:'public HTML and bounded same-origin links',visualRendering:false});}
+async function readSmallJSON(request){
+  // Enforce the raw byte budget before JSON decoding rather than allocating an
+  // arbitrary-size string and only then checking its length.
+  const declared=Number(request.headers.get('content-length'));
+  if(Number.isFinite(declared)&&declared>MAX_BODY)throw new Error('Request is too large.');
+  const reader=request.body?.getReader();
+  if(!reader)throw new Error('Request must contain JSON.');
+  const chunks=[];let size=0;
+  while(true){
+    const {done,value}=await reader.read();if(done)break;
+    size+=value.byteLength;
+    if(size>MAX_BODY){await reader.cancel();throw new Error('Request is too large.');}
+    chunks.push(value);
+  }
+  const raw=Buffer.concat(chunks.map(chunk=>Buffer.from(chunk))).toString('utf8');
+  try{return JSON.parse(raw)}catch{throw new Error('Request must contain JSON.');}
+}
 export async function POST(request){
+  if(!/^application\/json\b/i.test(request.headers.get('content-type')||''))
+    return reply({error:'Send application/json for website scans.'},415);
+  const origin=request.headers.get('origin');
+  if(origin){
+    try{if(new URL(origin).origin!==new URL(request.url).origin)return reply({error:'Cross-origin scan requests are not supported.'},403);}
+    catch{return reply({error:'Invalid request origin.'},403);}
+  }
   const key=(request.headers.get('x-forwarded-for')||'unidentified').split(',')[0].slice(0,100);
   if(!rateAllowed(key))return reply({error:'Too many scans. Try again in a minute.'},429);
   try{
-    const raw=await request.text();if(raw.length>MAX_BODY)throw new Error('Request is too large.');
-    let body;try{body=JSON.parse(raw)}catch{throw new Error('Request must contain JSON.')} 
+    const body=await readSmallJSON(request);
     if(!body||typeof body.url!=='string')throw new Error('A public website URL is required.');
     validateURL(body.url);
     return reply(await scan(body.url));

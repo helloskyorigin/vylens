@@ -14,8 +14,8 @@ assert.ok(actual.checks.length>=18);
 const bad=`<html><head><title></title></head><body><h2>Skip to H2</h2><button><svg/></button><input><img src="x"><a href="#gone">Missing anchor</a><div id="dupe"></div><div id="dupe"></div><form action="http://insecure.com"></form></body></html>`;
 const busted=review(bad,'https://target.com/',{status:200});
 const names=busted.issues.map(x=>x.title);
-for(const snippet of ['Page title is missing','No primary H1','Mobile viewport','form controls lack accessible','button elements have no','Duplicate element IDs','In-page links','Form submits to insecure'])assert.ok(names.some(x=>x.includes(snippet)),snippet+' '+names.join(';'));
-assert.ok(busted.issues.filter(x=>x.severity==='critical').length===1);
+for(const snippet of ['Page title is missing','No primary H1','Mobile viewport','form controls lack accessible','button elements have no','Duplicate element IDs','In-page links','Form uses an insecure HTTP destination'])assert.ok(names.some(x=>x.includes(snippet)),snippet+' '+names.join(';'));
+assert.ok(!busted.issues.some(x=>x.severity==='critical')); // GET forms over HTTP are a note, not an unverified 'critical checkout' claim.
 const jsShell=review('<html><head><title>Loading page</title></head><body><div id="root"></div><script src="/main.js"></script></body></html>','https://target.com/',{status:200});
 assert.equal(jsShell.issues.find(x=>x.title==='No primary H1 heading in page source').severity,'note');
 const fixture=`<html lang="en">${head}<body><h1>Useful products</h1><a href="/pricing">Pricing</a></body></html>`;
@@ -40,4 +40,51 @@ const status=await GET();assert.equal(status.status,200);
 const wrong=await POST(new Request('http://localhost/api/inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'http://127.0.0.1'})}));
 assert.equal(wrong.status,400);
 console.log('PASS: public URL safety, metadata, accessible forms/buttons, duplicate IDs, anchor validation, no JS-shell false high, bounded internal link verification, API validation, real check counts');
+
+// Regression: a React/SPA shell cannot be pronounced broken merely because
+// JavaScript-generated headings and in-page sections are absent from raw HTML.
+const longSPA=`<html><head><title>Dashboard</title></head><body><div id="root"></div><script src="/bundle.js"></script>${' '.repeat(20000)}<a href="#app-section">Go</a></body></html>`;
+const spaReview=review(longSPA,'https://target.com/',{status:200});
+assert.equal(spaReview.issues.find(x=>x.title==='No primary H1 heading in page source').severity,'note');
+assert.equal(spaReview.checks.find(x=>x.name==='Primary H1 heading').status,'unverified');
+assert.equal(spaReview.checks.find(x=>x.name==='In-page anchor targets').status,'unverified');
+
+// HTTP response header directives matter even when the source has no robots meta.
+const headerReview=review(good,'https://target.com/',{status:200,headers:{'x-robots-tag':'noindex, nofollow'}});
+assert.equal(headerReview.checks.find(x=>x.name==='Indexability directive').status,'attention');
+assert.equal(headerReview.issues.find(x=>x.title==='Page explicitly requests noindex').severity,'note');
+const commented=review(good.replace('</head>','<!-- <meta name="robots" content="noindex"> --></head>'),'https://target.com/',{status:200});
+assert.equal(commented.checks.find(x=>x.name==='Indexability directive').status,'passed');
+
+// A source-declared HTTP form action is a concern, not a verified checkout failure.
+const postForm=review(good.replace('action="/submit"','action="http://othersite.com/submit" method="POST"'),'https://target.com/',{status:200});
+assert.equal(postForm.issues.find(x=>x.title==='Form uses an insecure HTTP destination').severity,'high');
+
+// HEAD is often blocked on otherwise healthy sites. Fall back to safe GET.
+const headBlocked=await scan('https://target.com/',{fetcher:async (url,opts={})=>{
+  if(!opts.method)return {url,status:200,html:fixture};
+  if(opts.method==='HEAD')return {url,status:405};
+  return {url,status:200};
+}});
+assert.equal(headBlocked.issues.filter(x=>x.title==='Internal link is broken').length,0);
+assert.equal(headBlocked.checks.find(x=>x.name.startsWith('Internal link')).status,'passed');
+
+// A GET failure must confirm a HEAD 404 before a broken-link finding is emitted.
+const headInconsistent=await scan('https://target.com/',{fetcher:async (url,opts={})=>{
+  if(!opts.method)return {url,status:200,html:fixture};
+  if(opts.method==='HEAD')return {url,status:404};
+  return {url,status:200};
+}});
+assert.equal(headInconsistent.issues.filter(x=>x.title==='Internal link is broken').length,0);
+console.log('PASS: JS-shell uncertainty, response header indexability, commented metadata, severity restraint, HEAD 405 fallback, GET confirmation');
+
+const nonJSON=await POST(new Request('https://vylens.test/api/inspect',{method:'POST',headers:{'Content-Type':'text/plain'},body:'hello'}));
+assert.equal(nonJSON.status,415);
+const crossOrigin=await POST(new Request('https://vylens.test/api/inspect',{method:'POST',headers:{'Content-Type':'application/json','Origin':'https://malicious.test'},body:JSON.stringify({url:'https://target.com'})}));
+assert.equal(crossOrigin.status,403);
+const oversize=await POST(new Request('https://vylens.test/api/inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:'x'.repeat(5000)}));
+assert.equal(oversize.status,400);
+console.log('PASS: API content type, cross-origin guard, bounded JSON body');
+
+
 console.log(`Scanner performed ${actual.checks.length} checks on clean fixture and ${result.checksRun} with link probe`);
