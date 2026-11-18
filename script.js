@@ -138,15 +138,15 @@
   const fileInput = $('#productFile');
   function selectFile(file) {
     if (!file) return;
-    const supported = /\.(pdf|png|jpe?g|webp|txt|zip)$/i.test(file.name);
+    const supported = /\.(pdf|png|jpe?g|webp|txt|md|zip)$/i.test(file.name);
     const tooBig = file.size > 15 * 1024 * 1024;
     const empty = file.size === 0;
     if (!supported || tooBig || empty) {
-      $('#productError').textContent = !supported ? 'Choose a PDF, image, TXT or ZIP file.' : tooBig ? 'File size must be 15 MB or less.' : 'This file is empty. Choose a file with content.';
+      $('#productError').textContent = !supported ? 'Choose a PDF, image, TXT, MD or ZIP file.' : tooBig ? 'File size must be 15 MB or less.' : 'This file is empty. Choose a file with content.';
       $('#productError').hidden = false;
       selectedFile = null;
       $('#uploadTitle').textContent = 'Drop your product here, or browse';
-      $('#fileHint').textContent = 'PDF, images, TXT or ZIP · up to 15 MB';
+      $('#fileHint').textContent = 'PDF, images, TXT, MD or ZIP · up to 15 MB';
       uploadZone.setAttribute('aria-invalid', 'true');
       return;
     }
@@ -161,6 +161,47 @@
   ['dragenter','dragover'].forEach(type => uploadZone.addEventListener(type, event => {event.preventDefault(); uploadZone.classList.add('drag-over');}));
   ['dragleave','drop'].forEach(type => uploadZone.addEventListener(type, event => {event.preventDefault(); uploadZone.classList.remove('drag-over');}));
   uploadZone.addEventListener('drop', event => selectFile(event.dataTransfer?.files?.[0]));
+
+  // Move to the actual inspection workspace, not an illustrative sample report.
+  // Files are temporarily kept in browser storage solely to cross the page boundary,
+  // then removed by the inspection page. File bytes are never uploaded here.
+  async function stageLocalFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) { reject(new Error('Your browser does not support temporary local file transfer.')); return; }
+      const request = indexedDB.open('vylens-transient', 1);
+      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('transfer')) request.result.createObjectStore('transfer'); };
+      request.onerror = () => reject(new Error('Could not save the selected file on this device.'));
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('transfer', 'readwrite');
+        tx.objectStore('transfer').put({file, addedAt:Date.now()}, 'product');
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(new Error('File handoff failed. Try selecting a smaller file.')); };
+      };
+    });
+  }
+  let transitioning = false;
+  async function beginInspection() {
+    if (transitioning) return;
+    transitioning = true;
+    const action = $('#submitAudit');
+    const previous = $('#ctaLabel').textContent;
+    action.disabled = true;
+    $('#ctaLabel').textContent = 'Opening inspection…';
+    try {
+      const pending = mode === 'website'
+        ? {mode: 'website', url: $('#websiteUrl').value.trim()}
+        : {mode: 'product', price: $('#productPrice').value.trim(), salesPage: $('#salesPageUrl').value.trim()};
+      if (mode === 'product') await stageLocalFile(selectedFile);
+      sessionStorage.setItem('vylens:pending', JSON.stringify(pending));
+      window.location.assign('./inspect.html');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open the inspection.';
+      const errorEl = mode === 'website' ? $('#websiteError') : $('#productError');
+      errorEl.textContent = message;errorEl.hidden = false;
+      transitioning = false;action.disabled = false;$('#ctaLabel').textContent = previous;
+    }
+  }
 
   $('#audit-tool').addEventListener('submit', event => {
     event.preventDefault();
@@ -194,7 +235,7 @@
       uploadZone.focus();
       return;
     }
-    openNotice();
+    beginInspection();
   });
   $('#websiteUrl').addEventListener('input', () => {$('#websiteError').hidden = true;$('#websiteUrl').removeAttribute('aria-invalid');});
 
