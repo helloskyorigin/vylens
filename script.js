@@ -47,20 +47,10 @@
     $('#ctaLabel').textContent = d.cta;
     $('#websiteFields').hidden = mode !== 'website';
     $('#productFields').hidden = mode !== 'product';
-    $('#websiteInspection').hidden = mode !== 'website';
-    $('#productInspection').hidden = mode !== 'product';
     $('#websiteTab').classList.toggle('is-active', mode === 'website');
     $('#productTab').classList.toggle('is-active', mode === 'product');
     $('#websiteTab').setAttribute('aria-pressed', String(mode === 'website'));
     $('#productTab').setAttribute('aria-pressed', String(mode === 'product'));
-    $('#inspectionSwitchText').textContent = mode === 'website'
-      ? 'Have a digital product? Inspect that instead.'
-      : 'Have a website? Check its blind spots instead.';
-    $('#inspectionSwitch').querySelector('use').setAttribute('href', mode === 'website' ? '#i-stack' : '#i-monitor');
-    $('#mobileSampleType').textContent = mode === 'website' ? 'WEBSITE PREVIEW' : 'PRODUCT PREVIEW';
-    $('#mobileSampleText').innerHTML = d.mobileSample;
-    $('#mobileIssueTitle').textContent = d.mobileTitle;
-    $('#mobileIssueText').textContent = d.mobileDescription;
     $('#mobileDockLabel').textContent = mode === 'website' ? 'Inspect my website' : 'Inspect my product';
     $('#websiteError').hidden = true;
     $('#productError').hidden = true;
@@ -123,7 +113,6 @@
 
   // Audit mode selection
   $$('.audit-switch-option').forEach(button => button.addEventListener('click', () => updateMode(button.dataset.mode)));
-  $('#inspectionSwitch').addEventListener('click', () => updateMode(mode === 'website' ? 'product' : 'website', {scroll:true,focus:true}));
   $$('[data-select-mode]').forEach(button => button.addEventListener('click', () => updateMode(button.dataset.selectMode, {scroll:true,focus:true})));
   $$('[data-price-mode]').forEach(button => button.addEventListener('click', () => updateMode(button.dataset.priceMode, {scroll:true,focus:true})));
 
@@ -268,7 +257,6 @@
 
   // Sample report interactions
   $$('.mini-finding, .finding-card').forEach(button => button.addEventListener('click', () => openReport(Number(button.dataset.issueIndex))));
-  $('#mobilePreviewIssue').addEventListener('click', () => openReport(0));
   $('#openSample').addEventListener('click', () => openReport(0));
   $$('.issue-pick').forEach(button => button.addEventListener('click', () => setReportIssue(Number(button.dataset.pickIssue))));
   $$('.close-dialog').forEach(button => button.addEventListener('click', () => reportDialog.close()));
@@ -310,7 +298,7 @@
     passedPreview = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
     syncDock();
   }, {rootMargin:'0px 0px -8% 0px'});
-  watch.observe($('.mobile-inspection'));
+  watch.observe($('.hero-section'));
   const closeWatch = new IntersectionObserver(entries => {
     closingVisible = entries[0].isIntersecting;
     syncDock();

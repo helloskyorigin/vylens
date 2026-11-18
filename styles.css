@@ -143,3 +143,16 @@ dialog{border:0;margin:auto;padding:0}dialog::backdrop{background:rgba(9,16,9,.5
 
 /* Non-urgent sample findings are labeled observations, not inflated issue severities. */
 .severity.note{color:#516e3c;background:#f1f8e9;border-color:#e0ebd6}
+
+
+/* HERO CENTERED — no side example preview; desktop/mobile have dedicated spacing. */
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:0}
+.hero-section{padding-top:88px;padding-bottom:78px}
+.hero-copy{width:100%;max-width:790px;margin:0 auto;padding:13px 0;text-align:center}
+.hero-kicker{justify-content:center}
+.hero-copy h1{max-width:100%;margin:26px auto 23px;font-size:clamp(46px,4.9vw,70px)}
+.hero-description{max-width:620px;margin-left:auto;margin-right:auto}
+.audit-form{max-width:560px;width:100%;margin:0 auto}
+.form-assurance{justify-content:center}
+@media(max-width:800px){.hero-grid{grid-template-columns:minmax(0,1fr);gap:0}.hero-copy{max-width:690px}.hero-section{padding-top:66px;padding-bottom:54px}}
+@media(max-width:620px){.hero-section{padding-top:45px;padding-bottom:24px}.hero-grid{display:block}.hero-copy{max-width:100%;padding:0;text-align:center}.hero-kicker{justify-content:center}.hero-copy h1{font-size:clamp(38px,10.7vw,54px);line-height:1.12}.hero-description{margin-left:auto;margin-right:auto}.form-assurance{justify-content:center;flex-wrap:wrap}}
