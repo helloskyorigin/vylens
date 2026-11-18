@@ -66,7 +66,7 @@
   function normalizeResults(data) {
     if (!data || !Array.isArray(data.issues) || typeof data.mode !== 'string') throw new Error('The inspection response was incomplete. Please try again.');
     // The source inspection is limited; no conversion score is calculated or invented.
-    return {...data, issues:data.issues.slice(0,3), completedAt:Date.now()};
+    return {...data, issues:data.issues, completedAt:Date.now()};
   }
   async function run() {
     if (inspecting) return;
@@ -101,7 +101,7 @@
       await messageQueue;
       // Do not store source bytes; keep only limited findings in this tab's session.
       sessionStorage.setItem('vylens:result', JSON.stringify(report));
-      await changeMessage('Your first look is ready.', 'Opening your findings now.');
+      await changeMessage('Your audit is ready.', 'Opening your full results now.');
       if (!motionReduced) await new Promise(resolve => setTimeout(resolve, 530));
       isFinished = true;
       window.location.replace('./results.html');

@@ -7,28 +7,28 @@
   const auditData = {
     website: {
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
-      description: "See what's stopping visitors from becoming customers. Get a sharper first look at your website.",
+      description: "See what's stopping visitors from becoming customers. See what our source checks can actually verify.",
       cta: 'Find My Conversion Leaks',
       mobileTitle: 'Example CTA blends in',
       mobileDescription: 'The sample button needs more contrast.',
       mobileSample: '<span class="sample-kicker">northstar.tools</span><strong>Everything your team needs to do more.</strong><span class="sample-button">Get started</span>',
       findings: [
         {title:'CTA blends into the page',description:"The primary action doesn't stand out, making the next step easy to miss.",observation:'The primary action in this fictional example has low contrast compared with the surrounding content, so it may be missed while scanning.',fix:'Use a distinct, high-contrast primary button and a direct action label. Keep the secondary actions visually quieter.',severity:'high'},
-        {title:'The offer feels too vague',description:"Visitors can't quickly understand the benefit or who the product is for.",observation:'The example headline says “Everything your team needs to do more” without explaining the specific problem being solved or the intended audience.',fix:'Replace broad language with one specific audience, a concrete outcome and the clearest proof of that outcome.',severity:'medium'},
-        {title:'Trust signals are missing',description:'Without credible evidence, buyers have fewer reasons to feel confident.',observation:'The example includes a general “built for ambitious teams” line but no verifiable testimonials, case studies or product evidence.',fix:'Include authentic reviews, demos, use cases or numbers you can substantiate; never invent testimonials or usage claims.',severity:'medium'}
+        {title:'The offer feels too vague',description:"Visitors can't quickly understand the benefit or who the product is for.",observation:'The example headline says “Everything your team needs to do more” without explaining the specific problem being solved or the intended audience.',fix:'Replace broad language with one specific audience, a concrete outcome and the clearest proof of that outcome.',severity:'note'},
+        {title:'Trust signals are missing',description:'Without credible evidence, buyers have fewer reasons to feel confident.',observation:'The example includes a general “built for ambitious teams” line but no verifiable testimonials, case studies or product evidence.',fix:'Include authentic reviews, demos, use cases or numbers you can substantiate; never invent testimonials or usage claims.',severity:'note'}
       ]
     },
     product: {
       title: 'Looks good.<br>But not <span class="swoosh-underline" id="heroEmphasis">selling?</span>',
-      description: "Your product might be better than its presentation. Discover the gaps in value, clarity and buyer confidence.",
+      description: "Your product might be better than its presentation. Inspect the file for structural and delivery issues supported by its contents.",
       cta: 'Find My Sales Blockers',
       mobileTitle: 'The buyer outcome is unclear',
       mobileDescription: 'The benefit is too broad to feel convincing.',
       mobileSample: '<span class="sample-kicker">DIGITAL GUIDE · SAMPLE</span><strong>The Creator Reset.</strong><span class="sample-button">A digital field guide</span>',
       findings: [
         {title:'The benefit is unclear',description:"The product promises a broad outcome without showing what the buyer will actually achieve.",observation:'The fictional ebook cover says “Work smarter” but does not identify the particular problem it helps solve or the reader it is for.',fix:'State the specific reader, their problem, and the useful outcome. Keep the language grounded in what the product truly delivers.',severity:'high'},
-        {title:'Value is hard to see',description:'The buyer cannot quickly tell what is included or why it is useful.',observation:'The fictional product presents a broad title without showing a table of contents, example pages, deliverables or practical exercises.',fix:'Show a clear contents preview, representative pages, and concrete deliverables so buyers know exactly what they are paying for.',severity:'medium'},
-        {title:'The offer lacks proof',description:'The sales presentation gives buyers few reasons to believe the claims.',observation:'The hypothetical offer does not show an authentic example, credible proof or a realistic explanation of how it helps.',fix:'Include a useful real preview, transparent limitations and only evidence you can verify. If you have no reviews yet, show the actual product.',severity:'medium'}
+        {title:'Value is hard to see',description:'The buyer cannot quickly tell what is included or why it is useful.',observation:'The fictional product presents a broad title without showing a table of contents, example pages, deliverables or practical exercises.',fix:'Show a clear contents preview, representative pages, and concrete deliverables so buyers know exactly what they are paying for.',severity:'note'},
+        {title:'The offer lacks proof',description:'The sales presentation gives buyers few reasons to believe the claims.',observation:'The hypothetical offer does not show an authentic example, credible proof or a realistic explanation of how it helps.',fix:'Include a useful real preview, transparent limitations and only evidence you can verify. If you have no reviews yet, show the actual product.',severity:'note'}
       ]
     }
   };
@@ -70,7 +70,7 @@
       card.querySelector('.finding-desc').textContent = d.findings[idx].description;
       const severity = card.querySelector('.severity');
       severity.className = 'severity ' + d.findings[idx].severity;
-      severity.innerHTML = '<svg class="icon"><use href="#i-alert"></use></svg> ' + (d.findings[idx].severity === 'high' ? 'High priority' : 'Medium priority');
+      severity.innerHTML = '<svg class="icon"><use href="#i-alert"></use></svg> ' + (d.findings[idx].severity === 'high' ? 'High priority' : 'Observation');
     });
     if (options.scroll) {
       $('#audit-tool').scrollIntoView({behavior: reduceMotion.matches ? 'auto' : 'smooth', block:'center'});
@@ -98,7 +98,7 @@
     $('#reportObservation').textContent = d.observation;
     $('#reportFix').textContent = d.fix;
     const severity = $('#reportSeverity');
-    severity.textContent = d.severity === 'high' ? 'High priority' : 'Medium priority';
+    severity.textContent = d.severity === 'high' ? 'High priority' : 'Observation';
     severity.className = 'severity ' + d.severity;
     $$('.issue-pick').forEach((button, i) => {button.classList.toggle('active', i === index);button.setAttribute('aria-pressed', String(i === index));});
   }

@@ -83,7 +83,7 @@
       const bytes=await file.arrayBuffer();const names=parseZipNames(bytes);const files=names.filter(x=>!x.endsWith('/'));
       const hasGuide=names.some(x=>/(^|\/)(readme|start[-_ ]?here|instructions|how[-_ ]?to)\b/i.test(x));
       if(!hasGuide && files.length>2)addIssue(issues,'Onboarding','medium','No getting-started file detected',`Found ${files.length} files, but no filename resembling README, START HERE or instructions.`, 'Include short usage instructions so buyers can confidently open and use the bundle.');
-      if(files.length===0)addIssue(issues,'Completeness','high','Archive contains no regular files','The archive listing appears to contain only folders.','Include the actual product deliverables before publishing.');
+      if(files.length===0)addIssue(issues,'Completeness','critical','Archive contains no regular files','The archive listing appears to contain only folders.','Include the actual product deliverables before publishing.');
       if(files.length>30 && !names.some(x=>x.includes('/')))addIssue(issues,'File organization','low','Many files are stored at the archive root',`There are ${files.length} regular files and no visible folder hierarchy.`, 'Group related assets into clearly named folders when helpful.');
       checked.push('Archive file list','Basic organization','Getting-started file presence');
       summary=`${files.length} file${files.length===1?'':'s'} found. File contents were not opened or evaluated.`;
@@ -101,8 +101,23 @@
     if(payload.price && !/^\s*[\$€£₹]?\s*\d+(?:[.,]\d{1,2})?\s*$/.test(payload.price)){
       addIssue(issues,'Offer context','low','Price context needs clarification',`The price field contains “${payload.price.slice(0,30)}”, which was not recognized as a simple amount.`, 'State the price and currency clearly on your sales page.');
     }
-    const order={high:0,medium:1,low:2};issues.sort((a,b)=>order[a.severity]-order[b.severity]);issues.forEach((v,i)=>v.id=i+1);
-    return {mode:'product',subject:name,pageTitle,summary,meta,coverageLabel,checked,issues:issues.slice(0,3),totalDetected:issues.length,scope:'Local first-look file inspection only. Visual design, buyer intent, sales performance and claims about why a product is not selling cannot be established from metadata or text alone. Your file is not uploaded.',passed:issues.length===0};
+    const order={critical:0,high:1,medium:2,low:3};issues.sort((a,b)=>order[a.severity]-order[b.severity]);issues.forEach((v,i)=>v.id=i+1);
+    // Only label checks as passed when the inspected bytes establish a narrow fact.
+    const checks = checked.map(name=>({name,status:'observed',detail:'This source property was examined; it is not a complete quality certification.'}));
+    if(['txt','md'].includes(ext)){
+      checks.unshift({name:'Local file access',status:'passed',detail:'The submitted text file was readable.'});
+      if(!issues.some(x=>x.title==='Readable text not found'))checks.push({name:'Readable text present',status:'passed',detail:'Text content could be extracted.'});
+    }else if(ext==='pdf'){
+      checks.unshift({name:'PDF opens',status:'passed',detail:'The PDF was opened and its page count read locally.'});
+      if(!issues.some(x=>x.title==='Readable text not found'))checks.push({name:'Readable PDF text present',status:'passed',detail:'Text was extracted from the pages sampled.'});
+    }else if(ext==='zip'){
+      checks.unshift({name:'ZIP directory readable',status:'passed',detail:'The archive central directory could be parsed.'});
+      if(!issues.some(x=>x.title==='Archive contains no regular files'))checks.push({name:'Regular files present',status:'passed',detail:'At least one regular file was found in the archive listing.'});
+    }else{
+      checks.unshift({name:'Image decodes',status:'passed',detail:'The browser successfully decoded the image file.'});
+      checks.push({name:'Image dimensions available',status:'passed',detail:'Pixel dimensions were read without interpreting the image.'});
+    }
+    return {mode:'product',subject:name,pageTitle,summary,meta,coverageLabel,checked,checks,checksRun:checks.length,checkedAt:new Date().toISOString(),issues,totalDetected:issues.length,scope:'Local first-look file inspection only. Visual design, buyer intent, sales performance and claims about why a product is not selling cannot be established from metadata or text alone. Your file is not uploaded.',passed:issues.length===0};
   }
 
   window.VylensCore = { takeFile, productReview, onProgress: null };

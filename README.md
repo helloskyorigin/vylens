@@ -1,44 +1,25 @@
-# VYLENS — Website & Digital Product Inspection
+# VYLENS — Website & Digital Product Audits
 
-White + lime, responsive landing page with a dedicated one-message Analysis screen and separate evidence-backed Results screen, built as a static frontend with one Vercel Function for initial public HTML checks.
+VYLENS currently offers a **free beta** for source-level website checks and supported local digital-product file checks. It has three separate screens:
 
-## Pages
+1. `index.html` — choose a website URL or a supported product file.
+2. `inspect.html` — simple branded analysis animation with real processing states.
+3. `results.html` — complete available findings, verified evidence, prioritized fixes, manual action plan, passed/attempted checks and printable report.
 
-- `index.html` — landing page and URL/file submission.
-- `inspect.html` — calm full-screen analysis animation (one message at a time; no stepper).
-- `results.html` — findings and evidence with a full-review request option.
-- `privacy.html`, `terms.html`, `refunds.html`, `cookies.html`, `disclaimer.html`, `contact.html` — customer-facing policy/contact pages.
-- `api/inspect.mjs` — first-look **source-level** website inspection endpoint, deployed automatically under `/api/inspect` when hosted by Vercel.
+## What the audit can and cannot assess
 
-## What works now
+- Website inspections are handled by `api/inspect.mjs` through a server-side fetch of public HTML, with URL, DNS and IP safeguards. They check source-level metadata, headings, image alt-attribute presence, document language, mobile viewport and basic CTA labels. They do **not** render JS, verify that checkout works, run visual contrast tests, measure actual conversion, or certify accessibility.
+- Digital-product inspections use `audit-core.js` in the browser for selected PDF, TXT, Markdown, ZIP and image files (maximum 15 MB). The selected file is not uploaded to a VYLENS server. PDF text extraction currently samples the first 12 pages.
+- Critical is reserved for confirmed severe problems (for example an archive with no regular files), High for material verifiable issues, and non-urgent findings appear without severity inflation as additional observations.
+- The **Checks Run** count is based on actual attempted checks. Passes are counted separately only where a narrow requirement was verified; no AI score is fabricated.
+- The full available result is free. No checkout, payment, blur or locked audit sections exist in this version. Planned prices are not active.
 
-**Website:** submit a publicly accessible HTTP(S) URL; the Vercel Function safely retrieves a bounded HTML response and checks title, description, H1 headings, mobile viewport, basic CTA labels, image alt attributes and document language. First three identified findings, their concrete HTML evidence and suggested next steps appear on the results page. Redirects are bounded, private IPs and local domains are blocked, request size/time are capped. Some public sites block bots or render meaningful content only through JavaScript; this may cause partial/failed audits. **This is NOT a screenshot, performance, visual UX, analytics, or AI semantic analysis.**
+## Usage
 
-**Digital products:** submit PDF, TXT, MD, ZIP or PNG/JPG/WebP (15 MB limit). The file is transferred from landing to inspection through temporary browser IndexedDB and removed from the transfer store when retrieved. It is not uploaded to VYLENS. Text files get basic content/structure checks; ZIPs get file-list checks; images get pixel/size checks. PDF documents use the Mozilla PDF.js browser reader from cdnjs (`4.10.38`) for text extraction of up to 12 initial pages; if the CDN is blocked or a PDF is protected/unreadable, a clear error appears rather than invented findings. **No visual/AI interpretation of documents or images occurs.**
+Deploy the repository root to Vercel (Framework Preset: Other). Vercel serves static pages and `/api/inspect.mjs` as a serverless function. Open `index.html` and run an audit. The file workflow transfers selected data locally in browser storage between landing and analysis pages, then removes the temporary transfer record after retrieval. The report is held in `sessionStorage`; it is not a permanent account record. `Save full report as PDF` opens the browser's print dialog so the user can choose **Save as PDF**.
 
-**UX:** custom VYLENS-branded animation on a single-focus screen, sliding status messages without fabricated completion percentages, responsive results, retries/errors, selectable finding cards, print-to-PDF of a free first look, and a contact request for deeper audits. The deeper review is $19 for a website or $9 for a digital product, one time. **There is no checkout, automatic paid report unlock or claim of a completed full AI audit.**
+## QA
 
-## Local usage
-
-Run a static file server from the repository root for the frontend. The `api/inspect.mjs` endpoint requires a Vercel (or equivalent) serverless environment; a static-only server cannot inspect public websites. All local product-file checks work in the browser without the API, except for PDF.js which must download its open-source browser library.
-
-To run syntax, HTML/CSS path, and URL safety tests locally:
-
-```sh
-python qa_tests.py
-```
-
-## Security and privacy notes
-
-- Public URL inspection server requests do not intentionally persist page content or results; hosting/CDN/server logs may persist technical request metadata.
-- The serverless IP guard avoids local/private addresses, pins DNS resolution for outbound requests, limits redirects and response size, and applies a best-effort in-memory request throttle. Add shared durable rate limiting and monitoring before significant traffic.
-- Files are never automatically sent to an audit API or email recipient. An abandoned browser transfer may remain until replaced or cleared in website storage; completed transfers are removed from IndexedDB after retrieval.
-- Never treat heuristic checks as claims about actual conversions or profitability.
+Run `python qa_tests.py` for source syntax, links, CSS parsing and SSRF safety fixtures. Live rendering should be checked at multiple mobile and desktop widths before production release. This repository does not guarantee that any arbitrary site will accept the source fetch.
 
 Business contact: **hello.skyorigin@gmail.com**.
-
-## Three-screen flow
-
-Landing (`index.html`) → Analysis (`inspect.html`) → Results (`results.html`). Analysis runs the supported public HTML inspection or local file checks; it shows one sliding message at a time and redirects after results are ready. There is no fake progress percentage or checklist. Audit results remain in tab sessionStorage and original uploaded files are processed locally in the browser. The VYLENS custom animated lens contains the approved rounded brand mark and honors reduced-motion settings.
-
-Checkout and deeper AI visual reviews are not yet connected; results accurately describe the limited supported checks.

@@ -104,9 +104,17 @@ function review(html,url) {
   if(imgs.length && withoutAlt>0)issue('Accessibility','medium','Some images have no alt attribute',`${withoutAlt} of ${imgs.length} <img> elements lack an alt attribute in the fetched HTML. Decorative images can use alt="".`, 'Add meaningful alt text for informative images and empty alt for purely decorative ones.');
   if(!attr(lang,'lang'))issue('Accessibility','medium','Document language is not declared','The root HTML element does not declare a language.','Set the correct lang attribute, such as <html lang="en">.');
   if(!calls.length && anchors.length)issue('Conversion clarity','low','No common action label detected',`Scanned ${anchors.length} link/button labels, but none matched common CTAs. Your actual CTA could use different wording or render later.`, 'Check that a primary next step is easy to spot, clearly worded and visible without unnecessary scrolling.');
-  if(!issues.length) return {issues:[],passed:true};
-  const severityOrder={high:0,medium:1,low:2};issues.sort((a,b)=>severityOrder[a.severity]-severityOrder[b.severity]);issues.forEach((x,i)=>x.id=i+1);
-  return {issues,passed:false};
+  const checks = [
+    {name:'Document title present',status:title?'passed':'attention',detail:title?`Title element present: ${title.slice(0,100)}`:'No title element detected in the HTML source.'},
+    {name:'Meta description present',status:description?'passed':'attention',detail:description?'Meta description was found in the HTML head.':'Standard meta description was not found.'},
+    {name:'Main heading present',status:h1s.length?'passed':'attention',detail:h1s.length?`${h1s.length} non-empty H1 heading(s) detected.`:'No non-empty H1 was found in the fetched source.'},
+    {name:'Mobile viewport declaration',status:view?'passed':'attention',detail:view?'Viewport declaration was found.':'No standard viewport meta tag detected.'},
+    {name:'Image alt attributes',status:!imgs.length?'unverified':withoutAlt?'attention':'passed',detail:imgs.length?`${imgs.length-withoutAlt} of ${imgs.length} image elements have an alt attribute. This does not assess alt-text quality.`:'No image elements were found in the fetched source.'},
+    {name:'Document language attribute',status:attr(lang,'lang')?'passed':'attention',detail:attr(lang,'lang')?`Declared lang: ${attr(lang,'lang')}`:'No language attribute was found on the root HTML element.'},
+    {name:'Recognizable action labels',status:calls.length?'observed':'unverified',detail:calls.length?`Found labels such as “${calls[0]}”. Presence does not establish visual visibility.`:'No known CTA phrase was found in the initial HTML. Buttons may render later or use other wording.'}
+  ];
+  const severityOrder={critical:0,high:1,medium:2,low:3};issues.sort((a,b)=>severityOrder[a.severity]-severityOrder[b.severity]);issues.forEach((x,i)=>x.id=i+1);
+  return {issues,checks,passed:issues.length===0};
 }
 const current=new Map();
 function checkRate(ip){const now=Date.now();const key=String(ip||'unknown').slice(0,100);const rec=current.get(key)||{n:0,start:now};if(now-rec.start>60000){rec.n=0;rec.start=now}rec.n++;current.set(key,rec);if(current.size>500)current.clear();return rec.n<=12}
@@ -123,7 +131,7 @@ export async function POST(request){
     const result=await getHTML(body.url);
     const analysis=review(result.html,result.url);
     const pageTitle=removeTags((result.html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'')||new URL(result.url).hostname;
-    return reply({mode:'website',url:result.url,subject:new URL(result.url).hostname,pageTitle,scope:'Initial HTML source only. JavaScript-rendered content, visual design, performance, user analytics and actual conversion rates are not assessed.',checked:['Page title and description','Heading structure','Mobile viewport metadata','Image alternatives','Document language','Basic CTA labels'],checkedAt:new Date().toISOString(),issues:analysis.issues.slice(0,3),totalDetected:analysis.issues.length,passed:analysis.passed},200);
+    return reply({mode:'website',url:result.url,subject:new URL(result.url).hostname,pageTitle,scope:'Initial HTML source only. JavaScript-rendered content, visual design, performance, user analytics and actual conversion rates are not assessed.',checked:['Page title and description','Heading structure','Mobile viewport metadata','Image alternatives','Document language','Basic CTA labels'],checkedAt:new Date().toISOString(),checks:analysis.checks,checksRun:analysis.checks.length,issues:analysis.issues,totalDetected:analysis.issues.length,passed:analysis.passed},200);
   }catch(error){
     const msg=error instanceof Error?error.message:'Could not inspect this website.';
     const safe=/^Enter|^Only|^Please|^This|^The |^Invalid|^Request|^Too many|^Could not/.test(msg)?msg:'Could not inspect this site. It may block automated requests or have a connection problem.';

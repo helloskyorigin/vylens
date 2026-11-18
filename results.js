@@ -1,80 +1,263 @@
 (() => {
   'use strict';
-  const $=s=>document.querySelector(s);
-  const $$=s=>[...document.querySelectorAll(s)];
-  const state={mode:'website',data:null,selected:0};
-  function setText(selector,value){const el=$(selector);if(el)el.textContent=String(value??'');}
-  function output(data){
-    state.data=data;state.selected=0;
-    const list=Array.isArray(data.issues)?data.issues.slice(0,3):[];
-    $('#readyView').hidden=false;$('#deepCard').hidden=false;
-    setText('#findingCount',String(list.length).padStart(2,'0'));
-    setText('#resultHeading',list.length?'Blind spots, made visible.':'A clean first pass.');
-    setText('#resultLead',data.scope||'This is a limited first-look inspection.');
-    setText('#resultStatusText',list.length?`Found ${list.length} issue${list.length===1?'':'s'} in the supported checks`:'Supported checks completed');
-    setText('#sourceTitle',data.pageTitle||data.subject||'Submitted source');
-    setText('#sourceDescription',data.summary||'Only details that could be read from the source are shown.');
-    setText('#sourceDomain',data.subject||'Your source');
-    setText('#subjectName',data.subject||'Your source');
-    setText('#subjectMeta',data.meta||'Initial inspection completed');
-    setText('#scopeNote',data.scope||'This report only covers the supported checks.');
-    setText('#sourceScope',data.coverageLabel||'Source checks');
-    const coverage=$('#coverageList');coverage.replaceChildren();
-    (data.checked||[]).forEach(t=>{const row=document.createElement('div');row.className='coverage-row';const dot=document.createElement('span');dot.className='coverage-check';dot.textContent='✓';row.append(dot,document.createTextNode(t));coverage.append(row)});
-    const rail=$('#findingRail');rail.replaceChildren();
-    list.forEach((finding,i)=>{
-      const b=document.createElement('button');b.type='button';b.className='finding-choice';b.setAttribute('aria-pressed',String(i===0));
-      const n=document.createElement('span');n.textContent=String(i+1).padStart(2,'0');
-      const title=document.createElement('strong');title.textContent=finding.title;
-      const arrow=document.createElementNS('http://www.w3.org/2000/svg','svg');arrow.setAttribute('viewBox','0 0 24 24');const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','m9 18 6-6-6-6');arrow.append(p);
-      b.append(n,title,arrow);b.addEventListener('click',()=>selectFinding(i));rail.append(b);
-    });
-    $('#findingDetail').hidden=!list.length;$('#emptyFindings').hidden=!!list.length;
-    if(list.length)selectFinding(0);
-    const more=(Number(data.totalDetected)||list.length)-list.length;
-    $('#moreIndicator').hidden=more<=0;
-    if(more>0)setText('#moreIndicator',`${more} additional source-level check${more===1?'':'s'} flagged possible issues. A deeper review is needed to prioritize them.`);
-    const subject=data.subject||'source';
-    const link=$('#deepAction');link.href=`mailto:hello.skyorigin@gmail.com?subject=${encodeURIComponent(`VYLENS ${state.mode==='website'?'Website':'Digital Product'} Full Review Request`)}&body=${encodeURIComponent(`Hello VYLENS,\n\nI'd like a full review of ${subject}.\n\nPlease share what is included and how the one-time payment works.\n\nThanks!`)}`;
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => [...document.querySelectorAll(selector)];
+  const state = { report:null, urgent:[], notes:[], filter:'all', selected:null, completed:new Set(), key:'' };
+  const severityRank = { critical:0, high:1 };
+  const at = (text, parent, tag='span', className='') => {
+    const element=document.createElement(tag);
+    if(className)element.className=className;
+    element.textContent=String(text ?? '');
+    parent.append(element);
+    return element;
+  };
+  const set = (id, text) => { const element=$('#'+id); if(element)element.textContent=String(text ?? ''); };
+  const severity = (issue) => {
+    const label=String(issue?.severity || '').toLowerCase();
+    return label === 'critical' ? 'critical' : label === 'high' ? 'high' : 'note';
+  };
+  const impactLabel = (issue) => issue.location || issue.category || 'Source inspection';
+  function safeReport(value){
+    if(!value || !['website','product'].includes(value.mode) || !Array.isArray(value.issues))return null;
+    if(value.issues.length>250) return null;
+    return value;
   }
-  function selectFinding(index){
-    const list=state.data?.issues||[];const f=list[index];if(!f)return;state.selected=index;
-    $$('.finding-choice').forEach((b,i)=>{b.classList.toggle('is-selected',i===index);b.setAttribute('aria-pressed',String(i===index))});
-    setText('#detailCategory',(f.category||'REVIEW').toUpperCase());setText('#detailSeverity',(f.severity||'review').toUpperCase());
-    const label=$('#detailSeverity');label.className='severity-tag '+(['high','low'].includes(f.severity)?f.severity:'medium');
-    setText('#detailTitle',f.title);setText('#detailEvidence',f.evidence);setText('#detailFix',f.fix);
+  function getChecks(report) {
+    if(Array.isArray(report.checks))return report.checks.slice(0,200).map(x=>({
+      name:String(x.name||x.label||'Source check').slice(0,120),
+      detail:String(x.detail||'').slice(0,400),
+      status:['passed','attention','observed','unverified'].includes(x.status)?x.status:'observed'
+    }));
+    // Earlier reports included check names but did not establish pass/fail per check.
+    return (Array.isArray(report.checked)?report.checked:[]).slice(0,200).map(name=>({name:String(name),status:'observed',detail:'This check was attempted; pass/fail detail was not stored.'}));
   }
-  function printReport(){
-    if(!state.data)return;
-    const data=state.data;
-    const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const rows=(data.issues||[]).map((f,i)=>`<section style="break-inside:avoid;border:1px solid #d7e5cf;padding:16px;margin:12px 0;border-radius:10px"><h2 style="font-size:18px">${i+1}. ${esc(f.title)}</h2><p><b>Severity:</b> ${esc(f.severity)} · <b>Category:</b> ${esc(f.category)}</p><p><b>Evidence:</b> ${esc(f.evidence)}</p><p><b>Suggested improvement:</b> ${esc(f.fix)}</p></section>`).join('')||'<p>No issues detected by the supported checks.</p>';
-    const child=window.open('','_blank','width=720,height=750');
-    if(child) child.opener=null;
-    if(!child){window.print();return}
-    child.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>VYLENS Free Audit</title><style>body{font:15px/1.6 system-ui,sans-serif;color:#202820;max-width:700px;margin:30px auto;padding:0 22px}h1{line-height:1.15}small{color:#667360}@media print{body{margin:0 auto}}</style></head><body><h1>VYLENS / Free Inspection</h1><p><b>Subject:</b> ${esc(data.subject)}</p><small>${esc(data.scope)}</small>${rows}<p>Generated as a limited first look. Not a paid, comprehensive or visual inspection.</p><script>window.onload=function(){window.print()}<\/script></body></html>`);child.document.close();
+  function getPlanKey(report){
+    const string=[report.mode,report.subject,report.checkedAt||report.completedAt||'',JSON.stringify(report.issues)].join('|');
+    let hash=2166136261;
+    for(let i=0;i<string.length;i++){hash^=string.charCodeAt(i);hash=Math.imul(hash,16777619)}
+    return 'vylens:plan:'+(hash>>>0).toString(36);
   }
-
-  function init() {
-    setText('#workspaceYear',new Date().getFullYear());
-    let data=null;
-    try {data=JSON.parse(sessionStorage.getItem('vylens:result')||'null');} catch {data=null;}
-    if (!data || !Array.isArray(data.issues) || !['website','product'].includes(data.mode)) {
-      $('#workspaceMain').querySelectorAll('.workspace-intro,.workspace-summary,.workspace-layout').forEach(el=>el.hidden=true);
-      $('#missingReport').hidden=false;
+  function cleanText(text){return String(text ?? '').replace(/\s+/g,' ').trim();}
+  function reportDate(data){
+    const time=new Date(data.checkedAt||data.completedAt||Date.now());
+    return Number.isNaN(time.valueOf())?'Date unavailable':time.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});
+  }
+  function initHeader() {
+    const data=state.report;
+    set('year',new Date().getFullYear());
+    set('reportType',data.mode==='website'?'WEBSITE AUDIT':'DIGITAL PRODUCT AUDIT');
+    set('reportSubject',data.subject||data.url||'Your submitted file');
+    set('reportDate',reportDate(data));
+    const critical=state.urgent.filter(x=>severity(x)==='critical').length;
+    const high=state.urgent.filter(x=>severity(x)==='high').length;
+    const checks=getChecks(data);
+    set('criticalCount',String(critical).padStart(2,'0'));
+    set('highCount',String(high).padStart(2,'0'));
+    set('checksCount',String(Number.isFinite(data.checksRun)?Math.max(0,data.checksRun):checks.length).padStart(2,'0'));
+    $('#criticalCard').classList.toggle('is-clear',critical===0);
+    set('criticalCaption',critical?'Confirmed severe findings':'No critical blockers detected');
+    set('issuesLabel',`${state.urgent.length} prioritized issue${state.urgent.length===1?'':'s'}`);
+    set('allCount',state.urgent.length);set('filterCritical',critical);set('filterHigh',high);
+    set('metricFootnote','Critical and High require evidence. Checks Run counts inspections attempted, not issues found.');
+  }
+  function initPriority(){
+    const item=state.urgent[0];
+    const button=$('#priorityButton');
+    if(!item){
+      set('priorityTag','NO URGENT ISSUES');$('#priorityTag').classList.add('is-clear');
+      set('priorityTitle','No urgent blockers detected.');
+      set('priorityCopy','No Critical or High issues were confirmed in the supported checks. This is not a full visual or conversion assessment. Review coverage and any additional observations.');
+      button.textContent='See inspection coverage →';
+      button.addEventListener('click',()=>$('#coverage').scrollIntoView({behavior:'smooth',block:'start'}));
       return;
     }
-    state.mode=data.mode;
-    setText('#modePill',data.mode==='website'?'Website audit':'Digital product audit');
-    setText('#sourceType',data.mode==='website'?'Website':'Digital product');
-    setText('#deepPrice',data.mode==='website'?'$19':'$9');
-    setText('#subjectName',data.subject||'Your source');
-    setText('#subjectMeta',data.meta||'Inspection complete');
-    setText('#statusLabel','First look ready');
-    $('#subjectStatus').classList.add('is-done');
-    setText('#privacyStrip',data.mode==='website'?'This first look is based on public HTML; visual behavior and sales are not measured.':'This first look comes from local checks. Your original file is not uploaded.');
-    output(data);
-    $('#exportButton').addEventListener('click',printReport);
+    set('priorityTag',severity(item)==='critical'?'CRITICAL — FIX FIRST':'HIGH PRIORITY — FIX FIRST');
+    set('priorityTitle',item.title||'Priority finding');
+    set('priorityCopy',item.evidence||'See supporting evidence before changing your product.');
+    button.addEventListener('click',()=>{
+      state.filter='all';syncFilters();selectIssue(item);
+      $('#findings').scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+  function syncFilters(){
+    $$('.filter-chip').forEach(button=>{
+      const active=button.dataset.filter===state.filter;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    renderIssueList();
+  }
+  function selectIssue(item,{focus=false}={}) {
+    if(!item)return;
+    state.selected=item;
+    $$('.issue-row').forEach(button=>{
+      const active=state.urgent[Number(button.dataset.issueIndex)]===item;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    const rank=severity(item);
+    set('detailSeverity',rank.toUpperCase());
+    $('#detailSeverity').className='detail-severity'+(rank==='critical'?' critical':'');
+    const index=state.urgent.indexOf(item)+1;
+    set('detailIndex',`${String(index).padStart(2,'0')} / ${String(state.urgent.length).padStart(2,'0')}`);
+    set('detailTitle',item.title||'Finding');
+    set('detailLocation',impactLabel(item));
+    set('detailEvidence',item.evidence||'The source did not include further evidence.');
+    set('detailFix',item.fix||'Review and correct this issue, then inspect the updated source.');
+    set('detailVerify',item.verify||'After applying the fix, run a new audit and confirm this check no longer flags the issue.');
+    set('copyFeedback','');
+    if(focus) $('#issueDetail').focus({preventScroll:true});
+  }
+  function renderIssueList(){
+    const list=$('#issueList');list.replaceChildren();
+    const filtered=state.filter==='all'?state.urgent:state.urgent.filter(x=>severity(x)===state.filter);
+    if(!filtered.length){
+      const row=at(state.filter==='all'?'No prioritized issues detected.':`No ${state.filter} findings.`,list,'p','plan-empty');
+      row.style.padding='20px 0';
+      $('#issueDetail').hidden=true;
+      return;
+    }
+    $('#issueDetail').hidden=false;
+    filtered.forEach((item,index)=>{
+      const button=document.createElement('button');button.type='button';button.className='issue-row';
+      button.dataset.issueIndex=String(state.urgent.indexOf(item));
+      button.setAttribute('aria-pressed',String(state.selected===item));
+      at(String(state.urgent.indexOf(item)+1).padStart(2,'0'),button,'span','issue-num');
+      const copy=at('',button,'span','issue-row-content');
+      at(item.title||'Finding',copy,'strong');at(impactLabel(item),copy,'small');
+      at(severity(item).toUpperCase(),button,'span','severity-pill '+severity(item));
+      button.addEventListener('click',()=>{
+        selectIssue(item);
+        if(window.matchMedia('(max-width:700px)').matches){
+          $('#issueDetail').scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+        }
+      });
+      list.append(button);
+    });
+    if(!filtered.includes(state.selected))state.selected=filtered[0];
+    selectIssue(state.selected);
+  }
+  function initFindings(){
+    $('#findingsWorkspace').hidden=!state.urgent.length;
+    $('#noPriority').hidden=!!state.urgent.length;
+    $$('.filter-chip').forEach(button=>button.addEventListener('click',()=>{
+      state.filter=button.dataset.filter;
+      syncFilters();
+    }));
+    if(state.urgent.length){state.selected=state.urgent[0];syncFilters();}
+    $('#copyFinding').addEventListener('click',async()=>{
+      if(!state.selected)return;
+      const item=state.selected;
+      const content=`${item.title}\nEvidence: ${item.evidence}\nFix: ${item.fix}\nVerify: ${item.verify||'Re-run the audit after updating the source.'}`;
+      try {await navigator.clipboard.writeText(content);set('copyFeedback','Copied');}
+      catch {set('copyFeedback','Copy unavailable in this browser');}
+    });
+  }
+  function initNotes(){
+    if(!state.notes.length)return;
+    $('#notesSection').hidden=false;
+    const list=$('#notesList');
+    state.notes.forEach(item=>{
+      const detail=at('',list,'details','note-item');
+      const summary=at('',detail,'summary');
+      at(item.category||'Observation',summary,'span','note-category');
+      at(item.title||'Worth reviewing',summary,'strong');
+      at('+',summary,'span','note-chevron');
+      const body=at('',detail,'div','note-body');
+      const observed=at('',body,'p');at('Observed: ',observed,'b');observed.append(document.createTextNode(item.evidence||'No extra detail was provided.'));
+      const fix=at('',body,'p');at('Suggestion: ',fix,'b');fix.append(document.createTextNode(item.fix||'Review this area.'));
+    });
+  }
+  function restorePlan(){
+    try {
+      const old=JSON.parse(sessionStorage.getItem(state.key)||'[]');
+      state.completed=new Set(Array.isArray(old)?old.filter(x=>Number.isInteger(x)):[]);
+    } catch {state.completed=new Set()}
+  }
+  function updatePlan(){
+    const done=state.urgent.filter((_,i)=>state.completed.has(i)).length;
+    set('planProgress',`${done} of ${state.urgent.length} done`);
+    $('#planTrackFill').style.width=state.urgent.length?`${Math.round(100*done/state.urgent.length)}%`:'0%';
+    sessionStorage.setItem(state.key,JSON.stringify([...state.completed]));
+  }
+  function initPlan(){
+    const list=$('#planList');
+    $('#planEmpty').hidden=!!state.urgent.length;
+    restorePlan();
+    state.urgent.forEach((item,index)=>{
+      const row=at('',list,'div','plan-item');
+      const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='plan-'+index;checkbox.checked=state.completed.has(index);row.append(checkbox);
+      const label=at('',row,'label');label.htmlFor=checkbox.id;
+      at(item.title||'Review issue',label,'strong');at(item.fix||'Review this issue.',label,'p');
+      at(severity(item)==='critical'?'CRITICAL':'HIGH',row,'span','plan-priority '+severity(item));
+      row.classList.toggle('is-done',checkbox.checked);
+      checkbox.addEventListener('change',()=>{
+        if(checkbox.checked)state.completed.add(index);else state.completed.delete(index);
+        row.classList.toggle('is-done',checkbox.checked);updatePlan();
+      });
+    });
+    updatePlan();
+  }
+  function initCoverage(){
+    const checks=getChecks(state.report);
+    const passed=checks.filter(x=>x.status==='passed');
+    set('passedCount',passed.length);
+    set('coverageScope',state.report.scope||'Only the submitted source and supported checks were evaluated.');
+    const container=$('#coverageList');
+    if(!checks.length){at('No check-by-check evidence was saved in this report.',container,'p','plan-empty');return}
+    const statusNames={passed:'PASSED',attention:'NEEDS REVIEW',observed:'CHECKED',unverified:'NOT VERIFIED'};
+    checks.forEach(check=>{
+      const row=at('',container,'div','coverage-row');
+      at(check.status==='passed'?'✓':'·',row,'span','coverage-icon'+(check.status==='passed'?'':' not-passed'));
+      const copy=at('',row,'div','coverage-row-copy');
+      at(check.name,copy,'strong');
+      if(check.detail)at(check.detail,copy,'small');
+      at(statusNames[check.status],row,'span','coverage-row-status'+(check.status==='passed'?'':' unverified'));
+    });
+  }
+  function initPrintAppendix(){
+    const target=$('#printAllFindings');
+    const heading=at('Full finding details',target,'h2');heading.className='print-heading';
+    const sorted=[...state.urgent,...state.notes];
+    if(!sorted.length)at('No source-backed problems detected in the supported checks.',target,'p');
+    sorted.forEach((item,i)=>{
+      const block=at('',target,'section','print-finding');
+      at(`${i+1}. ${item.title||'Finding'}`,block,'h3');
+      at(`${severity(item)==='note'?'Observation':severity(item).toUpperCase()} · ${impactLabel(item)}`,block,'div','print-small');
+      at(`Evidence: ${item.evidence||'Not available'}`,block,'p');
+      at(`Recommended fix: ${item.fix||'Review this area'}`,block,'p');
+      if(item.verify)at(`Verify: ${item.verify}`,block,'p');
+    });
+    at('Checks performed',target,'h2','print-heading');
+    getChecks(state.report).forEach(check=>at(`${check.name} — ${check.status.toUpperCase()}${check.detail?' — '+check.detail:''}`,target,'p','print-check'));
+    at('Inspection limitations',target,'h2','print-heading');
+    at(state.report.scope||'Only supported source checks were evaluated.',target,'p','print-small');
+    at('VYLENS · Full report · No payment required',target,'p','print-small');
+  }
+  function initActions(){
+    $('#savePdf').addEventListener('click',()=>window.print());
+    $('#recheck').addEventListener('click',()=>{
+      if(state.report.mode==='website' && state.report.url){
+        sessionStorage.setItem('vylens:pending',JSON.stringify({mode:'website',url:state.report.url}));
+        window.location.assign('./inspect.html');
+      } else {
+        // The original product file was consumed from short-lived storage; don't re-audit stale data.
+        sessionStorage.setItem('vylens:prefill-mode','product');
+        window.location.assign('./index.html#audit-tool');
+      }
+    });
+  }
+  function init(){
+    set('year',new Date().getFullYear());
+    let raw=null;
+    try {raw=JSON.parse(sessionStorage.getItem('vylens:result')||'null');}catch{}
+    state.report=safeReport(raw);
+    if(!state.report){$('#missingReport').hidden=false;return}
+    $('#main').hidden=false;
+    state.urgent=state.report.issues.filter(item=>['critical','high'].includes(severity(item))).sort((a,b)=>severityRank[severity(a)]-severityRank[severity(b)]);
+    state.notes=state.report.issues.filter(item=>severity(item)==='note');
+    state.key=getPlanKey(state.report);
+    initHeader();initPriority();initFindings();initNotes();initPlan();initCoverage();initPrintAppendix();initActions();
   }
   init();
 })();
