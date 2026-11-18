@@ -32,3 +32,13 @@ The audit engine, file uploads, report generation and payments are **not connect
 ## Current planned prices
 
 Website Audit: **$19 one-time**. Digital Product Audit: **$9 one-time**. Free preview: **$0**.
+
+
+## Landing-page update (18 Nov 2026)
+
+- One-shot scroll entrance motion (IntersectionObserver, `unobserve`, reduced-motion support).
+- Sample inspection is labeled honestly; the former DEMO badge and interface-only notice were removed.
+- Audit form prepares a real mailto enquiry instead of pretending to run live analysis. Selected files remain local and must be attached by the visitor manually.
+- Trust/legal routes: `/privacy.html`, `/terms.html`, `/refunds.html`, `/cookies.html`, `/disclaimer.html`, `/contact.html`.
+- Business email: `hello.skyorigin@gmail.com`.
+- IMPORTANT: no real audit backend or payment checkout yet. Do not market this static site as a live paid auditor. Policies must be reviewed before payment, server-side analysis, third-party AI calls or accounts go live.

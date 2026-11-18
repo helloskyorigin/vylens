@@ -2,6 +2,7 @@
   'use strict';
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const auditData = {
     website: {
@@ -72,7 +73,7 @@
       severity.innerHTML = '<svg class="icon"><use href="#i-alert"></use></svg> ' + (d.findings[idx].severity === 'high' ? 'High priority' : 'Medium priority');
     });
     if (options.scroll) {
-      $('#audit-tool').scrollIntoView({behavior: 'smooth', block:'center'});
+      $('#audit-tool').scrollIntoView({behavior: reduceMotion.matches ? 'auto' : 'smooth', block:'center'});
     }
     if (options.focus) {
       setTimeout(() => mode === 'website' ? $('#websiteUrl').focus({preventScroll:true}) : $('#uploadZone').focus({preventScroll:true}), 300);
@@ -102,8 +103,20 @@
     $$('.issue-pick').forEach((button, i) => {button.classList.toggle('active', i === index);button.setAttribute('aria-pressed', String(i === index));});
   }
   function openNotice() {
-    const d = mode === 'website' ? 'website URL' : 'product file';
-    $('#noticeText').textContent = `Thanks for trying the ${mode === 'website' ? 'Website' : 'Digital Product'} Audit interface. The live analysis and checkout services are not connected yet. Your ${d} has not been uploaded or analyzed; explore the labeled example report to see the planned experience.`;
+    const website = mode === 'website';
+    const rawUrl = $('#websiteUrl').value.trim();
+    const price = $('#productPrice').value.trim();
+    const salesPage = $('#salesPageUrl').value.trim();
+    $('#noticeTitle').textContent = website ? 'Request your website audit.' : 'Request your product audit.';
+    $('#noticeText').textContent = website
+      ? 'Automated auditing is being connected. You can send an email asking VYLENS to review your website; no scan has been run and your URL stays in the browser unless you choose to email it.'
+      : 'Automated file auditing is being connected. Your selected file has not been uploaded. To request a review, open an email and attach the file yourself if you choose.';
+    const details = website
+      ? `Website URL: ${rawUrl}\nWhat I want feedback on: `
+      : `Product type: ${selectedFile?.name || 'Digital product'}\n${price ? `Product price: ${price}\n` : ''}${salesPage ? `Sales page: ${salesPage}\n` : ''}I'll attach the product file myself if needed.\nWhat I want feedback on: `;
+    const subject = `VYLENS ${website ? 'Website' : 'Digital Product'} Audit Request`;
+    const emailBody = `Hi VYLENS,\n\nI'd like to request an audit.\n\n${details}\n\nThanks!`;
+    $('#emailAuditRequest').href = `mailto:hello.skyorigin@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
     noticeDialog.showModal();
     syncDock();
   }
@@ -192,7 +205,6 @@
   $$('.issue-pick').forEach(button => button.addEventListener('click', () => setReportIssue(Number(button.dataset.pickIssue))));
   $$('.close-dialog').forEach(button => button.addEventListener('click', () => reportDialog.close()));
   $$('.close-notice').forEach(button => button.addEventListener('click', () => noticeDialog.close()));
-  $('#noticeSampleButton').addEventListener('click', () => openReport(0));
   [reportDialog, noticeDialog].forEach(dialog => {
     dialog.addEventListener('click', event => {if (event.target === dialog) dialog.close();});
   });
@@ -239,8 +251,36 @@
   window.addEventListener('resize', syncDock, {passive:true});
   [reportDialog, noticeDialog].forEach(dialog => dialog.addEventListener('close', syncDock));
   $('#mobileDockButton').addEventListener('click', () => {
-    $('#audit-tool').scrollIntoView({behavior:'smooth',block:'center'});
+    $('#audit-tool').scrollIntoView({behavior: reduceMotion.matches ? 'auto' : 'smooth',block:'center'});
   });
+
+  // One-time entrance animation only. Never re-play animations when scrolling up or down.
+  // Native, visible content is the fallback for users without JS/IntersectionObserver.
+  function initScrollReveal() {
+    if (reduceMotion.matches || !('IntersectionObserver' in window)) return;
+    const targets = $$('.section-head, .step, .check-card, .finding-card, .price-card, .faq-heading, .faq-list details, .closing-card, .footer');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.remove('reveal-pending');
+        entry.target.classList.add('reveal-once');
+        observer.unobserve(entry.target);
+      });
+    }, {threshold:0.06, rootMargin:'0px 0px -25px 0px'});
+    // Set pending after native layout so crawlers / no-JS see all content.
+    targets.forEach((el, i) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 0 || (rect.top < window.innerHeight && rect.bottom > 0)) return;
+      el.classList.add('reveal-pending');
+      if (el.matches('.step, .check-card, .finding-card, .price-card')) {
+        const siblings = Array.from(el.parentElement.children).filter(x => x.matches(el.tagName.toLowerCase()+'.'+el.classList[0]));
+        const ordinal = Math.max(0, siblings.indexOf(el));
+        el.style.setProperty('--reveal-delay', `${Math.min(ordinal,2)*65}ms`);
+      }
+      observer.observe(el);
+    });
+  }
+  initScrollReveal();
 
   $('#year').textContent = String(new Date().getFullYear());
   updateMode('website');

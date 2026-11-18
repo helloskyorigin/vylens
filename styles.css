@@ -84,3 +84,51 @@ dialog{border:0;margin:auto;padding:0}dialog::backdrop{background:rgba(9,16,9,.5
   .mobile-preview-stage{padding:10px}
   .mobile-preview-sample{padding:18px 17px}
 }
+
+
+/* One-pass, soft entrance motion. Observer unobserves immediately; no repeat on re-entry. */
+.reveal-pending{opacity:1;transform:none}
+.reveal-once{animation:vylens-enter 650ms cubic-bezier(.19,1,.28,1) var(--reveal-delay,0ms) both}
+@keyframes vylens-enter{from{opacity:.65;translate:0 12px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:reduce){.reveal-pending,.reveal-once{opacity:1!important;transform:none!important;animation:none!important}}
+/* Trust & legal: all informational links are real static pages, with visible email. */
+.footer-links{flex-wrap:wrap;row-gap:13px;column-gap:19px}
+.footer-main{flex-wrap:wrap}
+.footer-support{font-size:12px;color:#3c6720;text-decoration:underline;text-decoration-color:#c5dabc;text-underline-offset:4px;overflow-wrap:anywhere}
+.example-chip{font-size:9px;color:#4c6d29;background:#f2f9ec;border-radius:6px;padding:5px 8px;font-weight:800}
+.request-info{display:flex;gap:10px;align-items:flex-start;border:1px solid #e0edce;background:#f8fdf2;border-radius:14px;padding:13px 15px;margin-top:18px;color:#52644d;font-size:12px;line-height:1.5}
+.request-info .icon{width:18px;height:18px;min-width:18px;color:#568c10;margin-top:1px}
+.notice-email{font-size:11px!important;text-align:center;margin:13px 0 0;color:#647063!important}
+.notice-email a{color:#346c12;text-decoration:underline;text-underline-offset:3px}
+.legal-page{background:#fff}
+.legal-page .site-nav{justify-content:space-between}
+.legal-main{width:min(100% - 48px,960px);max-width:960px;padding:82px 0 105px}
+.legal-header{max-width:750px;margin-bottom:36px}
+.legal-header .eyebrow{margin-bottom:13px}
+.legal-header h1{max-width:750px}
+.legal-meta{display:flex;flex-wrap:wrap;align-items:center;gap:9px 18px;color:#647164;font-size:12px;margin-top:18px}
+.legal-meta strong{color:#263425}
+.legal-grid{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:52px;align-items:start}
+.legal-toc{position:sticky;top:125px;border:1px solid #e5eadd;border-radius:18px;padding:19px;background:#fbfcfa}
+.legal-toc strong{display:block;font-size:12px;color:#38502c;margin-bottom:13px;letter-spacing:.03em}
+.legal-toc a{display:block;padding:9px 0;font-size:12px;color:#536051;text-decoration:none;line-height:1.5}
+.legal-toc a:hover{color:#406c0a}
+.legal-article{min-width:0}
+.legal-article h2{font-size:22px;scroll-margin-top:135px}
+.legal-article h2:first-child{margin-top:0}
+.legal-article p,.legal-article li{color:#566156}
+.legal-article a{color:#3f790b;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.legal-contact-box{margin-top:37px;border-radius:19px;background:#f6f8f3;border:1px solid #e4eadf;padding:24px}
+.legal-contact-box h3{font-size:19px;margin:0 0 7px;letter-spacing:-.04em}
+.legal-contact-box p{margin:0 0 13px}
+.legal-contact-box .button{color:#111609;text-decoration:none}
+.legal-note{color:#394933;line-height:1.65;font-size:13px}
+.legal-page .footer{padding-bottom:35px}
+.legal-page .footer-bottom{margin-top:0}
+.legal-support-link{font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.contact-methods{display:grid;gap:12px;margin-top:18px}
+.contact-method{border:1px solid #e2e9da;padding:18px;border-radius:16px;background:white}
+.contact-method strong{font-family:var(--font-head);font-size:15px;display:block;margin-bottom:7px}
+.contact-method p{margin:0!important}
+@media(max-width:800px){.legal-grid{grid-template-columns:1fr;gap:25px}.legal-toc{position:static;display:flex;flex-wrap:wrap;align-items:center;gap:0 19px;padding:13px 17px}.legal-toc strong{flex-basis:100%;margin-bottom:2px}.legal-toc a{padding:6px 0}.legal-main{width:calc(100% - 44px);padding-top:56px}.footer-main{gap:8px}}
+@media(max-width:620px){.footer{padding-bottom:35px}.footer-support{width:100%}.legal-main{width:calc(100% - 36px);padding:46px 0 74px}.legal-header{margin-bottom:28px}.legal-header h1{font-size:clamp(34px,9vw,47px);letter-spacing:-.06em}.legal-meta{font-size:11px}.legal-toc{border-radius:15px;gap:0 15px}.legal-toc a{font-size:11px}.legal-article h2{font-size:20px}.legal-article p,.legal-article li{font-size:13px}.legal-contact-box{padding:20px}}
