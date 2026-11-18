@@ -333,7 +333,12 @@ export async function POST(request){
     const message=String(error?.message||'Could not scan this website.');
     const bad=/^Enter|^Only|^Use|^Request|^A public|^This URL/.test(message);
     const allowed=/^Enter|^Only|^Use|^Request|^A public|^This URL|^This address|^The website|^The URL|^This site|^Invalid redirect|^Too many|^Could not|^The HTML/.test(message);
-    return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.'},bad?400:422);
+    // Expose only a bounded error class/code, not internal stack traces or target data.
+    // This lets live smoke tests distinguish connection failures from parser defects.
+    const failureCode=String(error?.code||error?.cause?.code||'UNKNOWN').replace(/[^A-Z0-9_]/g,'').slice(0,45);
+    const failureType=String(error?.name||'Error').replace(/[^A-Za-z]/g,'').slice(0,30);
+    console.error('VYLENS scan failure', {failureCode,failureType});
+    return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.',failureCode,failureType},bad?400:422);
   }
 }
 export const _test={isPublicIP,choosePublicAddress,validateURL,review,scan,decode,getAttr};
