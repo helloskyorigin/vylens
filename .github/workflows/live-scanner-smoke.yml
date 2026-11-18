@@ -1,0 +1,57 @@
+name: VYLENS live scanner smoke test
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check live API health and valid same-origin routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://vylens-tan.vercel.app"
+          # Wait for the new Git commit to reach the production alias.
+          ready=0
+          for attempt in $(seq 1 24); do
+            health=$(curl -sS --max-time 12 "$BASE/api/inspect" || true)
+            alias_status=$(curl -sS --max-time 12 -o /tmp/alias.json -w '%{http_code}' -X POST "$BASE/api/inspect" \
+              -H 'content-type: application/json' \
+              -H 'origin: https://vylens-tan.vercel.app' \
+              -H 'sec-fetch-site: same-origin' \
+              --data '{"url":"http://127.0.0.1"}' || true)
+            if echo "$health" | jq -e '.status=="ok"' >/dev/null 2>&1 && [ "$alias_status" = "400" ]; then
+              ready=1
+              break
+            fi
+            sleep 8
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Live API did not pass health + same-origin alias checks."
+            echo "Last HTTP code: $alias_status"
+            cat /tmp/alias.json || true
+            exit 1
+          fi
+          echo "PASS: live health and same-origin alias validated."
+      - name: Scan a real public HTML page
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(curl -sS --max-time 28 -o /tmp/scan.json -w '%{http_code}' -X POST https://vylens-tan.vercel.app/api/inspect \
+            -H 'content-type: application/json' \
+            -H 'origin: https://vylens-tan.vercel.app' \
+            -H 'sec-fetch-site: same-origin' \
+            --data '{"url":"https://example.com"}')
+          if [ "$status" != "200" ]; then
+            echo "FAIL: live public-page scan HTTP $status"
+            head -c 1500 /tmp/scan.json
+            exit 1
+          fi
+          jq -e '.mode=="website" and (.issues|type=="array") and (.checks|type=="array") and (.checksRun>0)' /tmp/scan.json >/dev/null
+          echo "PASS: live HTML scanning returned structured, evidence-based findings."
