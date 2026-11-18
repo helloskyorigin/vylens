@@ -1,49 +1,74 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="robots" content="noindex,nofollow" />
-  <meta name="description" content="Your VYLENS audit: clear findings and practical fixes." />
-  <title>Audit Results — VYLENS</title>
-  <link rel="icon" type="image/webp" href="./assets/vylens-mark.webp" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./report.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Your VYLENS audit results. Issues, impact, evidence and fixes.">
+  <title>Your audit — VYLENS</title>
+  <link rel="icon" type="image/webp" href="./assets/vylens-mark.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./report.css">
   <script src="./results.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to results</a>
-  <header class="page-header"><nav class="floating-nav" aria-label="Main navigation">
-    <a href="./index.html" class="brand" aria-label="VYLENS home"><img src="./assets/vylens-mark.webp" alt="" width="38" height="38"/><strong>VYLENS<span>.</span></strong></a>
-    <a class="nav-back" href="./index.html">New audit <span aria-hidden="true">+</span></a>
-  </nav></header>
+  <header class="page-header">
+    <nav class="floating-nav" aria-label="Results navigation">
+      <a class="brand" href="./index.html" aria-label="VYLENS home"><img src="./assets/vylens-mark.webp" alt="" width="38" height="38"><strong>VYLENS<span>.</span></strong></a>
+      <a class="nav-back" href="./index.html">New audit <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></a>
+    </nav>
+  </header>
   <main id="main" class="report-wrap" hidden>
-    <section class="report-hero" aria-labelledby="reportTitle">
-      <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> AUDIT COMPLETE <span class="slash">/</span> <span id="reportType">WEBSITE</span></p>
-      <h1 id="reportTitle">Your audit is ready<span>.</span></h1>
-      <p class="source-line"><span id="reportSubject">Your website</span><span aria-hidden="true">·</span><span id="reportDate">Today</span></p>
+    <header class="report-hero">
+      <div class="hero-label"><span class="status-dot" aria-hidden="true"></span> AUDIT COMPLETE <span class="hero-type" id="reportType">WEBSITE</span></div>
+      <h1>Audit results<span>.</span></h1>
+      <div class="source-line"><span id="reportSubject">Your website</span><span aria-hidden="true">·</span><time id="reportDate">Today</time></div>
+    </header>
+
+    <section class="metrics-section" aria-label="Problem overview">
+      <div class="metric metric-critical" id="criticalCard"><span>Critical</span><strong id="criticalCount">—</strong></div>
+      <div class="metric metric-high" id="highCard"><span>High</span><strong id="highCount">—</strong></div>
+      <div class="metric metric-other" id="otherCard"><span>Other</span><strong id="otherCount">—</strong></div>
+      <div class="metric metric-checks"><span>Checks run</span><strong id="checksCount">—</strong></div>
     </section>
-    <section class="metrics-section" aria-label="Audit summary">
-      <div class="metric metric-critical" id="criticalCard"><span>Critical</span><strong id="criticalCount">0</strong></div>
-      <div class="metric metric-high" id="highCard"><span>High priority</span><strong id="highCount">0</strong></div>
-      <div class="metric metric-run"><span>Checks run</span><strong id="checksCount">0</strong></div>
+
+    <section id="impactSection" class="impact-section" aria-labelledby="impactTitle">
+      <div class="section-heading"><div><p class="section-kicker">OVERALL IMPACT</p><h2 id="impactTitle">What could be affected</h2></div></div>
+      <div id="impactList" class="impact-list"></div>
     </section>
-    <section class="report-content" aria-labelledby="summaryTitle">
-      <div class="report-summary" id="reportSummary"><span class="summary-icon" id="summaryIcon" aria-hidden="true">✓</span><div><h2 id="summaryTitle">Review complete.</h2><p id="summaryCopy"></p></div></div>
-      <section class="findings-section" id="urgentSection" hidden aria-labelledby="urgentTitle"><div class="section-heading"><h2 id="urgentTitle">Fix these first<span>.</span></h2><span class="section-meta" id="urgentCount"></span></div><div id="urgentList" class="result-list"></div></section>
-      <section class="notes-section" id="notesSection" hidden aria-labelledby="notesTitle"><div class="section-heading"><h2 id="notesTitle">Also worth improving<span>.</span></h2><span class="section-meta" id="notesCount"></span></div><div id="notesList" class="result-list"></div></section>
-      <p class="scope-note" id="scopeNote"></p>
+
+    <section id="areasSection" class="areas-section" aria-labelledby="areasTitle" hidden>
+      <div class="section-heading"><div><p class="section-kicker">AFFECTED AREAS</p><h2 id="areasTitle">Where to look</h2></div></div>
+      <div id="areasList" class="areas-list"></div>
     </section>
+
+    <section id="findingsSection" class="findings-section" aria-labelledby="findingsTitle" hidden>
+      <div class="section-heading"><div><p class="section-kicker">FINDINGS</p><h2 id="findingsTitle">Problems & fixes</h2></div><span id="findingsCount" class="section-count"></span></div>
+      <div id="findingsList" class="findings-list"></div>
+    </section>
+
+    <div id="scopeNote" class="scope-note"></div>
+
     <section class="report-actions" aria-label="Report actions">
-      <button id="savePdf" class="primary-button" type="button">Save report as PDF <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button>
-      <button id="recheck" class="secondary-button" type="button">Scan again <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-6h6"/></svg></button>
+      <button id="savePdf" class="primary-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Save PDF</button>
+      <button id="recheck" class="secondary-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-6h6"/></svg> Scan again</button>
     </section>
-    <div id="printAppendix" class="print-only" aria-label="Full finding details for export"></div>
-    <footer class="report-footer"><span>© <span id="year">2026</span> VYLENS</span><nav aria-label="Legal and support"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./contact.html">Contact</a></nav><a href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a></footer>
+
+    <div id="printAppendix" class="print-only" aria-label="Full report for printing"></div>
+    <footer class="report-footer">
+      <span>© <span id="year">2026</span> VYLENS</span>
+      <nav aria-label="Legal"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./contact.html">Contact</a></nav>
+      <a href="mailto:hello.skyorigin@gmail.com">Contact</a>
+    </footer>
   </main>
-  <main id="missingReport" class="missing-screen" hidden><div class="missing-icon">V</div><h1>No report yet.</h1><p>Run an audit to see your findings here.</p><a href="./index.html">Start an audit ↗</a></main>
+  <main id="missingReport" class="missing-screen" hidden>
+    <img src="./assets/vylens-mark.webp" alt="" width="68" height="68">
+    <h1>No audit yet.</h1><p>Start a scan to see your results here.</p>
+    <a href="./index.html#audit-tool">Start an audit <span aria-hidden="true">↗</span></a>
+  </main>
 </body>
 </html>
