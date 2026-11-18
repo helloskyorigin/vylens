@@ -8,8 +8,8 @@
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
       description: "See what's stopping visitors from becoming customers. Get a sharper first look at your website.",
       cta: 'Find My Conversion Leaks',
-      mobileTitle: 'Your main CTA blends in',
-      mobileDescription: 'The primary action needs more contrast.',
+      mobileTitle: 'Example CTA blends in',
+      mobileDescription: 'The sample button needs more contrast.',
       mobileSample: '<span class="sample-kicker">northstar.tools</span><strong>Everything your team needs to do more.</strong><span class="sample-button">Get started</span>',
       findings: [
         {title:'CTA blends into the page',description:"The primary action doesn't stand out, making the next step easy to miss.",observation:'The primary action in this fictional example has low contrast compared with the surrounding content, so it may be missed while scanning.',fix:'Use a distinct, high-contrast primary button and a direct action label. Keep the secondary actions visually quieter.',severity:'high'},
@@ -88,6 +88,7 @@
     setReportIssue(safe);
     if (noticeDialog.open) noticeDialog.close();
     if (!reportDialog.open) reportDialog.showModal();
+    syncDock();
   }
   function setReportIssue(index) {
     const d = auditData[mode].findings[index];
@@ -104,6 +105,7 @@
     const d = mode === 'website' ? 'website URL' : 'product file';
     $('#noticeText').textContent = `Thanks for trying the ${mode === 'website' ? 'Website' : 'Digital Product'} Audit interface. The live analysis and checkout services are not connected yet. Your ${d} has not been uploaded or analyzed; explore the labeled example report to see the planned experience.`;
     noticeDialog.showModal();
+    syncDock();
   }
 
   // Audit mode selection
@@ -125,15 +127,19 @@
     if (!file) return;
     const supported = /\.(pdf|png|jpe?g|webp|txt|zip)$/i.test(file.name);
     const tooBig = file.size > 15 * 1024 * 1024;
-    if (!supported || tooBig) {
-      $('#productError').textContent = !supported ? 'Please choose a PDF, image, TXT or ZIP file.' : 'File size must be 15 MB or less.';
+    const empty = file.size === 0;
+    if (!supported || tooBig || empty) {
+      $('#productError').textContent = !supported ? 'Choose a PDF, image, TXT or ZIP file.' : tooBig ? 'File size must be 15 MB or less.' : 'This file is empty. Choose a file with content.';
       $('#productError').hidden = false;
       selectedFile = null;
       $('#uploadTitle').textContent = 'Drop your product here, or browse';
+      $('#fileHint').textContent = 'PDF, images, TXT or ZIP · up to 15 MB';
+      uploadZone.setAttribute('aria-invalid', 'true');
       return;
     }
     selectedFile = file;
     $('#productError').hidden = true;
+    uploadZone.removeAttribute('aria-invalid');
     $('#uploadTitle').textContent = file.name;
     $('#fileHint').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB · selected locally (not uploaded)`;
   }
@@ -153,12 +159,14 @@
         try {
           const normalized = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
           const url = new URL(normalized);
-          valid = ['http:', 'https:'].includes(url.protocol) && (url.hostname.includes('.') || url.hostname === 'localhost') && !/\s/.test(raw);
+          valid = ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
+            !/\s/.test(raw) && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(url.hostname) &&
+            !url.hostname.endsWith('.localhost') && !url.hostname.endsWith('.local');
           if (valid) input.value = normalized;
         } catch { valid = false; }
       }
       if (!valid) {
-        $('#websiteError').textContent = raw ? 'Enter a valid website URL, like https://example.com.' : 'Please enter a website URL first.';
+        $('#websiteError').textContent = raw ? 'Enter a public website URL, like https://example.com.' : 'Please enter a website URL first.';
         $('#websiteError').hidden = false;
         input.setAttribute('aria-invalid','true');
         input.focus();
@@ -167,6 +175,7 @@
       input.removeAttribute('aria-invalid');
       $('#websiteError').hidden = true;
     } else if (!selectedFile) {
+      uploadZone.setAttribute('aria-invalid','true');
       $('#productError').textContent = 'Choose a supported product file to continue.';
       $('#productError').hidden = false;
       uploadZone.focus();
@@ -196,6 +205,7 @@
     menuButton.setAttribute('aria-expanded', String(open));
     menuButton.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     menuButton.querySelector('use').setAttribute('href', open ? '#i-x' : '#i-menu');
+    if (typeof syncDock === 'function') syncDock();
   }
   menuButton.addEventListener('click', () => setMenu(menu.hidden));
   $$('#mobileMenu a').forEach(link => link.addEventListener('click', () => setMenu(false)));
@@ -203,16 +213,34 @@
   document.addEventListener('click', event => {if (!menu.hidden && !event.target.closest('.nav-wrap')) setMenu(false);});
   window.matchMedia('(min-width:801px)').addEventListener('change', event => {if (event.matches) setMenu(false);});
 
-  // Mobile-only floating call-to-action appears after the initial form leaves view.
+  // Show the mobile action only after the *entire* illustrated preview has left view.
+  // Hide it again around the closing CTA, for modal dialogs and when navigation opens.
   const dock = $('#mobileDock');
+  let passedPreview = false;
+  let closingVisible = false;
+  function syncDock() {
+    const visible = window.matchMedia('(max-width:620px)').matches && passedPreview &&
+      !closingVisible && menu.hidden && !reportDialog.open && !noticeDialog.open;
+    dock.classList.toggle('is-visible', visible);
+    dock.setAttribute('aria-hidden', String(!visible));
+    dock.toggleAttribute('inert', !visible);
+  }
   const watch = new IntersectionObserver(entries => {
-    const beyondHero = !entries[0].isIntersecting && entries[0].boundingClientRect.bottom < 0;
-    const mobile = window.matchMedia('(max-width:620px)').matches;
-    dock.classList.toggle('is-visible', mobile && beyondHero);
-    dock.setAttribute('aria-hidden', String(!(mobile && beyondHero)));
-  }, {rootMargin:'0px 0px -12% 0px'});
-  watch.observe($('.hero-section'));
-  $('#mobileDockButton').addEventListener('click', () => {$('#audit-tool').scrollIntoView({behavior:'smooth',block:'center'});});
+    const entry = entries[0];
+    passedPreview = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
+    syncDock();
+  }, {rootMargin:'0px 0px -8% 0px'});
+  watch.observe($('.mobile-inspection'));
+  const closeWatch = new IntersectionObserver(entries => {
+    closingVisible = entries[0].isIntersecting;
+    syncDock();
+  }, {threshold:0.05});
+  closeWatch.observe($('.closing-section'));
+  window.addEventListener('resize', syncDock, {passive:true});
+  [reportDialog, noticeDialog].forEach(dialog => dialog.addEventListener('close', syncDock));
+  $('#mobileDockButton').addEventListener('click', () => {
+    $('#audit-tool').scrollIntoView({behavior:'smooth',block:'center'});
+  });
 
   $('#year').textContent = String(new Date().getFullYear());
   updateMode('website');
