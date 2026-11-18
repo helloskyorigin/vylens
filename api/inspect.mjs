@@ -56,6 +56,15 @@ function choosePublicAddress(addresses) {
 async function resolvePublic(host) {
   return choosePublicAddress(await dns.lookup(host,{all:true,verbatim:true}));
 }
+// Node's autoSelectFamily passes lookup({all:true}) and expects an array.
+// Returning a scalar IP there caused ERR_INVALID_IP_ADDRESS on live Vercel scans.
+function pinnedLookup(chosen) {
+  return (_host,options,callback) => {
+    const cb=typeof options==='function' ? options : callback;
+    if(options && options.all) cb(null,[{address:chosen.address,family:chosen.family}]);
+    else cb(null,chosen.address,chosen.family);
+  };
+}
 async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxBytes=MAX_HTML,probe=false,expectedOrigin=null}={}) {
   if (redirects>3) throw new Error('The website redirected too many times.');
   const url=validateURL(input);
@@ -63,7 +72,7 @@ async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxB
   const chosen=await resolvePublic(url.hostname);
   return new Promise((resolve,reject)=>{
     const client=url.protocol==='https:'?https:http;
-    const req=client.request(url,{method,timeout,lookup:(_name,_options,cb)=>cb(null,chosen.address,chosen.family),
+    const req=client.request(url,{method,timeout,lookup:pinnedLookup(chosen),
       headers:{'User-Agent':USER_AGENT,'Accept':method==='HEAD'?'*/*':'text/html,application/xhtml+xml;q=0.9', 'Accept-Encoding':'identity'},maxHeaderSize:16384},res=>{
       const status=res.statusCode||0;
       if (status>=300 && status<400 && res.headers.location) {
@@ -341,4 +350,4 @@ export async function POST(request){
     return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.',failureCode,failureType},bad?400:422);
   }
 }
-export const _test={isPublicIP,choosePublicAddress,validateURL,review,scan,decode,getAttr};
+export const _test={isPublicIP,choosePublicAddress,pinnedLookup,validateURL,review,scan,decode,getAttr};
