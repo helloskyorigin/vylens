@@ -177,16 +177,37 @@
         impactList.append(entry);
       });
       $('areasSection').hidden = false;
+      $('findingsSection').hidden = false;
       const chips = $('areasList');
+      const list = $('findingsList');
+      let activeArea = null;
+      const showFindings = () => {
+        const filtered = activeArea
+          ? issues.filter(issue => issueCategory(issue).toLowerCase() === activeArea)
+          : issues;
+        list.replaceChildren();
+        filtered.forEach((issue,index) => list.append(finding(issue,index+1,index===0)));
+        put('findingsCount', filtered.length + (filtered.length === 1 ? ' issue' : ' issues'));
+        for (const chip of chips.children) {
+          const selected = chip.dataset.area === activeArea;
+          chip.classList.toggle('is-active', selected);
+          chip.setAttribute('aria-pressed', String(selected));
+        }
+      };
       areas.forEach(area => {
-        const chip = by('span','area-chip');
+        const chip = by('button','area-chip');
+        chip.type='button';
+        chip.dataset.area=area.name.toLowerCase();
+        chip.setAttribute('aria-pressed','false');
+        chip.setAttribute('aria-label','Filter findings: '+area.name);
         chip.append(by('span','',area.name),by('strong','',area.count));
+        chip.addEventListener('click',() => {
+          activeArea = activeArea === chip.dataset.area ? null : chip.dataset.area;
+          showFindings();
+        });
         chips.append(chip);
       });
-      $('findingsSection').hidden = false;
-      put('findingsCount', issues.length + (issues.length === 1 ? ' issue' : ' issues'));
-      const list = $('findingsList');
-      issues.forEach((issue, index) => list.append(finding(issue,index+1,index===0)));
+      showFindings();
     }
     put('scopeNote',report.mode === 'website'
       ? 'Based on available website source. Visual design and conversion behavior were not tested.'
