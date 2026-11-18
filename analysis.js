@@ -11,14 +11,14 @@
   let waitingTimer = null;
   const messages = {
     website: [
-      ['Reading your website…', 'Requesting the publicly available page source.'],
-      ['Looking for meaningful signals…', 'Checking the parts of the source we can verify.'],
-      ['Still looking closely…', 'Some websites take longer to respond.']
+      ['Reading your website…', 'Getting a closer look at your website.'],
+      ['Looking for meaningful signals…', 'Looking for details worth your attention.'],
+      ['Still looking closely…', 'Putting the details together.']
     ],
     product: [
       ['Opening your digital product…', 'Your file stays on this device.'],
       ['Examining available content…', 'Looking for issues supported by the file itself.'],
-      ['Making sense of the details…', 'Preparing a focused first look from the checks we can complete.']
+      ['Making sense of the details…', 'Getting your findings ready.']
     ]
   };
   function readableError(error) {
@@ -160,7 +160,6 @@
     }
     $('#analysisType').textContent = payload.mode==='website'?'WEBSITE AUDIT':'DIGITAL PRODUCT AUDIT';
     $('#analysisSubject').textContent = payload.mode==='website' ? (() => { try {return new URL(payload.url).hostname;}catch{return 'Your website';}})() : 'Your uploaded file';
-    $('#analysisScope').textContent = payload.mode==='website' ? 'Reading public HTML and testing supported page checks. Visual design and conversion rates are not measured.' : 'Your file stays local. When provided, a public sales-page URL is checked separately.';
     if(payload.mode==='product') $('#subjectGlyph').innerHTML='<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v6h6M8 13h8m-8 4h6"/>';
     $('#analysisRetry').addEventListener('click',run);
     run();
