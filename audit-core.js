@@ -1,68 +1,7 @@
+/* Local product file inspection utilities. File bytes never leave this browser. */
 (() => {
   'use strict';
-  const $=s=>document.querySelector(s);
-  const $$=s=>[...document.querySelectorAll(s)];
-  const state={mode:'website',payload:null,data:null,selected:0};
-  const MAX_FILE=15*1024*1024;
-  const typeNames={website:'Website',product:'Digital product'};
-  function setText(selector,value){const el=$(selector); if(el)el.textContent=String(value ?? '');}
-  function setStage(i,status='working'){
-    $$('.work-step').forEach((el,j)=>{el.classList.toggle('is-current',j===i);el.classList.toggle('is-done',j<i);el.setAttribute('aria-current',j===i?'step':'false')});
-    const b=$('#subjectStatus'); b.classList.toggle('is-working',status==='working');b.classList.toggle('is-error',status==='error');
-    setText('#statusLabel',status==='error'?'Inspection stopped':i===3?'First look ready':i===2?'Reviewing findings':i===1?'Inspecting source':'Getting ready');
-  }
-  function setLoading(heading,description){setText('#loadingLabel',heading);setText('#loadingDescription',description);}
-  function showError(message){setStage(1,'error');setText('#errorMessage',message);$('#loadingView').hidden=true;$('#readyView').hidden=true;$('#errorView').hidden=false;$('#deepCard').hidden=true;setText('#resultHeading','We hit a snag.');setText('#findingCount','!')}
-  function setMode(mode){state.mode=mode;
-    setText('#modePill',mode==='website'?'Website inspection':'Digital product inspection');
-    setText('#sourceType',typeNames[mode]);
-    setText('#deepPrice',mode==='website'?'$19':'$9');
-    setText('#sourceScope',mode==='website'?'Initial HTML':'Local file inspection');
-    setText('#privacyStrip',mode==='website'?'We request public HTML only. No payment or account is required.':'The file is analyzed in your browser and is not uploaded to VYLENS. No payment is required.');
-  }
-  function valueError(e){return (e&&typeof e.message==='string'&&e.message)?e.message:'Something interrupted this inspection.'}
-  function output(data){
-    state.data=data;state.selected=0;
-    setStage(2);
-    const list=Array.isArray(data.issues)?data.issues.slice(0,3):[];
-    $('#errorView').hidden=true;$('#loadingView').hidden=true;$('#readyView').hidden=false;$('#deepCard').hidden=false;
-    setText('#findingCount',String(list.length).padStart(2,'0'));
-    setText('#resultHeading',list.length?'Blind spots, made visible.':'A clean first pass.');
-    setText('#resultLead',data.scope||'This is a limited first-look inspection.');
-    setText('#resultStatusText',list.length?`Found ${list.length} issue${list.length===1?'':'s'} in the supported checks`:'Supported checks completed');
-    setText('#sourceTitle',data.pageTitle||data.subject||'Submitted source');
-    setText('#sourceDescription',data.summary||'Only details that could be read from the source are shown.');
-    setText('#sourceDomain',data.subject||'Your source');
-    setText('#subjectName',data.subject||'Your source');
-    setText('#subjectMeta',data.meta||'Initial inspection completed');
-    setText('#scopeNote',data.scope||'This report only covers the supported checks.');
-    setText('#sourceScope',data.coverageLabel||'Source checks');
-    const coverage=$('#coverageList');coverage.replaceChildren();
-    (data.checked||[]).forEach(t=>{const row=document.createElement('div');row.className='coverage-row';const dot=document.createElement('span');dot.className='coverage-check';dot.textContent='✓';row.append(dot,document.createTextNode(t));coverage.append(row)});
-    const rail=$('#findingRail');rail.replaceChildren();
-    list.forEach((finding,i)=>{
-      const b=document.createElement('button');b.type='button';b.className='finding-choice';b.setAttribute('aria-pressed',String(i===0));
-      const n=document.createElement('span');n.textContent=String(i+1).padStart(2,'0');
-      const title=document.createElement('strong');title.textContent=finding.title;
-      const arrow=document.createElementNS('http://www.w3.org/2000/svg','svg');arrow.setAttribute('viewBox','0 0 24 24');const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','m9 18 6-6-6-6');arrow.append(p);
-      b.append(n,title,arrow);b.addEventListener('click',()=>selectFinding(i));rail.append(b);
-    });
-    $('#findingDetail').hidden=!list.length;$('#emptyFindings').hidden=!!list.length;
-    if(list.length)selectFinding(0);
-    const more=(Number(data.totalDetected)||list.length)-list.length;
-    $('#moreIndicator').hidden=more<=0;
-    if(more>0)setText('#moreIndicator',`${more} additional source-level check${more===1?'':'s'} flagged possible issues. A deeper review is needed to prioritize them.`);
-    const subject=data.subject||'source';
-    const link=$('#deepAction');link.href=`mailto:hello.skyorigin@gmail.com?subject=${encodeURIComponent(`VYLENS ${state.mode==='website'?'Website':'Digital Product'} Full Review Request`)}&body=${encodeURIComponent(`Hello VYLENS,\n\nI'd like a full review of ${subject}.\n\nPlease share what is included and how the one-time payment works.\n\nThanks!`)}`;
-    setStage(3,'ready');
-  }
-  function selectFinding(index){
-    const list=state.data?.issues||[];const f=list[index];if(!f)return;state.selected=index;
-    $$('.finding-choice').forEach((b,i)=>{b.classList.toggle('is-selected',i===index);b.setAttribute('aria-pressed',String(i===index))});
-    setText('#detailCategory',(f.category||'REVIEW').toUpperCase());setText('#detailSeverity',(f.severity||'review').toUpperCase());
-    const label=$('#detailSeverity');label.className='severity-tag '+(['high','low'].includes(f.severity)?f.severity:'medium');
-    setText('#detailTitle',f.title);setText('#detailEvidence',f.evidence);setText('#detailFix',f.fix);
-  }
+  const MAX_FILE = 15 * 1024 * 1024;
   async function takeFile(){
     return new Promise((resolve,reject)=>{
       if(!('indexedDB' in window)){reject(new Error('Your browser cannot access the selected file. Please choose a newer browser.'));return}
@@ -90,7 +29,7 @@
     return {issues,words,headings};
   }
   async function pdfReview(file,issues){
-    setLoading('Reading document pages','Extracting text locally so you can see document-specific feedback.');
+    window.VylensCore.onProgress?.('Reading document pages…', 'Extracting text from your PDF locally.');
     let library;
     try{library=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs')}
     catch{throw new Error('PDF text reader could not load. Please check your internet connection and retry; your file has not been uploaded.')}
@@ -165,55 +104,6 @@
     const order={high:0,medium:1,low:2};issues.sort((a,b)=>order[a.severity]-order[b.severity]);issues.forEach((v,i)=>v.id=i+1);
     return {mode:'product',subject:name,pageTitle,summary,meta,coverageLabel,checked,issues:issues.slice(0,3),totalDetected:issues.length,scope:'Local first-look file inspection only. Visual design, buyer intent, sales performance and claims about why a product is not selling cannot be established from metadata or text alone. Your file is not uploaded.',passed:issues.length===0};
   }
-  async function inspect(){
-    $('#retryButton').disabled=true;$('#loadingView').hidden=false;$('#errorView').hidden=true;$('#readyView').hidden=true;$('#deepCard').hidden=true;
-    $('#findingCount').textContent='—';setText('#resultHeading','Your first look.');setText('#resultLead','Evidence comes from the submitted source, not an invented score.');
-    setStage(0);setLoading('Preparing your inspection','Checking the material you provided.');
-    try{
-      let result;
-      if(state.mode==='website'){
-        const url=state.payload?.url;if(!url)throw new Error('No website was provided. Start a new inspection from the homepage.');
-        setText('#subjectName',new URL(url).hostname);setText('#sourceDomain',new URL(url).hostname);
-        setStage(1);setLoading('Reading public HTML','Checking the page title, headings, metadata and accessibility basics.');
-        const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),16000);
-        let response;try{response=await fetch('./api/inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:ctrl.signal,cache:'no-store'})}finally{clearTimeout(t)}
-        let data;try{data=await response.json()}catch{throw new Error('The inspection service returned an unreadable response. Please try again.')}
-        if(!response.ok)throw new Error(data?.error||'The website could not be reached.');
-        result={...data,summary:data.pageTitle?'Page title captured from the initial HTML.':'The page title could not be captured.',meta:'Public HTML · no visual rendering',coverageLabel:'Page source'};
-      }else{
-        let file=state.file;
-        if(!file){const item=await takeFile();file=item?.file;state.file=file}
-        if(!file)throw new Error('Your selected file is no longer in this browser session. Please select it again from the homepage.');
-        setStage(1);setLoading('Reading your local file','Checking its supported content and structure.');
-        result=await productReview(file,state.payload||{});
-      }
-      output(result);
-    }catch(e){showError(e.name==='AbortError'?'The website inspection timed out. Please try again.':valueError(e))}
-    finally{$('#retryButton').disabled=false}
-  }
-  function printReport(){
-    if(!state.data)return;
-    const data=state.data;
-    const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const rows=(data.issues||[]).map((f,i)=>`<section style="break-inside:avoid;border:1px solid #d7e5cf;padding:16px;margin:12px 0;border-radius:10px"><h2 style="font-size:18px">${i+1}. ${esc(f.title)}</h2><p><b>Severity:</b> ${esc(f.severity)} · <b>Category:</b> ${esc(f.category)}</p><p><b>Evidence:</b> ${esc(f.evidence)}</p><p><b>Suggested improvement:</b> ${esc(f.fix)}</p></section>`).join('')||'<p>No issues detected by the supported checks.</p>';
-    const child=window.open('','_blank','width=720,height=750');
-    if(child) child.opener=null;
-    if(!child){window.print();return}
-    child.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>VYLENS Free Audit</title><style>body{font:15px/1.6 system-ui,sans-serif;color:#202820;max-width:700px;margin:30px auto;padding:0 22px}h1{line-height:1.15}small{color:#667360}@media print{body{margin:0 auto}}</style></head><body><h1>VYLENS / Free Inspection</h1><p><b>Subject:</b> ${esc(data.subject)}</p><small>${esc(data.scope)}</small>${rows}<p>Generated as a limited first look. Not a paid, comprehensive or visual inspection.</p><script>window.onload=function(){window.print()}<\/script></body></html>`);child.document.close();
-  }
-  async function init(){
-    setText('#workspaceYear',new Date().getFullYear());
-    try{state.payload=JSON.parse(sessionStorage.getItem('vylens:pending')||'null')}
-    catch{state.payload=null}
-    const mode=state.payload?.mode==='product'?'product':'website';setMode(mode);
-    if(mode==='website' && state.payload?.url){
-      setText('#subjectName',state.payload.url.replace(/^https?:\/\//,'').slice(0,90));
-      setText('#sourceDomain',state.payload.url.replace(/^https?:\/\//,'').slice(0,90));
-    }
-    if(mode==='product'){setText('#subjectName','Your digital product');setText('#sourceType','Digital product');}
-    $('#retryButton').addEventListener('click',inspect);
-    $('#exportButton').addEventListener('click',printReport);
-    await inspect();
-  }
-  init();
+
+  window.VylensCore = { takeFile, productReview, onProgress: null };
 })();

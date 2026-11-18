@@ -180,3 +180,22 @@
  .workspace-container{width:100%!important}.workspace-layout{display:block!important}.workspace-results-col,.workspace-panel{display:block!important;border:0;box-shadow:none;padding:0!important}
  .results-panel{min-height:0}.finding-rail{display:none!important}.finding-detail{border:1px solid #bccfac;break-inside:avoid}.workspace-body{background:white}
 }
+
+/* A focused third screen: remove old stepper and heavy workspace framing. */
+.results-body .workspace-intro{padding-top:54px}
+.results-body .workspace-layout{margin-top:29px}
+.results-body .workspace-panel{box-shadow:0 8px 34px #12230f09}
+.results-body .workspace-steps{display:none!important}
+.results-body .workspace-summary{margin-top:26px}
+.results-body .workspace-nav-center{letter-spacing:.105em}
+.results-body .results-panel{min-height:0}
+.results-body .source-note{color:#687968}
+.results-body .source-content{min-height:190px}
+.missing-report{max-width:580px;margin:90px auto;text-align:center;background:#fff;border:1px solid #e3ebdd;border-radius:24px;padding:60px 28px}
+.missing-report h2{font:800 29px/1.2 Manrope,sans-serif;letter-spacing:-.06em}
+.missing-report p{font-size:14px;color:#6b7967;line-height:1.65}
+.missing-report a{display:inline-flex;margin-top:12px;padding:15px 21px;background:#baff24;border-radius:14px;color:#17220d;font-weight:800;font-size:13px}
+@media(max-width:640px){.results-body .workspace-intro{padding-top:37px}.results-body .workspace-layout{margin-top:20px}.missing-report{margin:54px auto;padding:35px 20px}}
+
+/* The HTML hidden attribute must win over author-level display rules. */
+.results-body [hidden]{display:none!important}
