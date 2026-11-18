@@ -31,14 +31,11 @@
     <section id="analysisRunning" class="analysis-running" aria-label="Inspection in progress">
       <div class="analysis-eyebrow"><span class="analysis-live-dot" aria-hidden="true"></span> VYLENS IS LOOKING CLOSER</div>
       <div class="lens-scene" aria-hidden="true">
-        <div class="lens-halo"></div>
-        <div class="lens-ring lens-ring-outer"></div>
-        <div class="lens-ring lens-ring-inner"></div>
-        <span class="lens-tick lens-tick-top"></span><span class="lens-tick lens-tick-right"></span><span class="lens-tick lens-tick-bottom"></span><span class="lens-tick lens-tick-left"></span>
-        <span class="lens-spark lens-spark-a">✦</span><span class="lens-spark lens-spark-b">✧</span>
-        <div class="lens-core"><div class="lens-core-glass"><img src="./assets/vylens-mark.webp" alt="" width="64" height="64" /></div></div>
-        <div class="lens-orbit-dot"></div>
-        <span class="lens-scan-line"></span>
+        <div class="lens-stage">
+          <div class="lens-identity"><img src="./assets/vylens-mark.webp" alt="" width="96" height="96" /></div>
+          <span class="lens-beam"></span>
+        </div>
+        <span class="lens-progress-track"><span class="lens-progress-indicator"></span></span>
       </div>
       <div class="analysis-copy" id="analysisCopy" role="status" aria-live="polite" aria-atomic="true">
         <h1 id="analysisTitle">Taking a closer look<span>.</span></h1>
