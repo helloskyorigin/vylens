@@ -65,6 +65,28 @@ try{
   assert.ok(conversion.blockers.some(x=>x.stage==='action'),'ambiguous CTA flagged as possible friction');
   assert.ok(conversion.blockers.every(x=>x.evidence&&x.fix&&x.verify&&x.buyerConcern));
   assert.ok(conversion.unverified.some(x=>x.includes('Actual sales')),'no customer conversion claims');
+  // A footer policy is not automatically purchase-adjacent evidence.
+  const policyFar='<html><body><main><h1>Buy a toolkit</h1><p>$29 one-time</p>'+
+    '<button>Buy now</button></main><footer style="margin-top:1600px">'+
+    '<a href="/terms">Terms and refund information</a></footer></body></html>';
+  await page.setContent(policyFar,{waitUntil:'load'});
+  const far=await engine.captureCommerceSignals(page);
+  assert.equal(far.hasPurchaseTerms,true);
+  assert.equal(far.termsNearAction,false,'footer link far from the CTA is not buyer-adjacent');
+  const farReport=engine.analyzeWebsiteConversion([{url:'https://example.org/',status:'rendered',commerce:far}],
+    {coverage:{complete:true}});
+  assert.ok(farReport.blockers.some(x=>x.stage==='trust'),'footer-only terms are a reviewable context signal');
+  const near='<html><body><main><h1>Buy a toolkit</h1><p>$29 one-time</p>'+
+    '<button>Buy now</button><a href="/terms">Terms and refund information</a></main></body></html>';
+  await page.setContent(near,{waitUntil:'load'});
+  const nearby=await engine.captureCommerceSignals(page);
+  assert.equal(nearby.termsNearAction,true,'terms beside the CTA are detected');
+  const late='<html><body><main><h1>Digital toolkit</h1><p>$29 one-time</p>'+
+    '<div style="height:1700px"></div><a href="/purchase">Buy now</a></main></body></html>';
+  await page.setContent(late,{waitUntil:'load'});
+  const lateSignals=await engine.captureCommerceSignals(page);
+  assert.ok(lateSignals.actions.some(x=>x.label==='Buy now'&&x.inFirstView===false&&x.top>1100),
+    'first screen visibility is measured, not guessed from button text');
   await page.close();
   console.log('PASS: real Chromium fixtures cover rendered offer, public price, CTA and evidence-based buyer concerns alongside DOM/accessibility checks.');
 }finally{await browser.close();}
