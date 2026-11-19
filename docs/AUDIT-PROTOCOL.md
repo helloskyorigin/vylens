@@ -55,3 +55,20 @@ Use VYLENS white/lime design, red for high severity and yellow for review. Disab
 ## Known limitations
 
 No crawler can reliably judge private checkout, inaccessible logged-in content, payment success, or individual buyers' motivations without access or user data. Some PDF international scripts may be transliterated by the offline, dependency-free PDF exporter; browser HTML still preserves its original text. The system must disclose incomplete coverage.
+
+
+## Buyer Journey Replay (within "What's Stopping Buyers?")
+
+- Source: lib/buyer-experience.mjs builds the journey from rendered public commerce snapshots, not from a script pretending to be a shopper.
+- It displays four observed/unknown steps per viewport: offer heading, visible price, actual CTA label/placement and recorded link destination. Mobile and desktop can be compared with a two-button switch.
+- "Link points to X" means an observed anchor target; it does not mean VYLENS visited, completed, or tested checkout. A button with no known destination is unverified. No fictitious visitor sessions or behavioral timelines.
+- No rendered page means replay unavailable rather than invented data. A product-file-only report cannot claim pre-purchase visitor navigation.
+- QA: run node qa_buyer_experience.mjs and qa_conversion_results.py for viewport controls, keyboard access and PDF content.
+
+## Conversion Fix Kit (within "Exactly What to Change")
+
+- Server engine buildConversionFixKit generates at most one evidence-bound item per identified blocker. The kit can contain directly copyable CTA text grounded in an observed destination, existing supporting copy which can be reviewed for a headline, or an accurate link label to a real observed terms page.
+- If the evidence does not support ready-to-paste copy, show a copyable fix checklist instead. No invented testimonials, refunds, product promises, prices or sales outcomes.
+- Individual Copy and Copy kit both require a real click. Keep evidence and verification details in the existing issue rows.
+- For product-file-only audits, the Result UI supplies source-grounded checklists from actual file findings, not invented purchase behavior.
+- Both Journey Replay views and all kit items must be included in direct PDF export. Five report sections remain unchanged.
