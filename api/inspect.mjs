@@ -7,6 +7,7 @@ import dns from 'node:dns/promises';
 import https from 'node:https';
 import http from 'node:http';
 import net from 'node:net';
+import {analyzeSourceOffer} from '../lib/conversion-engine.mjs';
 
 const USER_AGENT = 'VYLENS-Inspector/2.0 (+https://vylens-tan.vercel.app/)';
 const MAX_HTML = 1_500_000;
@@ -328,7 +329,9 @@ async function scan(url,{fetcher=fetchPublic}={}) {
   const rank={critical:0,high:1,note:2};main.issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
   main.issues.forEach((issue,i)=>issue.id=i+1);
   const checked=['HTTP response','HTTPS','Page title and description','Heading hierarchy','Mobile viewport','Accessibility names','On-page links','Indexability','Social metadata','Up to 3 same-origin links'];
+  const conversion=analyzeSourceOffer(primary.html,primary.url);
   return {mode:'website',url:primary.url,subject:new URL(primary.url).hostname,pageTitle:main.pageTitle,
+    conversion,
     summary:`Inspected public HTML for ${new URL(primary.url).hostname}. Found ${main.issues.length} source-backed observations across ${main.checks.length} attempted checks; rendered visual and checkout behavior were not tested.`,
     meta:`HTTP ${primary.status} · Source inspection`,coverageLabel:'Public HTML + link verification',scope:main.scope,
     checked,checkedAt:new Date().toISOString(),checks:main.checks,checksRun:main.checks.length,
