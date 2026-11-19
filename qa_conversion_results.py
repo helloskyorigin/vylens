@@ -40,7 +40,7 @@ def check(condition,label):
     print('PASS:',label,flush=True)
 with sync_playwright() as pw:
     browser=pw.chromium.launch(headless=True,args=['--no-sandbox'])
-    for width in [320,390,768,1280]:
+    for width in [320,360,390,600,768,1024,1280,1440]:
         for kind,fixture in [('website',report()),('no-blockers',report(blockers=0)),
                              ('product',report('product',1))]:
             page=browser.new_page(viewport={'width':width,'height':850},reduced_motion='reduce')
@@ -135,11 +135,15 @@ with sync_playwright() as pw:
             check(page.evaluate('window.__printed'),f'{kind} header Download invokes actual print at {width}')
             check(page.locator('#navDownload').get_attribute('aria-label') is not None,
                   f'{kind} header action has an accessible label at {width}')
+            if width<=600:
+                touch=page.locator('#navDownload').bounding_box()
+                check(touch is not None and touch['width']>=44 and touch['height']>=44,
+                      f'{kind} iPhone download touch target is at least 44x44 at {width}')
             dims=page.evaluate('()=>({w:innerWidth,body:document.body.scrollWidth,doc:document.documentElement.scrollWidth})')
             check(max(dims['body'],dims['doc'])<=dims['w']+3,
                   f'{kind} no horizontal overflow at {width}: {dims}')
             check(not errors,f'{kind} no page errors at {width}: {errors}')
-            if kind=='website' and width in (320,390,1280):
+            if kind=='website' and width in (320,390,768,1280,1440):
                 page.locator('#technicalAppendix > summary').click()
                 page.screenshot(path=str(OUT/f'conversion-results-{width}.png'),
                                 full_page=True,animations='disabled')
