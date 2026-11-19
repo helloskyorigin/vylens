@@ -77,51 +77,84 @@ async function getText(url){
   try{
     const res=await secureFetch(url,{maxBytes:220000,timeout:3000});
     if(res.status!==200)return '';
-    return res.body.toString('utf8').slice(0,220000);
+    let bytes=res.body;
+    if(bytes.length>2 && bytes[0]===0x1f && bytes[1]===0x8b)
+      bytes=zlib.gunzipSync(bytes,{maxOutputLength:900000});
+    return bytes.toString('utf8').slice(0,220000);
   }catch{return '';}
 }
 function robotsRules(robots){
   const blocks=[];let agents=[],directives=[];
   const close=()=>{if(agents.length)blocks.push({agents,directives});agents=[];directives=[];};
   for(const raw of robots.split(/\r?\n/)){
-    const row=raw.split('#')[0].trim(),m=row.match(/^([\w-]+)\s*:\s*(.*)$/);
+    const line=raw.split('#')[0].trim();
+    if(!line){if(directives.length)close();continue;}
+    const m=line.match(/^([\w-]+)\s*:\s*(.*)$/);
     if(!m)continue;
-    const key=m[1].toLowerCase(),val=m[2].trim().toLowerCase();
-    if(key==='user-agent'){if(directives.length)close();agents.push(val);}
-    else if((key==='allow'||key==='disallow')&&agents.length)directives.push({key,value:val});
+    const key=m[1].toLowerCase(),value=m[2].trim();
+    if(key==='user-agent'){
+      if(directives.length)close();
+      agents.push(value.toLowerCase());
+    }else if((key==='allow'||key==='disallow')&&agents.length)directives.push({key,value});
   }
   close();
-  const specific=blocks.filter(x=>x.agents.includes('vylens-inspector'));
-  return (specific.length?specific:blocks.filter(x=>x.agents.includes('*'))).flatMap(x=>x.directives);
+  const specific=blocks.filter(g=>g.agents.includes('vylens-inspector'));
+  return (specific.length?specific:blocks.filter(g=>g.agents.includes('*'))).flatMap(g=>g.directives);
 }
 function robotsAllow(path,rules){
   let winner=null;
   for(const rule of rules){
     if(!rule.value)continue;
-    const prefix=rule.value.replace(/\*/g,'').replace(/\$$/,'');
-    if(prefix && path.startsWith(prefix) && (!winner||rule.value.length>winner.value.length))winner=rule;
+    const anchored=rule.value.endsWith('$');
+    const glob=anchored?rule.value.slice(0,-1):rule.value;
+    const expression='^'+glob.split('*').map(part=>part.replace(/[-/\\^$+?.()|[\]{}]/g,'\\$&')).join('.*')+(anchored?'$':'');
+    let matched=false;
+    try{matched=new RegExp(expression).test(path)}catch{continue;}
+    if(!matched)continue;
+    const specificity=glob.replace(/\*/g,'').length;
+    if(!winner||specificity>winner.specificity||(specificity===winner.specificity&&rule.key==='allow'))winner={key:rule.key,specificity};
   }
   return !winner||winner.key==='allow';
 }
 async function discover(root,start){
   const robots=await getText(root.origin+'/robots.txt'),rules=robotsRules(robots);
   const queue=[{url:start,via:'start'}],seen=new Set([start]);
+  let discoveryCapped=false,activated=false;
   const add=(href,via,base=root.origin)=>{
-    const u=normalize(href,base,root);
-    if(u&&!seen.has(u)&&seen.size<MAX_DISCOVERED){seen.add(u);queue.push({url:u,via});}
+    const url=normalize(href,base,root);
+    if(!url||seen.has(url))return;
+    if(seen.size>=MAX_DISCOVERED){discoveryCapped=true;return;}
+    seen.add(url);queue.push({url,via});
   };
-  const maps=[root.origin+'/sitemap.xml'];
-  for(const row of robots.split(/\r?\n/)){const m=row.match(/^\s*Sitemap\s*:\s*(\S+)/i);if(m)maps.push(m[1]);}
-  for(const m of maps.slice(0,2)){
-    let candidate;try{candidate=urlOf(m);}catch{continue;}
-    if(!sameSite(candidate,root))continue;
-    const xml=await getText(candidate.toString());
-    for(const match of [...xml.matchAll(/<loc(?:\s[^>]*)?>([^<]+)<\/loc>/gi)].slice(0,160)){
-      const u=match[1].replace(/&amp;/gi,'&');
-      if(!/\.xml(?:\?|$)/i.test(u))add(u,'sitemap');
+  const mapQueue=[root.origin+'/sitemap.xml'];
+  for(const line of robots.split(/\r?\n/)){
+    const m=line.match(/^\s*Sitemap\s*:\s*(\S+)/i);
+    if(m)mapQueue.push(m[1]);
+  }
+  const checkedMaps=new Set(),sitemapEntries=[];
+  while(mapQueue.length&&checkedMaps.size<4&&sitemapEntries.length<400){
+    const next=mapQueue.shift();
+    let target;try{target=urlOf(next)}catch{continue;}
+    if(!sameSite(target,root)||checkedMaps.has(target.toString()))continue;
+    checkedMaps.add(target.toString());
+    const xml=await getText(target.toString());
+    if(!/<(?:urlset|sitemapindex)\b/i.test(xml))continue;
+    const isIndex=/<sitemapindex\b/i.test(xml);
+    for(const match of [...xml.matchAll(/<loc(?:\s[^>]*)?>([^<]+)<\/loc>/gi)].slice(0,240)){
+      const url=match[1].replace(/&amp;/gi,'&').trim();
+      if(isIndex){
+        let nested;try{nested=urlOf(url)}catch{continue;}
+        if(sameSite(nested,root)&&/\.xml(?:\.gz)?$/i.test(nested.pathname))mapQueue.push(nested.toString());
+      }else if(sitemapEntries.length<400)sitemapEntries.push(url);
     }
   }
-  return {queue,seen,add,rules};
+  const activateSitemap=()=>{
+    if(activated)return;
+    activated=true;
+    for(const url of sitemapEntries)add(url,'sitemap');
+    if(sitemapEntries.length>=400||mapQueue.length)discoveryCapped=true;
+  };
+  return {queue,seen,add,rules,activateSitemap,get discoveryCapped(){return discoveryCapped;}};
 }
 function extractSourceLinks(html){
   return [...html.matchAll(/<a\b[^>]{0,1000}\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
@@ -142,6 +175,8 @@ async function intercept(route,state){
     const headers={'content-type':String(r.headers['content-type']||'application/octet-stream')};
     if(r.headers.location)headers.location=String(r.headers.location).slice(0,1800);
     if(r.headers['access-control-allow-origin'])headers['access-control-allow-origin']=String(r.headers['access-control-allow-origin']);
+    // Preserve directives the audit uses; forwarding only content-type hid X-Robots-Tag.
+    if(r.headers['x-robots-tag'])headers['x-robots-tag']=String(r.headers['x-robots-tag']).slice(0,500);
     return route.fulfill({status:r.status,headers,body:r.body});
   }catch{return route.abort('failed');}
 }
@@ -170,7 +205,16 @@ async function rendered(session,url){
     const html=(await page.content()).slice(0,1400000);
     const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
       .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
-    const visibleText=await page.evaluate(()=>String(document.body?.innerText||'').slice(0,14000));
+    const visibleText=await page.evaluate(()=>{
+      const container=document.querySelector('main')||document.querySelector('article')||document.body;
+      if(!container)return '';
+      if(container===document.body){
+        const clone=container.cloneNode(true);
+        clone.querySelectorAll('header,footer,nav,aside,script,style,noscript').forEach(el=>el.remove());
+        return String(clone.textContent||'').slice(0,14000);
+      }
+      return String(container.innerText||'').slice(0,14000);
+    });
     await page.setViewportSize({width:390,height:844});
     await page.waitForTimeout(90);
     const mobile=await page.evaluate(()=>{
@@ -186,7 +230,7 @@ async function rendered(session,url){
       }
       return {width,scrollWidth:document.documentElement.scrollWidth,small};
     });
-    return {status,html,links,mobile,visibleText,browser:true,errors};
+    return {status,html,links,mobile,visibleText,headers:await response.allHeaders(),browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
 
@@ -195,8 +239,11 @@ function policyContentReview(url,visibleText,html){
   if(!/(?:privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping)/i.test(path))
     return {issues:[],checks:[]};
   let text=str(visibleText);
-  if(!text)text=str(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
-     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' '));
+  if(!text){
+    const body=(html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)||[])[1]||html;
+    text=str(body.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' '));
+  }
   const issues=[],checks=[];
   const match=text.match(/\blorem ipsum\b|\bcoming soon\b|\bTODO\b|\[(?:insert|your)\s+(?:company|business|name|email|address|date)[^\]]{0,40}\]/i);
   const shortContent=text.length<180;
@@ -213,8 +260,8 @@ function policyContentReview(url,visibleText,html){
     verify:'Read the complete rendered policy page and confirm the relevant information is present.'});
   return {issues,checks};
 }
-function pageReview(html,url,status,browser,mobile,visibleText,errors){
-  const data=source.review(html,url,{status});
+function pageReview(html,url,status,browser,mobile,visibleText,errors,headers){
+  const data=source.review(html,url,{status,headers:headers||{}});
   const path=new URL(url).pathname||'/';
   const checks=data.checks.map(x=>({...x,name:path+' · '+x.name}));
   const issues=data.issues.map(x=>({...x,location:path+' · '+(x.location||'Page')}));
@@ -244,8 +291,8 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors){
 function aggregate(analyses){
   const result=new Map();
   for(const page of analyses)for(const issue of page.issues){
-    const key=issue.category==='Navigation'
-      ?issue.category+'|'+issue.title+'|'+issue.evidence:issue.category+'|'+issue.title+'|'+issue.severity;
+    // Do not merge findings whose underlying evidence is different.
+    const key=[issue.category,issue.title,issue.severity,str(issue.evidence||'')].join('|');
     if(!result.has(key))result.set(key,{...issue,affectedCount:0,affectedPages:[]});
     const r=result.get(key);r.affectedCount++;
     if(r.affectedPages.length<18)r.affectedPages.push(new URL(page.url).pathname||'/');
@@ -253,7 +300,7 @@ function aggregate(analyses){
   const out=[...result.values()];
   for(const i of out)if(i.affectedCount>1)i.location=i.affectedCount+' pages: '+i.affectedPages.slice(0,5).join(', ')+(i.affectedCount>5?'…':'');
   out.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-( {critical:0,high:1,note:2}[b.severity]??2));
-  return out.slice(0,180).map((x,i)=>({...x,id:i+1}));
+  return out.map((x,i)=>({...x,id:i+1}));
 }
 async function scanSite(input){
   const started=Date.now();
@@ -285,28 +332,41 @@ async function scanSite(input){
         }catch(error){visit={status:0,html:'',links:[],browser:false,error:str(error?.message).slice(0,150)};}
       }
       if(!visit.html){
-        pages.push({url:item.url,path,type:kind,status:'unverified',reason:visit.error||('HTTP '+visit.status),findings:0});
-        checks.push({name:path+' · Page available',status:'unverified',detail:visit.error||('HTTP '+visit.status)});
-        if(item.via==='link'&&[404,410].includes(visit.status))
+        let confirmedBroken=false;
+        if(item.via==='link'&&[404,410].includes(visit.status)){
+          // A transient WAF/HEAD or browser-only response is not enough: repeat with safe GET.
+          try{
+            const verification=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
+            confirmedBroken=verification.status===visit.status;
+          }catch{}
+        }
+        pages.push({url:item.url,path,type:kind,status:'unverified',
+          reason:visit.error||('HTTP '+visit.status),findings:confirmedBroken?1:0});
+        checks.push({name:path+' · Page available',status:confirmedBroken?'attention':'unverified',
+          detail:confirmedBroken?'HTTP '+visit.status+' confirmed on two GET requests.':
+            (visit.error||'Page returned HTTP '+visit.status+'; availability not confirmed.')});
+        if(confirmedBroken)
           analyses.push({url:item.url,issues:[{category:'Navigation',severity:'high',title:'Linked page returned HTTP '+visit.status,
-            location:path,evidence:'The internal link to '+path+' returned HTTP '+visit.status+'.',
+            location:path,evidence:'The internal link to '+path+' returned HTTP '+visit.status+' on two public GET requests.',
             fix:'Restore the page or update its internal links.',verify:'Open the link and confirm it loads.'}]});
+        if(item.via==='start')discoverer.activateSitemap();
         continue;
       }
-      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors);
+      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors,visit.headers||raw?.headers);
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
       if(visit.browser)renderedCount++;else sourceCount++;
       for(const link of visit.links||[])if(link.href)discoverer.add(link.href,'link',item.url);
+      if(item.via==='start')discoverer.activateSitemap();
     }
   }finally{if(session)await session.browser.close().catch(()=>{});}
   const remaining=discoverer.queue.filter(x=>!done.has(x.url)).length;
   const inspected=renderedCount+sourceCount,legalCount=pages.filter(p=>p.type==='legal'&&(p.status==='rendered'||p.status==='source')).length;
   const skipped=pages.filter(p=>p.status==='skipped'||p.status==='unverified').length;
-  const complete=remaining===0&&skipped===0&&sourceCount===0;
+  const complete=remaining===0&&skipped===0&&sourceCount===0&&!discoverer.discoveryCapped;
   if(sourceCount)checks.push({name:'Playwright coverage',status:'unverified',detail:sourceCount+' page(s) used source fallback instead of rendered checks.'});
-  if(remaining||skipped)checks.push({name:'Crawl coverage',status:'unverified',detail:remaining+' pages not visited; '+skipped+' blocked or unavailable.'});
+  if(remaining||skipped||discoverer.discoveryCapped)checks.push({name:'Crawl coverage',status:'unverified',detail:remaining+' discovered pages not visited; '+skipped+' blocked or unavailable.'+(discoverer.discoveryCapped?' Discovery URL cap reached.':'')});
   const issues=aggregate(analyses);
   const byTitle=new Map();
   for(const page of titles){
@@ -324,17 +384,20 @@ async function scanSite(input){
     checks.push({name:'Cross-page title uniqueness',status:'attention',detail:urls.length+' pages use the same document title.'});
   }
   issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-( {critical:0,high:1,note:2}[b.severity]??2));
+  const findingsLimited=issues.length>250;
+  if(findingsLimited)checks.push({name:'Finding coverage',status:'unverified',detail:'Additional findings exceeded the 250-item report cap.'});
+  issues.length=Math.min(issues.length,250);
   issues.forEach((x,i)=>x.id=i+1);
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,
     coverage:{discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
-      legal:legalCount,skipped,remaining,limit:LIMIT,complete,elapsedSeconds:Math.round((Date.now()-started)/1000)},
+      legal:legalCount,skipped,remaining,discoveryCapped:discoverer.discoveryCapped,findingsLimited,limit:LIMIT,complete:complete&&!findingsLimited,elapsedSeconds:Math.round((Date.now()-started)/1000)},
     summary:inspected+' pages inspected ('+legalCount+' legal); '+issues.length+' types of issues.',
     meta:'Multi-page inspection',coverageLabel:'Public site + mobile browser',
     scope:renderedCount?'Rendered pages and mobile layout were checked in Playwright where possible. These checks do not establish legal compliance or the cause of sales changes.'
       :'Playwright was unavailable; only available HTML source was inspected, without visual validation.',
     issues,checks,checksRun:checks.length,totalDetected:issues.length,
-    passed:issues.length===0&&complete};
+    passed:issues.length===0&&complete&&!findingsLimited};
 }
 export async function POST(request){
   if(!/^application\/json\b/i.test(request.headers.get('content-type')||''))return respond({error:'Send JSON.'},415);

@@ -53,7 +53,7 @@
       const name = issueCategory(issue);
       const key = name.toLowerCase();
       const current = areas.get(key) || {name, count:0, most:2};
-      current.count += 1;
+      current.count += Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
       current.most = Math.min(current.most, rank(severity(issue)));
       areas.set(key, current);
     }
@@ -64,7 +64,7 @@
     for (const issue of issues) {
       const [title, description] = impactFor(issueCategory(issue)).split('|');
       const current = impacts.get(title) || {title, description, count:0, most:2};
-      current.count++;
+      current.count += Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
       current.most = Math.min(current.most, rank(severity(issue)));
       impacts.set(title, current);
     }
@@ -88,7 +88,9 @@
     const head = by('summary', 'finding-head');
     const numberEl = by('span', 'finding-number', String(number));
     const main = by('span', 'finding-main');
-    main.append(by('strong', '', clean(issue.title || 'Finding', 160)), by('small', '', issueCategory(issue)));
+    const pages=Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>1?issue.affectedCount:0;
+    main.append(by('strong','',clean(issue.title || 'Finding',160)),
+      by('small','',issueCategory(issue)+(pages?' · '+pages+' pages':'')));
     const sev = severity(issue);
     const sevEl = by('span', 'severity ' + sev, sev === 'critical' ? 'Critical' : sev === 'high' ? 'High' : 'Note');
     const chevron = document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -180,7 +182,8 @@
   }
   function render(report) {
     const issues = report.issues.slice().sort((a,b) => rank(severity(a))-rank(severity(b)));
-    const count = severityName => issues.filter(item => severity(item) === severityName).length;
+    const issueWeight = item => Number.isSafeInteger(item.affectedCount)&&item.affectedCount>0?item.affectedCount:1;
+    const count = severityName => issues.filter(item => severity(item) === severityName).reduce((n,item)=>n+issueWeight(item),0);
     const critical = count('critical'), high = count('high'), other = count('other');
     put('criticalCount',critical);
     put('highCount',high);
@@ -231,7 +234,8 @@
           : issues;
         list.replaceChildren();
         filtered.forEach((issue,index) => list.append(finding(issue,index+1,index===0)));
-        put('findingsCount',filtered.length + (filtered.length === 1 ? ' issue' : ' issues'));
+        const occurrences=filtered.reduce((n,item)=>n+issueWeight(item),0);
+        put('findingsCount',occurrences+(occurrences===1?' issue':' issues'));
         for (const chip of chips.children) {
           if (chip.tagName && chip.tagName.toLowerCase() !== 'button') continue;
           const selected = chip.dataset.area === (activeArea ?? 'all');
