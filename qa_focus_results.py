@@ -38,7 +38,15 @@ with sync_playwright() as p:
         page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(report))+");")
         response=page.goto(BASE+"/results.html",wait_until="load",timeout=50000)
         check(response.status==200,f"Report available at {width}px")
-        check(page.locator(".metrics-section .metric").count()==2,f"Only 2 cards at {width}px")
+        check(page.locator(".metrics-section .metric").count()==2,f"Compact summary contains 2 metrics at {width}px")
+        check("2 high-priority" in page.locator("#reportHeadline").inner_text().lower(),
+              f"Priority-driven headline at {width}px")
+        check("6 of 7" in page.locator("#coverageMessage").inner_text(),
+              f"Honest incomplete coverage at {width}px")
+        check("HTTP 404" in page.locator("#impactText").inner_text(),
+              f"Top evidence visible before details at {width}px")
+        check("Restore page" in page.locator("#priorityFix").inner_text(),
+              f"Recommended fix visible without extra click at {width}px")
         check(page.locator("#problemsCount").inner_text()=="6",f"Distinct findings at {width}px")
         check("7 affected-page occurrences" in page.locator("#affectedOccurrences").inner_text(),
               f"Occurrences separate from distinct findings at {width}px")
@@ -51,12 +59,15 @@ with sync_playwright() as p:
         if width==390:
             red=page.locator(".metric-problems").evaluate("(e)=>getComputedStyle(e).backgroundColor")
             green=page.locator(".metric-checks").evaluate("(e)=>getComputedStyle(e).backgroundColor")
-            check(red=="rgb(255, 241, 240)","Problems card red")
-            check(green=="rgb(235, 248, 232)","Checks card green")
+            check(red=="rgb(251, 252, 250)","Problems metric uses calm neutral background")
+            check(green=="rgb(251, 252, 250)","Checks metric uses calm neutral background")
         if width in (320,390):
             check(page.locator("#findingsList .finding").first.locator(".details-label").is_visible(),
                   f"Details action remains visible at {width}px")
         first=page.locator("#findingsList .finding").first
+        page.locator("#priorityDetails").click()
+        check(first.evaluate("(e)=>e.open"),f"Start-here button reveals the exact issue at {width}px")
+        first.locator(".finding-head").click()
         first.locator(".finding-head").click()
         check(first.evaluate("(e)=>e.open"),f"Problem expands at {width}px")
         check("HTTP 404" in first.inner_text(),f"Evidence shown at {width}px")
@@ -69,8 +80,8 @@ with sync_playwright() as p:
         page.locator("#moreProblems").click()
         check(page.locator("#findingsList .finding:visible").count()==6,f"View all exposes 6 at {width}px")
         check(first.evaluate("(e)=>e.open"),f"Expanded finding state preserved at {width}px")
-        check(page.locator("#findingsList").evaluate("(e)=>getComputedStyle(e).overflowY")=="auto",
-              f"Expanded issues have bounded scroller at {width}px")
+        check(page.locator("#findingsList").evaluate("(e)=>getComputedStyle(e).overflowY")=="visible",
+              f"Finding list uses natural document scrolling at {width}px")
         page.locator("#moreProblems").click()
         check(page.locator("#findingsList .finding:visible").count()==3,f"Collapse restores compact list at {width}px")
         check(first.evaluate("(e)=>e.open"),f"Open finding survives Show fewer at {width}px")
@@ -86,6 +97,9 @@ with sync_playwright() as p:
         check(page.locator("#notApplicableGroup").is_visible(),f"N/A checks separated at {width}px")
         check(page.locator("#notApplicableList .check-row").count()==1,f"Unneeded check is not reported as an error at {width}px")
         check(page.locator("#siteCoverage").is_visible(),f"Page coverage inside checks at {width}px")
+        check(page.locator("#exportData").is_visible(),f"Privacy-safe report data export is available at {width}px")
+        check(page.locator("#printAppendix").inner_text().find("All completed and attempted checks")>=0,
+              f"Printable appendix includes complete check breakdown at {width}px")
         bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
         check(max(bounds["b"],bounds["d"])<=bounds["w"]+3,f"No expanded overflow {width}px: {bounds}")
         page.locator("#checksPanel > summary").click()
