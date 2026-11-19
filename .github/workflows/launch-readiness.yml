@@ -32,6 +32,8 @@ jobs:
         run: python qa_product_browser.py
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
+      - name: Test buyer-first Results, evidence and mobile interactions
+        run: python qa_conversion_results.py
       - name: Test focused Results at desktop and mobile widths
         run: python qa_focus_results.py
       - name: Test zero, partial, long and paginated Results states
