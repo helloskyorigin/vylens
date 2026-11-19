@@ -21,6 +21,14 @@ jobs:
           node-version: '22'
       - name: Install scanner dependencies for unit tests
         run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Validate frontend and scanner JavaScript syntax
+        run: |
+          node --check results.js
+          node --check analysis.js
+          node --check script.js
+          node --check audit-core.js
+          node --check api/inspect-site.mjs
+          node --check api/inspect.mjs
       - name: Test crawl accuracy, legal-page heuristics and result counts
         run: node qa_multisite_accuracy.mjs
       - name: Test evidence-first problem engine and metadata accuracy
