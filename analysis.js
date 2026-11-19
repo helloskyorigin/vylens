@@ -11,6 +11,7 @@
   let waitingTimer = null;
   let retryTimer = null;
   let retryUntil = 0;
+  let elapsedTimer = null;
   const messages = {
     website: [
       ['Reading your website…', 'Getting a closer look at your website.'],
@@ -62,7 +63,25 @@
       changeMessage(...messages[payload.mode][next++]);
     }, payload.mode === 'website' ? 8000 : 2700);
   }
-  function stopWaitingMessages() { clearInterval(waitingTimer); waitingTimer = null; }
+  function beginElapsed() {
+    const display=$('#analysisElapsed');
+    display.hidden=payload.mode!=='website';
+    if(display.hidden)return;
+    clearInterval(elapsedTimer);
+    const started=Date.now();
+    const update=()=>{
+      const seconds=Math.max(0,Math.floor((Date.now()-started)/1000));
+      display.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+
+        String(seconds%60).padStart(2,'0')+
+        ' elapsed · Inspecting up to 24 public pages';
+    };
+    update();
+    elapsedTimer=setInterval(update,1000);
+  }
+  function stopWaitingMessages() {
+    clearInterval(waitingTimer);waitingTimer=null;
+    clearInterval(elapsedTimer);elapsedTimer=null;
+  }
   function updateRetryState() {
     const button=$('#analysisRetry');
     const remaining=Math.max(0,Math.ceil((retryUntil-Date.now())/1000));
@@ -98,6 +117,7 @@
     $('#analysisRunning').hidden = false;
     $('#analysisError').hidden = true;
     renderMessage(...messages[payload.mode][0]);
+    beginElapsed();
     beginWaitingMessages();
     try {
       let result;
