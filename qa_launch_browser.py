@@ -70,7 +70,7 @@ with sync_playwright() as playwright:
     })
     check('launch-check.md' in page.locator('#uploadTitle').inner_text(),'File input accepts local Markdown')
     page.locator('#submitAudit').click()
-    page.wait_for_url(re.compile('/results\.html'),timeout=55000)
+    page.wait_for_url(re.compile(r'/results\.html'),timeout=55000)
     check('launch-check.md' in page.locator('#reportSubject').inner_text(),'Results identify uploaded product')
     check(page.locator('#reportType').inner_text()=='DIGITAL PRODUCT','Results show correct audit type')
     check(page.locator('#findingsList .finding').count()>=1,'Real file findings are present')
@@ -88,7 +88,7 @@ with sync_playwright() as playwright:
 
     # "Scan another file" must return to Product tab, not Website.
     page.locator('#recheck').click()
-    page.wait_for_url(re.compile('/index\.html'),timeout=25000)
+    page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
     check(page.locator('#productTab').get_attribute('aria-pressed')=='true',
           'Digital Product recheck retains Product mode')
 
@@ -96,7 +96,7 @@ with sync_playwright() as playwright:
     page.locator('#faq').scroll_into_view_if_needed()
     page.locator('#faq details').first.locator('summary').click()
     faq_text=page.locator('#faq').inner_text()
-    check('Playwright' in faq_text and '24 pages' in faq_text,
+    check('rendered DOM' in faq_text and '24 pages' in faq_text,
           'FAQ describes current browser and page limits')
 
     # Responsive smoke: detect horizontal overflows on all major breakpoints.
