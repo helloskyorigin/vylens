@@ -10,7 +10,13 @@
   if(!data||data.version!==1||!Array.isArray(data.blockers)||data.blockers.length>24||
     !Array.isArray(data.journey)||!['website','product'].includes(report.mode))return;
 
-  const clean=(value,length=1800)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,length);
+  const clean=(value,length=1800)=>{
+    const raw=String(value??'').replace(/\s+/g,' ').trim();
+    if(raw.length<=length)return raw;
+    const prefix=raw.slice(0,length);
+    const last=prefix.lastIndexOf(' ');
+    return prefix.slice(0,last>length*.55?last:length).trimEnd()+'…';
+  };
   const make=(tag,cls,copy)=>{
     const el=document.createElement(tag);
     if(cls)el.className=cls;

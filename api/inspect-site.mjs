@@ -334,7 +334,12 @@ async function captureRenderedSignals(page){
  */
 async function captureCommerceSignals(page){
   return page.evaluate(()=>{
-    const trim=(s,n=180)=>String(s??'').replace(/\s+/g,' ').trim().slice(0,n);
+    const trim=(value,max=180)=>{
+      const raw=String(value??'').replace(/\s+/g,' ').trim();
+      if(raw.length<=max)return raw;
+      const cut=raw.slice(0,max).lastIndexOf(' ');
+      return raw.slice(0,cut>max*.55?cut:max).trimEnd()+'…';
+    };
     const visible=el=>{
       if(!el||el.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
       const st=getComputedStyle(el),r=el.getBoundingClientRect();

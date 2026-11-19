@@ -176,4 +176,11 @@ const tierPrices=analyzeWebsiteConversion([page('/pricing',offer({
 }))],{coverage:{complete:true}});
 assert.ok(!tierPrices.blockers.some(x=>x.title.includes('price text differs')),
   'multiple pricing tiers must not produce a false discrepancy');
-console.log('PASS conversion engine: mobile occlusion, clipping, price parity and supported buyer issues');
+const lengthy='This sentence explains a real observed buying concern. '+
+  'The page clearly states its actual product details. '.repeat(35);
+const bounded=_test.makeBlocker('clarity','review','Long observation',lengthy,
+  'Might need more explanation','Check it','Reopen','/ · heading');
+assert.ok(bounded.evidence.length<=565&&bounded.evidence.endsWith('…'),
+  'long findings visibly indicate abbreviated evidence');
+assert.ok(!/\S…$/.test(''), 'no platform-dependent clipping assumption');
+console.log('PASS conversion engine: bounded readable evidence, geometry and price parity');
