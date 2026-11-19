@@ -355,18 +355,25 @@
       if(issues.length>initial){
         const more=$('moreProblems');
         more.hidden=false;
-        let expanded=false,fullRendered=false;
+        let shown=initial,created=initial;
+        const pageSize=10;
         const update=()=>{
-          // Keep the original detail elements in the DOM so open state, focus and copied text persist.
-          if(expanded&&!fullRendered){add(initial,issues.length);fullRendered=true;}
-          Array.from(list.children).slice(initial).forEach(item=>{item.hidden=!expanded;});
-          list.classList.toggle('is-expanded',expanded);
-          if(!expanded)list.scrollTop=0;
-          more.setAttribute('aria-expanded',String(expanded));
-          put('moreProblemsText',expanded?'Show fewer findings':'View all '+issues.length+' findings');
+          const next=Math.min(issues.length,shown);
+          if(next>created){add(created,next);created=next;}
+          Array.from(list.children).forEach((item,index)=>{
+            if(index>=initial)item.hidden=index>=next;
+          });
+          list.classList.toggle('is-expanded',next>initial);
+          more.setAttribute('aria-expanded',String(next>initial));
+          put('moreProblemsText',next===issues.length?
+            'Show fewer findings':'Show next '+Math.min(pageSize,issues.length-next)+
+            ' findings · '+next+' of '+issues.length+' shown');
         };
-        put('moreProblemsText','View all '+issues.length+' findings');
-        more.addEventListener('click',()=>{expanded=!expanded;update();});
+        update();
+        more.addEventListener('click',()=>{
+          shown=shown>=issues.length?initial:Math.min(issues.length,shown+pageSize);
+          update();
+        });
       }
     }else{
       list.append(node('p','panel-empty',checks?'No findings were confirmed by the supported checks.':'No findings available.'));
@@ -376,6 +383,23 @@
       'Based on supplied supported files. Actual buyer behavior was not measured.');
     printDetails(issues,report);
     $('savePdf').addEventListener('click',()=>window.print());
+    $('exportData').addEventListener('click',()=>{
+      try{
+        const filename='vylens-'+clean(report.subject||report.url||'audit',70)
+          .toLowerCase().replace(/[^a-z0-9.-]+/g,'-').replace(/^-+|-+$/g,'')+
+          '-'+new Date(report.checkedAt||Date.now()).toISOString().slice(0,10)+'.json';
+        const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
+        const href=URL.createObjectURL(blob);
+        const anchor=document.createElement('a');
+        anchor.href=href;anchor.download=filename;
+        document.body.append(anchor);anchor.click();anchor.remove();
+        setTimeout(()=>URL.revokeObjectURL(href),60000);
+      }catch(error){
+        const control=$('exportData');
+        control.textContent='Could not export. Try printing the report.';
+        console.warn('VYLENS report export failed:',error?.name||'unknown');
+      }
+    });
     if(report.mode==='product')$('recheck').lastChild.textContent=' New file';
     $('recheck').addEventListener('click',()=>{
       if(report.mode==='website'&&report.url){
