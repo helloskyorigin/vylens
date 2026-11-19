@@ -131,8 +131,13 @@
       button.type='button';
       button.setAttribute('aria-label','Copy instructions for '+clean(issue.title||'finding',75));
       button.addEventListener('click',async()=>{
+        const recorded=Array.isArray(issue.occurrences)?issue.occurrences:
+          Array.isArray(issue.affectedPages)?issue.affectedPages.map(path=>({path})):[];
+        const affected=recorded.slice(0,18).map(entry=>
+          'Affected: '+clean(entry.path||'/',170)+(entry.location?' · '+clean(entry.location,220):'')+
+          (entry.evidence?' · '+clean(entry.evidence,320):''));
         const content=[issue.title,issue.location&&'Location: '+issue.location,issue.evidence&&'Evidence: '+issue.evidence,
-          issue.fix&&'Fix: '+issue.fix,issue.verify&&'Verify: '+issue.verify].filter(Boolean).join('\n');
+          ...affected,issue.fix&&'Fix: '+issue.fix,issue.verify&&'Verify: '+issue.verify].filter(Boolean).join('\n');
         try{
           await navigator.clipboard.writeText(content);
           button.textContent='Copied instructions';
