@@ -26,7 +26,9 @@
       ({high:0,review:1,medium:1,low:2}[b.priority]??1));
   const buyers=sorted.filter(item=>item.source!=='Locally inspected product file');
   const problemItems=report.mode==='product'?sorted:buyers;
-  const changes=sorted.filter(item=>clean(item.fix).length).slice(0,8);
+  // Use the same evidence-backed issue collection for cards, counts and fixes.
+  const primaryFindings=problemItems;
+  const changes=primaryFindings.filter(item=>clean(item.fix).length).slice(0,8);
   const strengths=Array.isArray(data.strengths)?
     data.strengths.filter(item=>item&&typeof item==='object'&&item.title).slice(0,6):[];
   const counts={high:0,medium:0,low:0};
@@ -197,7 +199,8 @@
   const verdict=make('span','five-verdict '+tone,score===null?'Not enough evidence':
     tone==='high'?'Needs attention':tone==='medium'?'Needs improvement':'Good signals found');
   const assessment=score===null?
-    (report.mode==='product'?'A product file alone cannot show why customers decide not to buy. A public sales page is needed for that assessment.':
+    (report.mode==='product'?
+      'Product issues below come from file checks. A public sales page is needed to assess pre-purchase hesitation.':
       'Not enough verified buyer-facing signals were found to give a useful score.'):
     buyers.length?('Review the '+buyers.length+' potential buying issue'+(buyers.length===1?'':'s')+' below.'):
       'No specific buying obstacle was detected in the assessed areas. That does not establish real sales performance.';
@@ -235,9 +238,11 @@
     return section;
   }
   const blockersPanel=panel('five-blockers',report.mode==='product'?'What Needs Fixing?':"What's Stopping Buyers?",
-    'Potential issues observed on the public offer. Tap one for evidence.');
-  const hesitationsPanel=panel('five-hesitations','Why People Hesitate',
-    'Questions a potential buyer may ask.');
+    report.mode==='product'?'Observed product or sales-page issues. Tap for evidence.':
+      'Potential issues on inspected public pages. Tap for evidence.');
+  const hesitationsPanel=panel('five-hesitations',report.mode==='product'?'Questions Buyers May Have':'Why People Hesitate',
+    report.mode==='product'?'Questions about the supplied product, not surveyed customer feedback.':
+      'Potential buyer questions, not real customer interviews.');
   const changesPanel=panel('five-changes','Exactly What to Change',
     'Do these changes first.');
   const planPanel=panel('five-action-plan','Your Priority Action Plan',
@@ -374,22 +379,22 @@
     detailLine(body,'How to confirm',item.verify);
     append(row,header,body);return row;
   }
-  buyers.forEach((item,i)=>{
+  primaryFindings.forEach((item,i)=>{
     const row=blockerRow(item,i);
     if(i>=3)row.hidden=true;
     blockersPanel.append(row);
   });
-  if(!buyers.length)blockersPanel.append(make('p','five-empty',report.mode==='product'?
-    'No public buying obstacle could be confirmed from the supplied file alone. Add its sales page to assess the pre-purchase offer.':
+  if(!primaryFindings.length)blockersPanel.append(make('p','five-empty',report.mode==='product'?
+    'No delivery issue was detected in the supported file checks. This does not verify buyer satisfaction.':
     'No specific buying blocker was observed. This is not proof that every visitor converts.'));
-  if(buyers.length>3){
-    const more=make('button','five-more','Show all '+buyers.length+' findings');
+  if(primaryFindings.length>3){
+    const more=make('button','five-more','Show all '+primaryFindings.length+' findings');
     more.type='button';more.setAttribute('aria-expanded','false');
     let expanded=false;
     more.addEventListener('click',()=>{
       expanded=!expanded;
       Array.from(blockersPanel.querySelectorAll('.five-finding')).slice(3).forEach(el=>{el.hidden=!expanded;});
-      more.textContent=expanded?'Show fewer':'Show all '+buyers.length+' findings';
+      more.textContent=expanded?'Show fewer':'Show all '+primaryFindings.length+' findings';
       more.setAttribute('aria-expanded',String(expanded));
     });
     blockersPanel.append(more);
@@ -397,8 +402,18 @@
 
   // 3. Real buyer-voice questions, but clearly labeled as hypotheses.
   const seen=new Set();
-  buyers.forEach(item=>{
-    const question=buyerQuestion(item);
+  const productQuestions={
+    'empty-bundle':'Where are the files I expected to receive?',
+    'empty-files':'Why are the downloaded files empty?',
+    'missing-links':'How do I open the linked resources?',
+    'unsafe-zip':'Is this download safe to extract?',
+    'duplicate-files':'Will files overwrite each other when I unzip this?',
+    'no-start-guide':'How do I get started with this product?',
+    'unfinished-product':'Is this the finished product I purchased?'
+  };
+  primaryFindings.forEach(item=>{
+    const question=report.mode==='product'&&item.source==='Locally inspected product file'?
+      (productQuestions[issueKey(item)]||''):buyerQuestion(item);
     if(!question||seen.has(question.toLowerCase())||seen.size>=4)return;
     seen.add(question.toLowerCase());
     const row=make('div','five-concern '+level(item));

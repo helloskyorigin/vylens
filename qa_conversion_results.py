@@ -256,6 +256,34 @@ with sync_playwright() as pw:
     check(page.locator(".five-finding:not([hidden])").count() == 7,
           "show all expands additional findings")
     page.close()
+    # Product files: issue count and visible details must match.
+    page=browser.new_page(viewport={"width":390,"height":850})
+    sample=fixture(mode="product",num=0)
+    sample["conversion"]["blockers"]=[
+        {"id":"file-1","stage":"value","priority":"high",
+         "title":"The delivered bundle contains no product files",
+         "evidence":"Archive contained no deliverables.",
+         "fix":"Add the promised files.","verify":"Extract the ZIP.",
+         "source":"Locally inspected product file","location":"Uploaded ZIP"},
+        {"id":"file-2","stage":"action","priority":"review",
+         "title":"Getting-started instructions are not obvious",
+         "evidence":"No recognizable start guide was found.",
+         "fix":"Add a start guide.","verify":"Ask a first-time user.",
+         "source":"Locally inspected product file","location":"Uploaded ZIP"}
+    ]
+    page.add_init_script(
+        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
+    )
+    page.goto(BASE + "/results.html",wait_until="load",timeout=55000)
+    check(page.locator(".five-problems-value").inner_text()=="2",
+          "product reported count is 2")
+    check(page.locator("#five-blockers .five-finding").count()==2,
+          "product file findings are visible in What Needs Fixing")
+    check(page.locator("#five-hesitations .five-concern").count()==2,
+          "product questions are supported by file defects")
+    check(page.locator("#five-changes .five-change").count()==2,
+          "product fix instructions match reported problems")
+    page.close()
     # New Check navigates to a fresh audit rather than repeating the current URL.
     page=browser.new_page(viewport={"width":390,"height":850})
     sample=fixture()
