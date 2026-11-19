@@ -109,5 +109,18 @@ with sync_playwright() as pw:
                 page.screenshot(path=str(OUT/f'conversion-results-{width}.png'),
                                 full_page=True,animations='disabled')
             page.close()
+    # A malformed saved report should degrade to an honest 4-stage summary,
+    # rather than throwing an uncaught error or breaking the whole Results page.
+    malformed=report(blockers=0)
+    malformed['conversion']['journey']=[None,42,{'id':'clarity','status':'observed'}]
+    invalid=browser.new_page(viewport={'width':375,'height':812},reduced_motion='reduce')
+    errs=[]
+    invalid.on('pageerror',lambda err:errs.append(str(err)))
+    invalid.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(malformed))+')')
+    invalid.goto(BASE+'/results.html',wait_until='load',timeout=55000)
+    check(invalid.locator('#buyerJourney .journey-stage').count()==4,
+          'Malformed imported journey gets four safe fallback stages')
+    check(not errs,'Malformed imported conversion data causes no frontend exception: '+str(errs))
+    invalid.close()
     browser.close()
 print('PASS: VYLENS conversion-first Results responsive and edge-state browser QA')
