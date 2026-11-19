@@ -77,6 +77,25 @@
     if(positives.length)paragraph('Positive observations',{bold:true,size:10});
     positives.forEach(row=>paragraph('- '+row.textContent,{size:9.5}));
     section('2. What Is Stopping Buyers?');
+    // Replay is a public DOM observation, not an actual recorded user path.
+    let replay=null;
+    try{
+      replay=JSON.parse(sessionStorage.getItem('vylens:result')||'null')?.conversion?.buyerReplay;
+    }catch{}
+    if(replay?.version===1){
+      paragraph('Buyer Journey Replay - observed public path (not a visitor recording)',
+        {size:10,bold:true,gap:8});
+      for(const view of ['desktop','mobile']){
+        if(!Array.isArray(replay[view]))continue;
+        paragraph(view==='desktop'?'Desktop view':'Mobile view',
+          {size:10,bold:true,gap:6,color:'0.28 0.46 0.18'});
+        replay[view].slice(0,4).forEach(item=>{
+          paragraph(String(item.title||'Step')+' - '+String(item.description||'')+
+            (item.place?' ('+item.place+')':'')+
+            ' ['+String(item.status||'unknown')+']',{size:9,gap:6,indent:8});
+        });
+      }
+    }
     const blockers=list('#five-blockers .five-finding');
     if(!blockers.length)paragraph(text('#five-blockers .five-empty')||'No verified finding.');
     blockers.forEach((item,i)=>{
@@ -88,6 +107,15 @@
     if(!questions.length)paragraph(text('#five-hesitations .five-empty'));
     questions.forEach((item,i)=>paragraph((i+1)+'. '+item.textContent,{size:10,gap:9}));
     section('4. Exactly What to Change');
+    const kit=list('#five-changes .five-kit-item');
+    if(kit.length){
+      paragraph('Conversion Fix Kit - copyable wording and actionable instructions',
+        {size:10,bold:true,gap:9});
+      kit.forEach((item,i)=>{
+        paragraph((i+1)+'. '+text('.five-kit-asset-type',item)+
+          ' - '+text('.five-kit-content',item),{size:9.5,gap:8,indent:8});
+      });
+    }
     const changes=list('#five-changes .five-change');
     if(!changes.length)paragraph(text('#five-changes .five-empty'));
     changes.forEach((item,i)=>entry((i+1)+'. '+text('.five-change-title',item),[
