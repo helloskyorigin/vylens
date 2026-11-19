@@ -10,6 +10,7 @@ import http from 'node:http';
 import https from 'node:https';
 import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
+import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
 const UA='VYLENS-Inspector/4.0 (+https://vylens-tan.vercel.app/)';
@@ -36,9 +37,10 @@ function priority(entry){
   // Always inspect the requested landing page before sitemap suggestions.
   if(entry.via==='start')return -1;
   const s=(new URL(entry.url).pathname+' '+entry.via).toLowerCase();
-  if(/privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/.test(s))return 0;
-  if(/contact|about/.test(s))return 1;
-  return new URL(entry.url).pathname.split('/').filter(Boolean).length<2?2:3;
+  if(/pricing|plans|features|product|services|solution|demo/.test(s))return 0;
+  if(/privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/.test(s))return 1;
+  if(/contact|about/.test(s))return 2;
+  return new URL(entry.url).pathname.split('/').filter(Boolean).length<2?3:4;
 }
 /* Network egress is validated and DNS-pinned before Chromium receives bytes. */
 async function secureFetch(input,{maxBytes=1400000,timeout=5500,method='GET'}={}){
@@ -251,6 +253,23 @@ async function captureRenderedSignals(page){
         if(fragmentLinks.length>=8)break;
       }catch{}
     }
+    const placeholderLinks=[];
+    for(const a of items('a[href]',220)){
+      if(!visible(a))continue;
+      const href=a.getAttribute('href');
+      if(href!=='#'&&href!=='')continue;
+      if(a.getAttribute('role')==='button'||a.hasAttribute('onclick'))continue;
+      const text=(a.innerText||a.getAttribute('aria-label')||'').trim();
+      if(text.length<3)continue;
+      placeholderLinks.push(text.slice(0,36)+' ('+locator(a)+')');
+      if(placeholderLinks.length>=8)break;
+    }
+    const emailFields=items('input[type="email"]',40).filter(visible);
+    const collectsEmail=emailFields.some(input=>!!input.closest('form'));
+    const hasPrivacyLink=items('a[href]',250).some(a=>visible(a)&&
+      /privacy|data.policy/i.test(String(a.getAttribute('href')||'')+' '+String(a.innerText||'')));
+    const brokenImages=images.filter(img=>img.complete&&img.naturalWidth===0&&img.currentSrc)
+      .slice(0,8).map(img=>({url:img.currentSrc,locator:locator(img)}));
     const counter=new Map();
     for(const el of items('[id]',1500))counter.set(el.id,(counter.get(el.id)||0)+1);
     const duplicateIds=[...counter].filter(([,n])=>n>1).slice(0,8).map(([id,n])=>id+' ×'+n);
@@ -301,7 +320,11 @@ async function captureRenderedSignals(page){
       // Avoid noisy near-threshold reports; record clear failures only.
       if(ratio<threshold-.35)lowContrast.push({target:locator(el),text:text.slice(0,36),ratio:Math.round(ratio*10)/10,required:threshold});
     }
-    return {unnamed,missingAlt,fragmentLinks,duplicateIds,hasMain,textSize,ambiguous,lowContrast,contrastExamined:examined,interactiveCount:interactive.length,imageCount:images.length};
+    return {unnamed,missingAlt,fragmentLinks,duplicateIds,hasMain,textSize,ambiguous,lowContrast,
+      contrastExamined:examined,interactiveCount:interactive.length,imageCount:images.length,
+      quirksMode:document.compatMode==='BackCompat',mainTextMeasured:true,
+      hasVisualApp:[...document.querySelectorAll('canvas,video,iframe')].some(visible),
+      collectsEmail,hasPrivacyLink,placeholderLinks,brokenImages};
   });
 }
 function evaluateRenderedSignals(signals,path){
@@ -365,8 +388,15 @@ async function rendered(session,url){
     const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:14500});
     const status=response?.status()||0;
     if(status>=400)return {status,html:'',links:[],browser:true};
-    await page.waitForTimeout(650);
-    const signals=await captureRenderedSignals(page);
+    // Let JS-rendered websites finish their initial paint; avoid diagnosing a loading shell.
+    await page.waitForLoadState('load',{timeout:3300}).catch(()=>{});
+    await page.waitForTimeout(300);
+    let signals=await captureRenderedSignals(page);
+    if(signals.mainTextMeasured&&signals.textSize<55&&!signals.hasVisualApp){
+      await page.waitForFunction(()=>((document.querySelector('main')||document.body)?.innerText||'').trim().length>=85,
+        null,{timeout:1800}).catch(()=>{});
+      signals=await captureRenderedSignals(page);
+    }
     const html=(await page.content()).slice(0,1400000);
     const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
       .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
@@ -382,20 +412,48 @@ async function rendered(session,url){
     });
     await page.setViewportSize({width:390,height:844});
     await page.waitForTimeout(90);
-    const mobile=await page.evaluate(()=>{
-      const width=document.documentElement.clientWidth||window.innerWidth;
-      const small=[];
-      for(const el of document.querySelectorAll('button, nav a, a[role="button"], input[type="submit"]')){
-        const box=el.getBoundingClientRect(),styles=getComputedStyle(el);
-        if(box.width<1||box.height<1||styles.visibility==='hidden'||styles.display==='none')continue;
-        if(box.width<32||box.height<32)small.push({
-          label:String(el.getAttribute('aria-label')||el.textContent||el.tagName).trim().slice(0,40),
-          width:Math.round(box.width),height:Math.round(box.height)});
+    const measureMobile=()=>page.evaluate(()=>{
+      const width=document.documentElement.clientWidth||window.innerWidth,small=[],clipped=[],offenders=[];
+      const locator=el=>el.id?'#'+el.id.slice(0,40):el.tagName.toLowerCase()+
+        (el.classList?.length?'.'+String(el.classList[0]).slice(0,35):'');
+      const visible=el=>{
+        if(el.closest('[hidden],[aria-hidden="true"],[inert]'))return false;
+        const s=getComputedStyle(el),r=el.getBoundingClientRect();
+        return s.visibility!=='hidden'&&s.display!=='none'&&parseFloat(s.opacity)>0&&r.width>1&&r.height>1;
+      };
+      for(const el of [...document.querySelectorAll('button, nav a, a[role="button"],input[type="submit"],input[type="button"]')].slice(0,180)){
+        if(!visible(el))continue;
+        const r=el.getBoundingClientRect();
+        if(r.width<32||r.height<32)small.push({label:String(el.getAttribute('aria-label')||el.textContent||el.tagName).trim().slice(0,42),
+          locator:locator(el),width:Math.round(r.width),height:Math.round(r.height)});
         if(small.length>=12)break;
       }
-      return {width,scrollWidth:document.documentElement.scrollWidth,small};
+      for(const el of [...document.querySelectorAll('h1,h2,button,[role="button"]')].slice(0,160)){
+        if(!visible(el))continue;
+        const st=getComputedStyle(el),txt=(el.innerText||el.textContent||'').trim();
+        if(txt.length<11)continue;
+        if(!['hidden','clip'].includes(st.overflowX)||el.scrollWidth<=el.clientWidth+15)continue;
+        clipped.push({target:locator(el),width,box:el.clientWidth,scroll:el.scrollWidth});
+        if(clipped.length>=5)break;
+      }
+      const documentWidth=Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0);
+      if(documentWidth>width+12){
+        for(const el of [...document.querySelectorAll('main *,body > *')].slice(0,700)){
+          if(!visible(el))continue;
+          const r=el.getBoundingClientRect();
+          if(r.right>width+13&&r.width>width*.25){
+            offenders.push(locator(el)+' extends to '+Math.round(r.right)+'px');
+            if(offenders.length>=5)break;
+          }
+        }
+      }
+      return {width,scrollWidth:documentWidth,small,clipped,offenders};
     });
-    return {status,html,links,mobile,visibleText,signals,headers:await response.allHeaders(),browser:true,errors};
+    const mobile=await measureMobile();
+    await page.setViewportSize({width:320,height:780});
+    await page.waitForTimeout(100);
+    const narrow=await measureMobile();
+    return {status,html,links,mobile,narrow,visibleText,signals,headers:await response.allHeaders(),browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
 
@@ -425,7 +483,7 @@ function policyContentReview(url,visibleText,html){
     verify:'Read the complete rendered policy page and confirm the relevant information is present.'});
   return {issues,checks};
 }
-function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,signals){
+function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,signals,narrow,mediaEvidence){
   const data=source.review(html,url,{status,headers:headers||{}});
   const path=new URL(url).pathname||'/';
   const checks=data.checks.map(x=>({...x,name:path+' · '+x.name}));
@@ -435,9 +493,25 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
     checks.push({name:path+' · Rendered mobile width',status:excess>20?'attention':'passed',
       detail:excess>20?'Document wider than 390px viewport by '+excess+'px.':'Rendered content fits 390px viewport.'});
     if(excess>20)issues.push({category:'Mobile setup',severity:'note',title:'Possible horizontal overflow on mobile',
-      location:path+' · mobile 390px',evidence:'Viewport '+mobile.width+'px; document scroll width '+mobile.scrollWidth+'px.',
+      location:path+' · mobile 390px',
+      evidence:'Viewport '+mobile.width+'px; document scroll width '+mobile.scrollWidth+'px. '+
+        (mobile.offenders||[]).slice(0,4).join('; ')+'.',
       fix:'Inspect fixed-width elements and long text; prevent content extending outside the mobile viewport.',
       verify:'Open this page at 390px width and verify it does not scroll horizontally.'});
+    if(narrow){
+      const narrowExcess=narrow.scrollWidth-narrow.width;
+      checks.push({name:path+' · Narrow-phone layout (320px)',
+        status:narrowExcess>16?'attention':'passed',
+        detail:narrowExcess>16?
+          '320px viewport has '+narrowExcess+'px extra document width. '+(narrow.offenders||[]).slice(0,3).join('; '):
+          'Rendered document fits a 320px-wide phone.'});
+      if(narrowExcess>16&&excess<=20)
+        issues.push({category:'Mobile experience',severity:'note',title:'Layout overflows on narrow phones',
+          location:path+' · 320px viewport',
+          evidence:'Document width '+narrow.scrollWidth+'px at 320px viewport. '+(narrow.offenders||[]).slice(0,3).join('; '),
+          fix:'Find the fixed-width or overflowing element, and make its sizing responsive.',
+          verify:'Check the same page at 320px and 390px viewport widths without horizontal scrolling.'});
+    }
     const small=mobile.small||[];
     checks.push({name:path+' · Mobile interactive target sizing',status:small.length>=1?'attention':'passed',
       detail:small.length?'Observed '+small.length+' interactive target(s) smaller than 32px in at least one dimension.':'No unusually small navigation/button targets were observed.'});
@@ -465,6 +539,16 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
     for(let i=issues.length-1;i>=0;i--)
       if(superseded.some(test=>test.test(issues[i].title)))issues.splice(i,1);
     issues.push(...seen.issues);
+    const combined={
+      ...signals,
+      mobileClipped:[...(mobile?.clipped||[]),...(narrow?.clipped||[])]
+    };
+    const deep=analyzeDeepSignals(combined,path);
+    checks.push(...deep.checks);
+    issues.push(...deep.issues);
+    const media=analyzeVerifiedMedia(mediaEvidence||[],path);
+    checks.push(...media.checks);
+    issues.push(...media.issues);
   }
   const policy=policyContentReview(url,visibleText,html);
   checks.push(...policy.checks);issues.push(...policy.issues);
@@ -493,7 +577,9 @@ async function scanSite(input){
   let session=null;
   try{session=await browserStart(root);}
   catch(error){console.error('Playwright unavailable',{name:error?.name});}
-  const pages=[],analyses=[],checks=[],titles=[],done=new Set();let renderedCount=0,sourceCount=0;
+  const pages=[],analyses=[],checks=[],titles=[],done=new Set();
+  const mediaCache=new Map(),linkCandidates=new Map();
+  let renderedCount=0,sourceCount=0;
   try{
     while(discoverer.queue.length&&pages.length<LIMIT&&Date.now()-started<TIME_BUDGET){
       discoverer.queue.sort((a,b)=>priority(a)-priority(b));
@@ -515,7 +601,7 @@ async function scanSite(input){
       }
       if(!visit.html){
         let confirmedBroken=false;
-        if(item.via==='link'&&[404,410].includes(visit.status)){
+        if(item.via==='link'&&[404,410,500,502,503].includes(visit.status)){
           // A transient WAF/HEAD or browser-only response is not enough: repeat with safe GET.
           try{
             const verification=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
@@ -534,15 +620,73 @@ async function scanSite(input){
         if(item.via==='start')discoverer.activateSitemap();
         continue;
       }
-      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors,visit.headers||raw?.headers,visit.signals);
+      const mediaEvidence=[];
+      if(visit.browser&&Array.isArray(visit.signals?.brokenImages)){
+        for(const img of visit.signals.brokenImages.slice(0,4)){
+          if(Date.now()-started>TIME_BUDGET-11000)break;
+          let target;try{target=urlOf(img.url)}catch{continue;}
+          if(!sameSite(target,root)||target.origin!==root.origin||dangerous(target))continue;
+          if(!mediaCache.has(target.toString())){
+            let firstStatus=0,secondStatus=0;
+            try{
+              const first=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
+              firstStatus=first.status;
+              if([404,410].includes(firstStatus)){
+                const second=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
+                secondStatus=second.status;
+              }
+            }catch{}
+            mediaCache.set(target.toString(),{firstStatus,secondStatus});
+          }
+          mediaEvidence.push({...mediaCache.get(target.toString()),url:target.toString(),
+            pathname:target.pathname,locator:img.locator});
+        }
+      }
+      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,
+        visit.visibleText,visit.errors,visit.headers||raw?.headers,visit.signals,visit.narrow,mediaEvidence);
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
       if(visit.browser)renderedCount++;else sourceCount++;
-      for(const link of visit.links||[])if(link.href)discoverer.add(link.href,'link',item.url);
+      for(const link of visit.links||[]){
+        if(!link.href)continue;
+        const normalized=normalize(link.href,item.url,root);
+        if(normalized&&!linkCandidates.has(normalized))linkCandidates.set(normalized,{url:normalized,via:'link',referrer:item.url});
+        discoverer.add(link.href,'link',item.url);
+      }
       if(item.via==='start')discoverer.activateSitemap();
     }
   }finally{if(session)await session.browser.close().catch(()=>{});}
+  // Pages omitted by the bounded full crawl can still have a quick, safe availability check.
+  // This is NOT a substitute for fully auditing their content.
+  const pendingLinks=[...linkCandidates.values()].filter(item=>
+    !done.has(item.url)&&robotsAllow(new URL(item.url).pathname,discoverer.rules))
+    .sort((a,b)=>priority(a)-priority(b)).slice(0,12);
+  const linkEvidence=[];
+  if(Date.now()-started<TIME_BUDGET-10000){
+    // Avoid unbounded parallel traffic and repeat failed GETs before publishing a finding.
+    for(let index=0;index<pendingLinks.length;index+=3){
+      if(Date.now()-started>TIME_BUDGET-9000)break;
+      const batch=await Promise.all(pendingLinks.slice(index,index+3).map(async item=>{
+        let firstStatus=0,secondStatus=0;
+        try{
+          const first=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3200,expectedOrigin:root.origin});
+          firstStatus=first.status;
+          if([404,410,500,502,503].includes(firstStatus)){
+            const second=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3200,expectedOrigin:root.origin});
+            secondStatus=second.status;
+          }
+        }catch{}
+        return {pathname:new URL(item.url).pathname,firstStatus,secondStatus,referrer:item.referrer};
+      }));
+      linkEvidence.push(...batch);
+    }
+  }
+  for(const evidence of linkEvidence){
+    const result=analyzeVerifiedLinks([evidence]);
+    checks.push(...result.checks);
+    if(result.issues.length)analyses.push({url:evidence.referrer||start,issues:result.issues});
+  }
   const remaining=discoverer.queue.filter(x=>!done.has(x.url)).length;
   const inspected=renderedCount+sourceCount,legalCount=pages.filter(p=>p.type==='legal'&&(p.status==='rendered'||p.status==='source')).length;
   const skipped=pages.filter(p=>p.status==='skipped'||p.status==='unverified').length;
@@ -608,5 +752,5 @@ export async function POST(request){
     return respond({error:safe?msg:'Could not inspect this website. It may block automated scans or be temporarily unavailable.'},422);
   }
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'rendered-depth-v2',pageLimit:LIMIT});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals};
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'problem-engine-v3',pageLimit:LIMIT});}
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals};

@@ -222,15 +222,37 @@ function review(html,pageUrl, response={}) {
     `A noindex directive is present${robotsHeader?' in response headers':''}. This is often intentional for staging or private pages.`,
     'If this is a public page intended for search, remove noindex; otherwise keep it.','Metadata / X-Robots-Tag',
     'Confirm that search indexing is intended, then inspect both the rendered document and HTTP headers.');
-  const canonical=tags(initialHead,'link').find(t=>getAttr(t,'rel').toLowerCase().split(/\s+/).includes('canonical'));
-  check('Canonical URL',!!canonical,'Canonical link '+(canonical?`found: ${squash(getAttr(canonical,'href'))}.`:'not declared.'));
-  if(!canonical)add('Discoverability','note','Canonical URL not declared','No rel="canonical" was found in initial HTML.','Consider a canonical URL for public pages with duplicates or query variants.','HTML → <head>','Review canonical settings in source.');
-  const ogTitle=!!props('og:title');const ogDescription=!!props('og:description');
-  check('Social preview metadata',ogTitle&&ogDescription,`og:title ${ogTitle?'present':'absent'}, og:description ${ogDescription?'present':'absent'}.`);
-  if(!ogTitle||!ogDescription)add('Sharing','note','Social preview fields incomplete','Not all primary Open Graph text fields are present.','Add truthful og:title and og:description fields for shared links.','HTML → Meta tags','Preview the page in social-sharing tools.');
-  const icon=tags(initialHead,'link').some(t=>/\bicon\b/i.test(getAttr(t,'rel')));
-  check('Favicon declared',icon,icon?'Favicon link present.':'No favicon link tag found.');
-  if(!icon)add('Branding','note','Favicon not declared','No <link rel="icon"> appeared in the initial head.','Declare a favicon to support recognition in tabs and bookmarks.','HTML → <head>','Open the page in a browser tab.');
+  const canonicalTag=tags(initialHead,'link').find(t=>getAttr(t,'rel').toLowerCase().split(/\s+/).includes('canonical'));
+  const canonicalValue=getAttr(canonicalTag||'','href');
+  let canonicalURL=null;
+  try{
+    if(canonicalValue) {
+      const candidate=new URL(canonicalValue,pageUrl);
+      if(['https:','http:'].includes(candidate.protocol)&&candidate.hostname)canonicalURL=candidate;
+    }
+  }catch{}
+  const canonical=!!canonicalURL;
+  check('Canonical URL',canonical,'Canonical link '+(canonical?`found: ${squash(canonicalURL.toString())}.`:
+    canonicalTag?'exists but has an empty or invalid target.':'not declared.'));
+  if(!canonical)add('Discoverability','note',canonicalTag?'Canonical URL target is empty or invalid':'Canonical URL not declared',
+    canonicalTag?'A canonical link exists but does not identify a valid HTTP(S) page.':'No rel="canonical" was found in initial HTML.',
+    'Set a meaningful canonical URL when needed; ensure the href is valid.','HTML → <head>','Review the canonical URL in the rendered head.');
+  if(canonicalURL&&canonicalURL.hostname.replace(/^www\./,'')!==url.hostname.replace(/^www\./,'')){
+    check('Canonical domain consistency',false,`Canonical target uses a different domain: ${canonicalURL.hostname}.`);
+    add('Discoverability','note','Canonical URL points to another domain',
+      `Inspected host: ${url.hostname}; declared canonical host: ${canonicalURL.hostname}.`,
+      'Check whether the cross-domain canonical is intentional. If this page should appear in search, point to the correct preferred URL.',
+      'HTML → rel="canonical"','Inspect the canonical target and confirm it is intended.');
+  }
+  const ogTitle=!!getAttr(props('og:title')||'','content');
+  const ogDescription=!!getAttr(props('og:description')||'','content');
+  check('Social preview metadata',ogTitle&&ogDescription,`og:title ${ogTitle?'has text':'missing or empty'}, og:description ${ogDescription?'has text':'missing or empty'}.`);
+  if(!ogTitle||!ogDescription)add('Sharing','note','Social preview fields incomplete',
+    `Open Graph metadata contains ${ogTitle?'a title':'no usable title'} and ${ogDescription?'a description':'no usable description'}.`,
+    'Add specific, non-empty og:title and og:description values for shared links.','HTML → Meta tags','Preview the page in a social-sharing debugger.');
+  const icon=tags(initialHead,'link').some(t=>/\bicon\b/i.test(getAttr(t,'rel'))&&!!getAttr(t,'href'));
+  check('Favicon declared',icon,icon?'Favicon link with a non-empty href is present.':'No favicon with a usable href declared.');
+  if(!icon)add('Branding','note','Favicon not declared','No <link rel="icon"> with a non-empty href appeared in the head.','Declare a favicon that points to a real icon file.','HTML → <head>','Open the page in a browser tab.');
   const insecureActions=forms.filter(f=>{try{return new URL(getAttr(f,'action')||pageUrl,pageUrl).protocol==='http:' && url.protocol==='https:'}catch{return false}});
   check('Secure form actions',insecureActions.length===0,forms.length?`${insecureActions.length} of ${forms.length} form actions point from HTTPS to HTTP.`:'No forms in source.',{unverified:!forms.length});
   if(insecureActions.length){
