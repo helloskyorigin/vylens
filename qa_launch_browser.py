@@ -80,9 +80,16 @@ with sync_playwright() as playwright:
     check(page.locator('#impactText').inner_text().strip()!='','Impact has an explanation')
     check(page.locator('#checksPanel').is_visible() and not page.locator('#checksPanel').evaluate('(e)=>e.open'),
           'Completed checks are collapsed by default')
+    check(page.locator('#priorityFindingTitle').inner_text().strip()!='',
+          'Results lead with an actionable real finding')
+    check(page.locator('#priorityFix').inner_text().strip()!='',
+          'First recommendation is visible without expanding a finding')
+    check('Local file review' in page.locator('#coverageMessage').inner_text(),
+          'Product results explain local file-only coverage')
     page.locator('#checksPanel > summary').click()
     check(page.locator('#checksPanel').evaluate('(e)=>e.open'),'Checks expand inline')
     check(page.locator('#checkBreakdownList .check-row').count()>=1,'Actual checks render')
+    check(page.locator('#exportData').is_visible(),'Downloadable JSON report data is available')
     page.locator('#checksPanel > summary').click()
     first_finding=page.locator('#findingsList .finding').first
     first_finding.locator('.finding-head').click()
@@ -97,6 +104,8 @@ with sync_playwright() as playwright:
     page.emulate_media(media='print')
     check(page.locator('#printAppendix').evaluate('(e)=>getComputedStyle(e).display')!='none',
           'Print stylesheet includes full report')
+    check(page.locator('#printAppendix .print-check').count()==int(page.locator('#checksCount').inner_text()),
+          'Every recorded check is included in printed report')
     page.emulate_media(media='screen')
     check(page.locator('.report-footer a').filter(has_text='Contact').count()==1,
           'Results footer has one contact link')
