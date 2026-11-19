@@ -26,9 +26,13 @@
   function validReport(report){
     if(!report||typeof report!=='object'||!['website','product'].includes(report.mode)||
       !Array.isArray(report.issues)||report.issues.length>250)return false;
-    if(report.issues.some(issue=>!issue||typeof issue!=='object'||Array.isArray(issue)))return false;
-    if(report.checks!==undefined&&(!Array.isArray(report.checks)||report.checks.length>5000))return false;
-    if(report.pages!==undefined&&(!Array.isArray(report.pages)||report.pages.length>200))return false;
+    if(report.issues.some(issue=>!issue||typeof issue!=='object'||Array.isArray(issue)||
+      (issue.occurrences!==undefined&&(!Array.isArray(issue.occurrences)||issue.occurrences.length>50||
+        issue.occurrences.some(entry=>!entry||typeof entry!=='object'||Array.isArray(entry))))))return false;
+    if(report.checks!==undefined&&(!Array.isArray(report.checks)||report.checks.length>5000||
+      report.checks.some(item=>!item||typeof item!=='object'||Array.isArray(item))))return false;
+    if(report.pages!==undefined&&(!Array.isArray(report.pages)||report.pages.length>200||
+      report.pages.some(item=>!item||typeof item!=='object'||Array.isArray(item))))return false;
     return true;
   }
   function readReport(){
@@ -320,10 +324,11 @@
       put('impactTitle',highPriority?'Start with this fix.':'Start with this finding.');
       put('priorityFindingTitle',clean(first.title||'Finding',180));
       put('impactText',clean(first.evidence||'This issue needs closer review. Only recorded evidence is shown.',650));
-      const location=clean(first.location||
-        (Array.isArray(first.occurrences)?first.occurrences[0]?.location:'')||'',240);
+      const location=clean(
+        (Array.isArray(first.occurrences)?first.occurrences[0]?.location:'')||first.location||'',240);
       $('priorityLocation').hidden=!location;
-      if(location)put('priorityLocation','Found at · '+location);
+      if(location)put('priorityLocation','Found at · '+location+
+        (occurrenceCount(first)>1?' · '+occurrenceCount(first)+' affected pages':''));
       $('priorityFixBox').hidden=!first.fix;
       put('priorityFix',clean(first.fix||'',750));
       $('priorityDetails').hidden=false;
@@ -402,7 +407,8 @@
       try{
         const filename='vylens-'+clean(report.subject||report.url||'audit',70)
           .toLowerCase().replace(/[^a-z0-9.-]+/g,'-').replace(/^-+|-+$/g,'')+
-          '-'+new Date(report.checkedAt||Date.now()).toISOString().slice(0,10)+'.json';
+          '-'+(Number.isFinite(new Date(report.checkedAt||Date.now()).valueOf())?
+          new Date(report.checkedAt||Date.now()):new Date()).toISOString().slice(0,10)+'.json';
         const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
         const href=URL.createObjectURL(blob);
         const anchor=document.createElement('a');
