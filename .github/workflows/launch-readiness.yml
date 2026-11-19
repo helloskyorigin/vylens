@@ -18,6 +18,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Python Playwright package
         run: python -m pip install playwright==1.56.0
+      - name: Pixel and interaction QA against local Results build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/vylens-results-static.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS 'http://127.0.0.1:8765/results.html' -o /dev/null; then break; fi
+            sleep 1
+          done
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_conversion_results.py
       - name: Wait for updated landing page on production
         shell: bash
         run: |
@@ -32,8 +44,6 @@ jobs:
         run: python qa_product_browser.py
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
-      - name: Test buyer-first Results, evidence and mobile interactions
-        run: python qa_conversion_results.py
       - name: Test focused Results at desktop and mobile widths
         run: python qa_focus_results.py
       - name: Test zero, partial, long and paginated Results states
