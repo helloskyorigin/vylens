@@ -33,6 +33,8 @@ function legal(url,label=''){
   return /privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/i.test(new URL(url).pathname+' '+label);
 }
 function priority(entry){
+  // Always inspect the requested landing page before sitemap suggestions.
+  if(entry.via==='start')return -1;
   const s=(new URL(entry.url).pathname+' '+entry.via).toLowerCase();
   if(/privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/.test(s))return 0;
   if(/contact|about/.test(s))return 1;
