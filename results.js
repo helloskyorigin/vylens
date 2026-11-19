@@ -9,6 +9,8 @@
     return el;
   };
   const clean=(value,max=1200)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
+  const preview=(value,max)=>{const full=clean(value,5000);return full.length<=max?full:
+    full.slice(0,max).replace(/\s+\S*$/,'').trimEnd()+'…';};
   const severity=issue=>['critical','high'].includes(String(issue?.severity||'').toLowerCase())?String(issue.severity).toLowerCase():'other';
   const priority=issue=>{
     if(Number.isFinite(issue?.priorityScore)&&issue.priorityScore>=0&&issue.priorityScore<500)
@@ -296,14 +298,14 @@
       $('prioritySeverity').className='priority-severity '+severity(first);
       put('impactTitle',highPriority?'Start with this fix.':'Start with this finding.');
       put('priorityFindingTitle',clean(first.title||'Finding',180));
-      put('impactText',clean(first.evidence||'This issue needs closer review. Only recorded evidence is shown.',650));
+      put('impactText',preview(first.evidence||'This issue needs closer review. Only recorded evidence is shown.',310));
       const location=clean(
         (Array.isArray(first.occurrences)?first.occurrences[0]?.location:'')||first.location||'',240);
       $('priorityLocation').hidden=!location;
       if(location)put('priorityLocation','Found at · '+location+
         (occurrenceCount(first)>1?' · '+occurrenceCount(first)+' affected pages':''));
       $('priorityFixBox').hidden=!first.fix;
-      put('priorityFix',clean(first.fix||'',750));
+      put('priorityFix',preview(first.fix||'',340));
       $('priorityDetails').hidden=false;
     }else{
       put('priorityStep',!checks?'CHECKS NOT COMPLETED':'SUPPORTED CHECKS');
