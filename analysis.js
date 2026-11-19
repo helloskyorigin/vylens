@@ -13,7 +13,9 @@
     website: [
       ['Reading your website…', 'Getting a closer look at your website.'],
       ['Discovering linked pages…', 'Checking the pages we can access.'],
-      ['Inspecting page layouts…', 'Reviewing what the browser renders.']
+      ['Inspecting page layouts…', 'Reviewing what the browser renders.'],
+      ['The audit is still running…', 'Larger websites can take longer to inspect.'],
+      ['Continuing the website checks…', 'Your final report will show what was verified and what could not be checked.']
     ],
     product: [
       ['Opening your digital product…', 'Your file stays on this device.'],
@@ -50,9 +52,13 @@
     let next = 1;
     clearInterval(waitingTimer);
     waitingTimer = setInterval(() => {
-      if (isFinished || next >= messages[payload.mode].length) { clearInterval(waitingTimer); return; }
+      if (isFinished) { stopWaitingMessages(); return; }
+      if (next >= messages[payload.mode].length) {
+        if (payload.mode !== 'website') { stopWaitingMessages(); return; }
+        next = 3; // Repeat truthful heartbeat updates, never fabricated progress percentages.
+      }
       changeMessage(...messages[payload.mode][next++]);
-    }, 2700);
+    }, payload.mode === 'website' ? 8000 : 2700);
   }
   function stopWaitingMessages() { clearInterval(waitingTimer); waitingTimer = null; }
   function showError(message) {
@@ -142,6 +148,8 @@
       await messageQueue;
       // Do not store source bytes; keep only limited findings in this tab's session.
       sessionStorage.setItem('vylens:result', JSON.stringify(report));
+      // Avoid rerunning a completed (potentially expensive) inspection when this page is refreshed.
+      sessionStorage.removeItem('vylens:pending');
       await changeMessage('Your audit is ready.', 'Opening your full results now.');
       if (!motionReduced) await new Promise(resolve => setTimeout(resolve, 530));
       isFinished = true;
