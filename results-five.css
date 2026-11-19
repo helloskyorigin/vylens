@@ -1,0 +1,203 @@
+
+/* VYLENS · Focused Five-section Conversion Report
+   Screenshot-aligned, buyer-first, responsive, no technical dashboard.
+   Scoped to v1 conversion reports; older imported technical reports unchanged. */
+body.five-report-ui{
+ --five-ink:#101511;--five-sub:#687168;--five-line:#e9ece8;--five-card:#fff;
+ --five-red:#db3546;--five-red-bg:#fff0f1;--five-yellow:#996003;
+ --five-yellow-bg:#fff6dc;--five-green:#43801a;--five-green-bg:#edfad8;
+ --five-shadow:0 10px 28px rgba(20,29,20,.055),0 1px 3px rgba(20,29,20,.035);
+ background:#fff;color:var(--five-ink)
+}
+body.five-report-ui [hidden]{display:none!important}
+body.five-report-ui .page-header{padding:10px clamp(18px,4.5vw,72px);border-bottom:1px solid #f1f2ef;box-shadow:0 3px 18px rgba(20,26,20,.025)}
+body.five-report-ui .floating-nav{max-width:1440px;min-height:44px}
+body.five-report-ui .nav-current,body.five-report-ui .nav-divider,
+body.five-report-ui #navRecheck{display:none!important}
+body.five-report-ui .nav-download{background:#fff;border:1px solid #e8ebe8;min-width:170px;min-height:42px;box-shadow:0 3px 10px rgba(0,0,0,.045);border-radius:15px}
+body.five-report-ui .nav-download:hover{background:#f7fbf3}
+body.five-report-ui .report-wrap{max-width:1500px;padding:0 clamp(18px,4.5vw,72px)}
+body.five-report-ui .report-hero{padding:36px 0 25px}
+body.five-report-ui .report-hero .hero-eyebrow{display:none}
+body.five-report-ui .report-hero h1{font:800 clamp(30px,3.1vw,43px)/1.14 var(--head);letter-spacing:-.058em;margin:0 0 11px;color:#0e120e}
+body.five-report-ui .report-hero h1 span{color:inherit}
+body.five-report-ui .hero-coverage{order:1;margin:0;color:#727a72;font-size:clamp(13px,1.2vw,15px);line-height:1.65;max-width:760px}
+body.five-report-ui .report-hero .source-line{order:2;margin:13px 0 0;gap:8px;color:#8a938a;font-size:12px}
+body.five-report-ui .report-hero .source-line>span:first-child{color:#61705d;font-size:12px}
+body.five-report-ui #conversionReport,
+body.five-report-ui .metrics-section,
+body.five-report-ui .impact-section,
+body.five-report-ui .findings-section,
+body.five-report-ui .checks-panel,
+body.five-report-ui #technicalAppendix,
+body.five-report-ui .report-actions,
+body.five-report-ui .save-explainer,
+body.five-report-ui .audit-note{display:none!important}
+body.five-report-ui #fiveReport{display:block!important;margin:0 0 25px;font-family:var(--body)}
+.five-report *{box-sizing:border-box}
+.five-report .five-score-card,.five-report .five-panel{
+ background:var(--five-card);border:1px solid var(--five-line);
+ border-radius:23px;box-shadow:var(--five-shadow);min-width:0
+}
+.five-report .five-score-card{display:grid;grid-template-columns:242px minmax(0,1fr);gap:31px;align-items:center;padding:27px 35px;margin-bottom:20px}
+.five-report .five-score-visual{display:flex;align-items:center;justify-content:center;border-right:1px solid #e6e9e5;min-height:166px;padding-right:30px}
+.five-report .five-score-ring{
+ --score:0;--score-color:#f1bd3c;
+ width:156px;height:156px;flex:0 0 156px;display:grid;place-items:center;
+ border-radius:50%;position:relative;
+ background:conic-gradient(from -90deg,var(--score-color) calc(var(--score)*1%),#e9edeb 0);
+}
+.five-report .five-score-ring:before{
+ content:"";position:absolute;inset:15px;border-radius:50%;background:#fff;
+ box-shadow:inset 0 0 0 1px #f4f5f2
+}
+.five-report .five-score-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.five-report .five-score-number{font:800 48px/1 var(--head);letter-spacing:-.075em;color:#111511}
+.five-report .five-score-denominator{font:500 15px/1.5 var(--body);color:#929992;margin-top:3px}
+.five-report .five-score-copy{min-width:0}
+.five-report .five-score-title{font:800 clamp(19px,1.8vw,23px)/1.28 var(--head);letter-spacing:-.04em;color:#3f4540;margin:0 0 10px}
+.five-report .five-verdict{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;min-height:29px;border-radius:11px;font:750 12.5px/1.25 var(--body);margin-bottom:11px}
+.five-report .five-verdict.high{background:var(--five-red-bg);color:#a32232}
+.five-report .five-verdict.medium{background:var(--five-yellow-bg);color:#865507}
+.five-report .five-verdict.low{background:var(--five-green-bg);color:#386c17}
+.five-report .five-score-description{font-size:14px;line-height:1.64;color:#404940;margin:0;max-width:700px;overflow-wrap:anywhere}
+.five-report .five-score-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 11px;margin-top:18px}
+.five-report .five-counter{display:inline-flex;gap:8px;align-items:center;justify-content:center;border-radius:999px;padding:8px 12px;font:750 11.5px/1.2 var(--body)}
+.five-report .five-counter.high{color:#a72234;background:#ffedf0}
+.five-report .five-counter.medium{color:#8b5d12;background:#fff5dc}
+.five-report .five-counter.low{color:#387518;background:#eaf9db}
+.five-report .five-counter>span:first-child{font-size:14px;line-height:1}
+.five-report .five-caption{margin:11px 0 0;color:#929992;font-size:10.5px;line-height:1.5}
+.five-report .five-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-bottom:20px;align-items:stretch}
+.five-report .five-panel{padding:25px 27px 23px}
+.five-report .five-panel-title{font:800 clamp(19px,1.65vw,22px)/1.24 var(--head);letter-spacing:-.04em;color:#121711;margin:0 0 5px}
+.five-report .five-panel-subtitle{margin:0 0 15px;color:#7a827a;font-size:12px;line-height:1.5}
+.five-report .five-finding,.five-report .five-concern,.five-report .five-plan-row{margin:0;min-width:0}
+.five-report .five-finding+.five-finding,.five-report .five-change+.five-change,.five-report .five-plan-row+.five-plan-row{border-top:1px solid #eef0ed}
+.five-report .five-finding>summary{list-style:none;display:flex;align-items:center;gap:12px;cursor:pointer;padding:11px 2px;min-height:52px}
+.five-report summary::-webkit-details-marker{display:none}
+.five-report .five-index{font:800 13px/1 var(--body);height:30px;min-width:30px;display:grid;place-items:center;border-radius:9px;flex:0 0 30px}
+.five-report .five-index.high{color:#bd2537;background:#ffe6ea}
+.five-report .five-index.medium{color:#a36404;background:#fff1ce}
+.five-report .five-index.low{color:#397716;background:#eafbd6}
+.five-report .five-row-title{flex:1;min-width:0;font:700 13px/1.47 var(--body);color:#262d26;overflow-wrap:anywhere}
+.five-report .five-level{border-radius:99px;padding:5px 10px;font:800 10px/1.2 var(--body);flex:0 0 auto}
+.five-report .five-level.high{background:#ffe2e7;color:#b12a3a}
+.five-report .five-level.medium{background:#fff2cf;color:#93600c}
+.five-report .five-level.low{background:#eaf9d8;color:#38751c}
+.five-report .five-chevron{color:#a8aea8;font-size:21px;line-height:1;transform:rotate(0);transition:transform .16s}
+.five-report details[open]>summary .five-chevron{transform:rotate(90deg)}
+.five-report .five-reveal{padding:1px 10px 15px 44px;color:#667066;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.five-report .five-reveal p{margin:7px 0 0}
+.five-report .five-reveal strong{color:#394639}
+.five-report .five-concern{display:flex;align-items:center;gap:11px;margin:6px 0;border-radius:12px;padding:10px 12px;min-height:38px;color:#343c34;line-height:1.48;font-size:12px;overflow-wrap:anywhere}
+.five-report .five-concern.high{background:#fff0f1}
+.five-report .five-concern.medium{background:#fff7e7}
+.five-report .five-concern.low{background:#edf9e2}
+.five-report .five-concern-icon{height:24px;min-width:24px;display:grid;place-items:center;background:rgba(255,255,255,.8);border-radius:50%;font:800 13px/1 var(--body)}
+.five-report .five-concern.high .five-concern-icon{color:#ce3144}
+.five-report .five-concern.medium .five-concern-icon{color:#a16a09}
+.five-report .five-concern.low .five-concern-icon{color:#468223}
+.five-report .five-change>summary{display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;padding:13px 0;min-height:75px}
+.five-report .five-change-content{flex:1;min-width:0}
+.five-report .five-change-title{display:block;font-weight:750;font-size:13px;line-height:1.45;margin-bottom:8px;overflow-wrap:anywhere}
+.five-report .five-before-after{display:flex;flex-direction:column;gap:5px;min-width:0}
+.five-report .five-before-after div{display:grid;grid-template-columns:68px minmax(0,1fr);gap:8px;align-items:start;padding:5px 9px;border-radius:9px;font-size:11px;line-height:1.45;color:#444c42;min-width:0;overflow-wrap:anywhere}
+.five-report .five-before-after .five-before{background:#fff0f2}
+.five-report .five-before-after .five-after{background:#eefbdf}
+.five-report .five-before-after strong{font-size:10px;font-weight:800}
+.five-report .five-before strong{color:#ad2d3e}
+.five-report .five-after strong{color:#34751b}
+.five-report .five-change .five-reveal{padding-left:43px}
+.five-report .five-copy-btn{appearance:none;background:#f0f8e6;border:1px solid #dcecbf;color:#345c22;border-radius:10px;padding:9px 13px;font:750 11.5px/1.25 var(--body);margin-top:10px;cursor:pointer;min-height:36px}
+.five-report .five-copy-btn:hover{background:#e4f4d4}
+.five-report .five-plan-row{width:100%;border:0;border-top:1px solid #eef0ed;background:transparent;display:flex;gap:12px;align-items:center;text-align:left;padding:14px 2px;cursor:pointer;color:inherit}
+.five-report .five-plan-row:first-child{border-top:0}
+.five-report .five-plan-text{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.five-report .five-plan-text strong{font:750 13px/1.46 var(--body);color:#242c24;overflow-wrap:anywhere}
+.five-report .five-plan-text small{color:#859084;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.five-report .five-plan-row:hover .five-plan-text strong{color:#4d761f}
+.five-report .five-empty{font-size:12.5px;line-height:1.65;color:#6b786b;padding:16px 0}
+.five-report .five-more{margin-top:11px;border:1px solid #e6ece2;background:#f8fbf5;color:#486e31;border-radius:12px;min-height:38px;padding:7px 13px;font:750 11.5px var(--body);cursor:pointer}
+.five-report .five-disclaimer{color:#899289;font-size:11px;line-height:1.65;margin:17px 5px 0}
+body.five-report-ui .report-footer{margin-top:27px;padding-top:19px;border-top:1px solid #eff1ed}
+body.five-report-ui .five-panel :is(button,summary):focus-visible,
+body.five-report-ui .five-more:focus-visible{outline:3px solid #7bbb2d;outline-offset:3px}
+@media(min-width:1500px){
+ body.five-report-ui .report-wrap,body.five-report-ui .floating-nav{max-width:1410px}
+}
+@media(max-width:950px){
+ .five-report .five-score-card{grid-template-columns:175px minmax(0,1fr);gap:21px;padding:25px}
+ .five-report .five-score-visual{padding-right:22px;min-height:147px}
+ .five-report .five-score-ring{height:133px;width:133px;flex-basis:133px}
+ .five-report .five-score-ring:before{inset:13px}
+ .five-report .five-score-number{font-size:40px}
+ .five-report .five-grid{gap:13px;margin-bottom:13px}
+ .five-report .five-panel{padding:22px 18px}
+ .five-report .five-row-title{font-size:12.2px}
+ .five-report .five-level{font-size:9px}
+}
+@media(max-width:730px){
+ body.five-report-ui .page-header{padding:9px 18px}
+ body.five-report-ui .report-wrap{padding:0 18px}
+ body.five-report-ui .report-hero{padding:30px 0 22px}
+ body.five-report-ui .report-hero h1{font-size:31px}
+ .five-report .five-grid{grid-template-columns:1fr;gap:14px;margin-bottom:14px}
+ .five-report .five-panel{padding:23px 21px}
+ .five-report .five-score-card{margin-bottom:15px}
+}
+@media(max-width:480px){
+ body.five-report-ui .page-header{padding:9px 16px}
+ body.five-report-ui .brand img{width:34px;height:34px}
+ body.five-report-ui .brand strong{font-size:18px}
+ body.five-report-ui .nav-download{min-width:43px;width:43px;min-height:42px;height:42px;padding:8px;border-radius:12px}
+ body.five-report-ui .nav-download span{display:none}
+ body.five-report-ui .nav-download svg{width:18px;height:18px}
+ body.five-report-ui .report-wrap{padding:0 16px}
+ body.five-report-ui .report-hero{padding:29px 0 19px}
+ body.five-report-ui .report-hero h1{font-size:clamp(27px,7.3vw,33px);line-height:1.18;margin-bottom:8px}
+ body.five-report-ui .hero-coverage{font-size:12.5px;line-height:1.58}
+ body.five-report-ui .report-hero .source-line{margin-top:11px;font-size:11px;flex-wrap:wrap}
+ .five-report .five-score-card{display:flex;flex-direction:column;gap:15px;align-items:stretch;padding:21px 19px;border-radius:21px}
+ .five-report .five-score-visual{border-right:0;border-bottom:1px solid #edf0eb;padding:0 0 17px;min-height:0}
+ .five-report .five-score-ring{width:128px;height:128px;flex-basis:128px}
+ .five-report .five-score-ring:before{inset:12px}
+ .five-report .five-score-number{font-size:41px}
+ .five-report .five-score-title{font-size:19px;margin-bottom:9px}
+ .five-report .five-score-description{font-size:12.5px}
+ .five-report .five-score-meta{margin-top:14px;gap:7px}
+ .five-report .five-counter{padding:7px 9px;font-size:10px;gap:5px}
+ .five-report .five-caption{font-size:10px}
+ .five-report .five-grid{gap:12px;margin-bottom:12px}
+ .five-report .five-panel{padding:21px 17px;border-radius:19px}
+ .five-report .five-panel-title{font-size:19px}
+ .five-report .five-panel-subtitle{font-size:11.5px;margin-bottom:11px}
+ .five-report .five-finding>summary{gap:9px;padding:10px 0}
+ .five-report .five-index{width:28px;height:28px;flex-basis:28px;min-width:28px;font-size:12px}
+ .five-report .five-row-title{font-size:12px}
+ .five-report .five-level{padding:5px 7px}
+ .five-report .five-reveal{padding-left:37px;padding-right:2px}
+ .five-report .five-concern{padding:9px 10px;font-size:11.5px}
+ .five-report .five-change>summary{gap:9px;align-items:flex-start}
+ .five-report .five-change-content{padding-top:2px}
+ .five-report .five-before-after div{grid-template-columns:62px minmax(0,1fr);padding:6px;gap:5px;font-size:10px}
+ .five-report .five-change .five-reveal{padding-left:0}
+ .five-report .five-plan-row{gap:9px}
+ .five-report .five-plan-text strong{font-size:12px}
+ .five-report .five-plan-text small{font-size:10px}
+ .five-report .five-disclaimer{font-size:10px;margin-top:14px}
+}
+@media(max-width:350px){
+ body.five-report-ui .report-wrap{padding:0 12px}
+ .five-report .five-panel{padding:18px 13px}
+ .five-report .five-score-card{padding:19px 15px}
+ .five-report .five-level{font-size:8px;padding:5px}
+ .five-report .five-counter{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.five-report *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media print{
+ body.five-report-ui #fiveReport{display:none!important}
+ body.five-report-ui .report-hero{padding:3pt 0 13pt}
+ body.five-report-ui .page-header,body.five-report-ui .report-footer{display:none!important}
+ body.five-report-ui .print-only,body.five-report-ui .print-conversion{display:block!important}
+}

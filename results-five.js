@@ -1,0 +1,225 @@
+/* VYLENS — five focused, evidence-grounded conversion report sections.
+   Works alongside the existing audit/print flow; no synthetic testimonials,
+   invented revenue or technical score is presented. */
+(() => {
+  'use strict';
+  const byId=id=>document.getElementById(id);
+  let report;
+  try{report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');}catch{return;}
+  const data=report&&report.conversion;
+  if(!data||data.version!==1||!Array.isArray(data.blockers)||data.blockers.length>24||
+     !Array.isArray(data.journey)||!['website','product'].includes(report.mode))return;
+  const clean=(value,length=900)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,length);
+  const node=(tag,className,content)=>{
+    const el=document.createElement(tag);
+    if(className)el.className=className;
+    if(content!==undefined)el.textContent=clean(content,1400);
+    return el;
+  };
+  const add=(parent,...children)=>{children.filter(Boolean).forEach(child=>parent.append(child));return parent;};
+  const blockers=data.blockers.filter(b=>b&&typeof b==='object'&&typeof b.title==='string')
+    .slice(0,12).sort((a,b)=>{
+      const priority={high:0,review:1,medium:1,low:2};
+      return (priority[a.priority]??1)-(priority[b.priority]??1);
+    });
+  const strengths=Array.isArray(data.strengths)?
+    data.strengths.filter(s=>s&&typeof s==='object'&&s.title).slice(0,6):[];
+  const level=blocker=>blocker.priority==='high'?'high':
+    blocker.priority==='low'?'low':'medium';
+  const count={high:0,medium:0,low:0};
+  blockers.forEach(b=>count[level(b)]++);
+  const hasOfferEvidence=Number(data.inspectedOfferPages)>0||Number(data.renderedPages)>0;
+  const hasSupport=hasOfferEvidence;
+  // Deterministic editorial heuristic; not a measured conversion rate.
+  const score=hasSupport?Math.max(16,Math.min(94,
+    87-count.high*17-count.medium*8-count.low*3+Math.min(4,strengths.length)*2)):null;
+  const tone=score===null?'medium':score>=75?'low':score>=50?'medium':'high';
+  const stageNames={clarity:'Messaging',value:'Offer & value',trust:'Trust',action:'Next step'};
+  document.body.classList.add('five-report-ui');
+  if(byId('reportHeadline'))byId('reportHeadline').textContent='Your Conversion Report';
+  if(byId('coverageMessage'))byId('coverageMessage').textContent=
+    'A focused analysis of your offer, messaging, and buying experience.';
+  const main=byId('main'),original=byId('conversionReport');
+  if(!main||!original)return;
+  const root=node('section','five-report');
+  root.id='fiveReport';
+  root.setAttribute('aria-label','Conversion report');
+  const summary=node('section','five-score-card');
+  summary.setAttribute('aria-label','Overall conversion score');
+  const visual=node('div','five-score-visual');
+  const ring=node('div','five-score-ring');
+  ring.style.setProperty('--score',String(score===null?0:score));
+  ring.style.setProperty('--score-color',score===null?'#aab4a8':
+    tone==='high'?'#e84354':tone==='medium'?'#f5bf37':'#8cdf29');
+  ring.setAttribute('role','img');
+  ring.setAttribute('aria-label',score===null?
+    'Indicative score unavailable: limited offer evidence':'Indicative score '+score+' out of 100');
+  const number=node('strong','five-score-number',score===null?'—':score);
+  const inner=add(node('span','five-score-inner'),number,
+    node('span','five-score-denominator',score===null?'No score':'/ 100'));
+  ring.append(inner);visual.append(ring);
+  const summaryText=node('div','five-score-copy');
+  const status=score===null?'Limited Evidence':
+    tone==='low'?'Stronger Signals':tone==='high'?'Needs Attention':'Needs Improvement';
+  const verdict=node('span','five-verdict '+tone,(tone==='high'?'! ':tone==='medium'?'△ ':'✓ ')+status);
+  const description=score===null?
+    'There is not enough public offer evidence to make a useful conversion assessment.':
+    blockers.length?
+      'These potential buying blockers are worth reviewing before changing your offer.':
+      'No specific buying blockers were identified in the material reviewed. This is not proof that visitors convert.';
+  add(summaryText,node('h2','five-score-title','Overall Conversion Score'),
+      verdict,node('p','five-score-description',description));
+  const counters=node('div','five-score-meta');
+  const counter=(cls,iconText,labelText)=>{
+    const el=node('span','five-counter '+cls);
+    add(el,node('span','',iconText),node('span','',labelText));return el;
+  };
+  add(counters,counter('high','✕',count.high+' High'),
+    counter('medium','! ',count.medium+' Review'),
+    counter('low','✓',strengths.length+' Positive'));
+  add(summaryText,counters,
+    node('p','five-caption','Indicative score from inspected content, not actual conversions or customer behavior.'));
+  add(summary,visual,summaryText);
+  root.append(summary);
+
+  const grid1=node('div','five-grid');
+  const grid2=node('div','five-grid');
+  function panel(title,subtitle,id){
+    const section=node('section','five-panel');
+    section.id=id;
+    add(section,node('h2','five-panel-title',title),
+      node('p','five-panel-subtitle',subtitle));
+    return section;
+  }
+  const blockersPanel=panel('What’s Stopping Buyers?',
+    'The most important potential obstacles to purchasing.','five-blockers');
+  const concernsPanel=panel('Why People Hesitate',
+    'Questions your buyer might have before deciding.','five-hesitations');
+  const changesPanel=panel('Exactly What to Change',
+    'Practical changes grounded in observed details.','five-changes');
+  const planPanel=panel('Your Priority Action Plan',
+    'Start with the most important improvement.','five-action-plan');
+
+  const labelFor=type=>type==='high'?'High':type==='low'?'Low':'Medium';
+  const reveal=(parent,heading,value)=>{
+    if(!value)return;
+    const p=node('p','');
+    add(p,node('strong','',heading+': '),document.createTextNode(clean(value,900)));
+    parent.append(p);
+  };
+  const renderIssue=(item,i)=>{
+    const cls=level(item),details=node('details','five-finding');
+    const head=node('summary','');
+    add(head,node('span','five-index '+cls,String(i+1)),
+      node('span','five-row-title',item.title),
+      node('span','five-level '+cls,labelFor(cls)),
+      node('span','five-chevron','›'));
+    const body=node('div','five-reveal');
+    reveal(body,'Observed',item.evidence);
+    reveal(body,'Buyer concern',item.buyerConcern);
+    reveal(body,'Location',item.location);
+    reveal(body,'Suggested fix',item.fix);
+    reveal(body,'Verify',item.verify);
+    add(details,head,body);
+    return details;
+  };
+  blockers.slice(0,3).forEach((item,i)=>blockersPanel.append(renderIssue(item,i)));
+  if(!blockers.length)blockersPanel.append(node('p','five-empty',
+    'No specific blocker was verified. More offer evidence or real buyer feedback may be needed.'));
+  if(blockers.length>3){
+    const more=node('button','five-more','Show all '+blockers.length+' findings');
+    more.type='button';more.setAttribute('aria-expanded','false');
+    let expanded=false;
+    more.addEventListener('click',()=>{
+      expanded=!expanded;
+      if(expanded){
+        blockers.slice(3).forEach((item,i)=>blockersPanel.insertBefore(renderIssue(item,i+3),more));
+      }else Array.from(blockersPanel.querySelectorAll('.five-finding')).slice(3).forEach(el=>el.remove());
+      more.textContent=expanded?'Show fewer':'Show all '+blockers.length+' findings';
+      more.setAttribute('aria-expanded',String(expanded));
+    });blockersPanel.append(more);
+  }
+  const seen=new Set();let hesitationCount=0;
+  blockers.forEach(item=>{
+    const question=clean(item.buyerConcern,280);
+    if(!question||seen.has(question.toLowerCase())||hesitationCount>=4)return;
+    seen.add(question.toLowerCase());hesitationCount++;
+    const type=level(item);
+    const row=node('div','five-concern '+type);
+    add(row,node('span','five-concern-icon','?'),node('span','',question));
+    concernsPanel.append(row);
+  });
+  if(!hesitationCount)concernsPanel.append(node('p','five-empty',
+    'No specific buyer hesitation was supported by the available evidence.'));
+
+  const actionable=blockers.filter(item=>clean(item.fix).length>0).slice(0,5);
+  function makeChange(item,i){
+    const cls=level(item),details=node('details','five-change');
+    details.id='five-change-'+i;
+    const head=node('summary','');
+    const copy=node('div','five-change-content');
+    copy.append(node('strong','five-change-title',item.title));
+    const beforeAfter=node('div','five-before-after');
+    const before=node('div','five-before');
+    add(before,node('strong','','Observed'),node('span','',clean(item.evidence,170)||'Evidence not verified'));
+    const after=node('div','five-after');
+    add(after,node('strong','','Suggested'),node('span','',clean(item.fix,215)));
+    add(beforeAfter,before,after);add(copy,beforeAfter);
+    add(head,node('span','five-index '+cls,String(i+1)),copy,
+      node('span','five-chevron','›'));
+    const body=node('div','five-reveal');
+    reveal(body,'Full observation',item.evidence);
+    reveal(body,'What to change',item.fix);
+    reveal(body,'How to verify',item.verify);
+    if(item.fix){
+      const button=node('button','five-copy-btn','Copy suggested fix');
+      button.type='button';
+      button.addEventListener('click',async()=>{
+        try{
+          await navigator.clipboard.writeText(clean(item.fix,900));
+          button.textContent='Copied';
+        }catch{button.textContent='Copy unavailable';}
+      });
+      body.append(button);
+    }
+    add(details,head,body);
+    return details;
+  }
+  actionable.forEach((item,i)=>changesPanel.append(makeChange(item,i)));
+  if(!actionable.length)changesPanel.append(node('p','five-empty',
+    'No reliable change can be recommended from the information reviewed.'));
+  actionable.forEach((item,i)=>{
+    const cls=level(item);
+    const row=node('button','five-plan-row');
+    row.type='button';
+    row.setAttribute('aria-label','Open recommended fix '+(i+1));
+    const copy=node('span','five-plan-text');
+    add(copy,node('strong','',clean(item.fix,140)),
+      node('small','',(stageNames[item.stage]||'Offer review')+' · '+labelFor(cls)+' priority'));
+    add(row,node('span','five-index '+cls,String(i+1)),copy,
+      node('span','five-level '+cls,labelFor(cls)));
+    row.addEventListener('click',()=>{
+      const target=byId('five-change-'+i);
+      if(!target)return;
+      target.open=true;
+      const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'});
+      target.querySelector('summary')?.focus({preventScroll:true});
+    });
+    planPanel.append(row);
+  });
+  if(!actionable.length)planPanel.append(node('p','five-empty',
+    'Review the offer or collect buyer feedback before prioritizing edits.'));
+  add(grid1,blockersPanel,concernsPanel);
+  add(grid2,changesPanel,planPanel);
+  add(root,grid1,grid2);
+  root.append(node('p','five-disclaimer',
+    'VYLENS identifies evidence-backed possibilities, not measured conversion rates. '+
+    'Verify recommendations before making claims or changing your offer.'));
+  original.insertAdjacentElement('beforebegin',root);
+  const navDownload=byId('navDownload');
+  if(navDownload){
+    const title=navDownload.querySelector('span');
+    if(title)title.textContent='Download Report';
+  }
+})();
