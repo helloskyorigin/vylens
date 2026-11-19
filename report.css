@@ -61,3 +61,21 @@ button.area-chip.is-active{background:#e9f8d9;border-color:#badb91;color:#314e22
 .skip-link:not(:focus){position:absolute!important;top:0!important;left:0!important;width:1px!important;height:1px!important;padding:0!important;margin:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
 .skip-link:focus{position:fixed!important;top:12px!important;left:12px!important;z-index:1000!important;width:auto!important;height:auto!important;clip-path:none!important}
 @media print{.skip-link{display:none!important}}
+
+/* Transparent check detail without overwhelming the report. */
+.check-breakdown{margin-top:12px;border:1px solid #e7ece4;border-radius:15px;background:#fff;overflow:hidden}
+.check-breakdown summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;min-height:48px;font-size:11px;font-weight:700;color:#657761}
+.check-breakdown summary::-webkit-details-marker{display:none}
+.check-breakdown summary svg{width:15px;height:15px;flex-shrink:0;transition:transform .18s}
+.check-breakdown[open] summary svg{transform:rotate(180deg)}
+.check-breakdown-list{border-top:1px solid #edf0eb;padding:0 15px;max-height:340px;overflow-y:auto;overscroll-behavior:contain}
+.check-breakdown-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:11px 0;border-bottom:1px solid #edf0eb}
+.check-breakdown-row:last-child{border:0}
+.check-breakdown-text{flex:1;min-width:0}
+.check-breakdown-text strong{font:700 11px/1.4 var(--head);overflow-wrap:anywhere}
+.check-breakdown-text p{font-size:10px;line-height:1.55;margin:3px 0 0;color:#84927e;overflow-wrap:anywhere}
+.check-breakdown-state{flex:0 0 auto;border-radius:8px;padding:5px 8px;font-size:9px;font-weight:800;white-space:nowrap;color:#678257;background:#f0f6e9}
+.check-breakdown-state.attention{color:#90612d;background:#fff5e8}
+.check-breakdown-state.unverified{color:#758074;background:#f2f4ef}
+@media(max-width:700px){.check-breakdown summary{padding:12px 13px;font-size:10px}.check-breakdown-list{padding:0 12px}.check-breakdown-row{gap:8px}}
+@media print{.check-breakdown{display:none!important}}

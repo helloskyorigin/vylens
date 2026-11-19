@@ -75,6 +75,9 @@ with sync_playwright() as playwright:
     check(page.locator('#reportType').inner_text()=='DIGITAL PRODUCT','Results show correct audit type')
     check(page.locator('#findingsList .finding').count()>=1,'Real file findings are present')
     check(page.locator('#checksCount').inner_text().strip().isdigit(),'Checks count is numeric')
+    check(page.locator('#checkBreakdown').is_visible(),'Verified checks summary is shown')
+    page.locator('#checkBreakdown summary').click()
+    check(page.locator('#checkBreakdownList .check-breakdown-row').count()>=1,'Measured checks can be inspected')
 
     # PDF is browser-print based; test click and print-mode appendix.
     page.evaluate('window.__printClicked=false;window.print=()=>{window.__printClicked=true}')

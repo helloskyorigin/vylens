@@ -608,5 +608,5 @@ export async function POST(request){
     return respond({error:safe?msg:'Could not inspect this website. It may block automated scans or be temporarily unavailable.'},422);
   }
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',pageLimit:LIMIT});}
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'rendered-depth-v2',pageLimit:LIMIT});}
 export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals};

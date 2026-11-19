@@ -35,7 +35,10 @@
       <div class="metric metric-other" id="otherCard"><span>Other</span><strong id="otherCount">—</strong></div>
       <div class="metric metric-checks"><span>Checks run</span><strong id="checksCount">—</strong></div>
     </section>
-
+    <details id="checkBreakdown" class="check-breakdown" hidden>
+      <summary><span id="checkBreakdownSummary">See completed checks</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div id="checkBreakdownList" class="check-breakdown-list"></div>
+    </details>
 
     <section class="coverage" id="siteCoverage" aria-label="Audited pages" hidden>
       <div class="coverage-top"><div><strong id="coverageTitle">Pages inspected</strong><p id="coverageSubtitle"></p></div><span class="coverage-legal" id="legalCount"></span></div>

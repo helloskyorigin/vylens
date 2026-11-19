@@ -155,6 +155,29 @@
     root.append(scope);
   }
 
+  function renderCheckBreakdown(report) {
+    if(!Array.isArray(report.checks)||!report.checks.length)return;
+    const counts={passed:0,attention:0,unverified:0};
+    for(const check of report.checks)
+      counts[Object.hasOwn(counts,check?.status)?check.status:'unverified']++;
+    const parts=[
+      counts.passed+' passed',
+      counts.attention+' flagged',
+      counts.unverified+' not verified'
+    ];
+    put('checkBreakdownSummary',parts.join(' · '));
+    const root=$('checkBreakdownList');
+    for(const check of report.checks.slice(0,650)){
+      const status=Object.hasOwn(counts,check?.status)?check.status:'unverified';
+      const row=by('div','check-breakdown-row');
+      const text=by('div','check-breakdown-text');
+      text.append(by('strong','',clean(check?.name||'Check',130)));
+      if(check?.detail)text.append(by('p','',clean(check.detail,400)));
+      row.append(text,by('span','check-breakdown-state '+status,status==='passed'?'Passed':status==='attention'?'Flagged':'Not verified'));
+      root.append(row);
+    }
+    $('checkBreakdown').hidden=false;
+  }
   function renderCoverage(report) {
     const c=report.coverage;
     if(!c || !Array.isArray(report.pages))return;
@@ -197,6 +220,7 @@
     put('reportSubject',clean(report.subject || report.url || 'Your product',180));
     put('reportDate',dateLabel(report));
     put('year',new Date().getFullYear());
+    renderCheckBreakdown(report);
     renderCoverage(report);
 
     const impacts = impactMap(issues);
@@ -208,7 +232,7 @@
       const attempts = checkCount(report);
       const unavailable = Array.isArray(report.checks) ? report.checks.filter(check => check?.status === 'unverified').length : 0;
       const cleanResult = attempts > 0 && unavailable === 0;
-      const mainText = attempts === 0 ? 'No checks completed.' : cleanResult ? 'No issues detected.' : 'No confirmed issues found.';
+      const mainText = attempts === 0 ? 'No checks completed.' : cleanResult ? 'No problems flagged by completed checks.' : 'No confirmed issues found.';
       const helpText = attempts === 0 ? 'Please run a new audit.' : unavailable > 0 ? 'Some checks could not be verified.' : 'Nothing was flagged by the checks completed.';
       calm.lastChild.append(by('strong','',mainText),by('p','',helpText));
       impactList.append(calm);
