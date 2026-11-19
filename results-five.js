@@ -243,6 +243,117 @@
   const planPanel=panel('five-action-plan','Your Priority Action Plan',
     'Tap a step for its fix.');
 
+  // Feature inside section 2: observed path, not a recording of an actual visitor.
+  function drawBuyerReplay(info){
+    if(!info||info.version!==1||!Array.isArray(info.desktop)||!Array.isArray(info.mobile))return null;
+    const widget=make('div','five-replay');
+    widget.id='fiveBuyerReplay';
+    const top=make('div','five-replay-heading');
+    const intro=make('div','five-replay-intro');
+    append(intro,make('strong','','Buyer Journey Replay'),
+      make('small','','Observed public steps · no visitor recording'));
+    const switcher=make('div','five-replay-switch');
+    switcher.setAttribute('role','group');
+    switcher.setAttribute('aria-label','Choose view for the public buying path');
+    const desktop=make('button','','Desktop');
+    const mobile=make('button','','Mobile');
+    desktop.type='button';mobile.type='button';
+    append(switcher,mobile,desktop);
+    append(top,intro,switcher);widget.append(top);
+    const stepsEl=make('div','five-replay-steps');
+    stepsEl.setAttribute('aria-live','polite');widget.append(stepsEl);
+    const allowed=['observed','review','unknown'];
+    const render=(mode)=>{
+      mobile.setAttribute('aria-pressed',String(mode==='mobile'));
+      desktop.setAttribute('aria-pressed',String(mode==='desktop'));
+      stepsEl.replaceChildren();
+      const steps=mode==='mobile'?info.mobile:info.desktop;
+      steps.slice(0,4).forEach(s=>{
+        const state=allowed.includes(s.status)?s.status:'unknown';
+        const row=make('div','five-replay-step '+state);
+        const marker=make('span','five-replay-marker',
+          state==='observed'?'✓':state==='review'?'!':'?');
+        const details=make('div','five-replay-copy');
+        append(details,make('strong','',clean(s.title,90)),
+          make('p','',clean(s.description,250)));
+        if(s.place)details.append(make('small','',clean(s.place,120)));
+        append(row,marker,details);stepsEl.append(row);
+      });
+    };
+    mobile.addEventListener('click',()=>render('mobile'));
+    desktop.addEventListener('click',()=>render('desktop'));
+    render('mobile');
+    return widget;
+  }
+  const replay=report.mode==='website'?drawBuyerReplay(data.buyerReplay):null;
+  if(replay)blockersPanel.append(replay);
+
+  // Feature inside section 4: source-backed copy and implementable checklists.
+  // Never manufacture claims, prices, testimonials or FAQ answers.
+  const rawKit=Array.isArray(data.fixKit)?data.fixKit:
+    changes.map((item,i)=>({
+      id:'fallback-'+i,kind:'checklist',label:'Fix checklist',
+      title:'Action '+(i+1),content:clean(item.fix,850),
+      source:clean(item.location||item.source,160),verify:clean(item.verify,450)
+    }));
+  const safeKit=rawKit.filter(item=>item&&typeof item.content==='string'&&
+    item.content.trim()&&['copy','checklist'].includes(item.kind)).slice(0,12);
+  if(safeKit.length){
+    const kit=make('div','five-fix-kit');kit.id='fiveConversionFixKit';
+    const header=make('div','five-kit-heading');
+    const title=make('div','five-kit-title');
+    const copyCount=safeKit.filter(item=>item.kind==='copy').length;
+    append(title,make('strong','','Conversion Fix Kit'),
+      make('small','',copyCount?copyCount+' source-backed copy item'+(copyCount===1?'':'s')+
+        ' · '+safeKit.length+' total fixes':'Action-ready fixes backed by inspected details'));
+    const copyAll=make('button','five-kit-copy-all','Copy kit');
+    copyAll.type='button';
+    copyAll.setAttribute('aria-label','Copy complete conversion fix kit');
+    const copyContent=()=>safeKit.map((asset,i)=>
+      (i+1)+'. '+clean(asset.title,100)+'\n'+clean(asset.content,950)+
+      (asset.verify?'\nVerify: '+clean(asset.verify,450):'')).join('\n\n');
+    copyAll.addEventListener('click',async()=>{
+      try{await navigator.clipboard.writeText(copyContent());copyAll.textContent='Copied!';}
+      catch{copyAll.textContent='Copy unavailable';}
+    });
+    append(header,title,copyAll);kit.append(header);
+    const list=make('div','five-kit-list');
+    safeKit.forEach((asset,i)=>{
+      const item=make('article','five-kit-item');
+      if(i>=3)item.hidden=true;
+      const meta=make('div','five-kit-meta');
+      append(meta,make('span','five-kit-tag '+asset.kind,
+        asset.kind==='copy'?'Ready to paste':'Fix checklist'),
+        make('span','five-kit-asset-type',clean(asset.label||'',55)));
+      const content=make('p','five-kit-content',clean(asset.content,1100));
+      const foot=make('div','five-kit-footer');
+      const source=make('small','',clean(asset.source||'',150));
+      const copy=make('button','five-kit-copy','Copy');
+      copy.type='button';
+      copy.setAttribute('aria-label','Copy '+clean(asset.title||'fix',100));
+      copy.addEventListener('click',async()=>{
+        try{await navigator.clipboard.writeText(clean(asset.content,1100));copy.textContent='Copied!';}
+        catch{copy.textContent='Copy unavailable';}
+      });
+      append(foot,source,copy);
+      append(item,meta,content,foot);list.append(item);
+    });
+    kit.append(list);
+    if(safeKit.length>3){
+      const show=make('button','five-kit-more','Show all '+safeKit.length+' fixes');
+      show.type='button';show.setAttribute('aria-expanded','false');
+      let expanded=false;
+      show.addEventListener('click',()=>{
+        expanded=!expanded;
+        Array.from(list.children).slice(3).forEach(el=>{el.hidden=!expanded;});
+        show.textContent=expanded?'Show fewer fixes':'Show all '+safeKit.length+' fixes';
+        show.setAttribute('aria-expanded',String(expanded));
+      });
+      kit.append(show);
+    }
+    changesPanel.append(kit);
+  }
+
   // 2. Buyer blockers: concise summary, full evidence only after interaction.
   function detailLine(parent,title,content){
     if(!clean(content))return;
