@@ -4,7 +4,7 @@ A free beta with a three-screen workflow:
 
 1. `index.html` — select a public website URL or a supported digital-product file.
 2. `inspect.html` / `analysis.js` — run the requested audit and show real states, errors and progress messages.
-3. `results.html` / `results.js` — show distinct findings, affected locations, supporting evidence, practical fixes, check statuses, crawl coverage and a printable report.
+3. `results.html` / `results.js` — show a guided first fix with evidence and exact location, compact findings/coverage, incremental lists, full check-status breakdown, printable report and private JSON export/import.
 
 ## Website scan — what runs
 
@@ -32,7 +32,7 @@ Reports distinguish **Passed**, **Flagged**, **Observed** (neutral), **Not verif
 
 ## Privacy and report delivery
 
-A selected product file is passed between pages in temporary IndexedDB storage, removed on retrieval, and rejected if its transfer is over 15 minutes old. The audit report itself remains in sessionStorage. A completed audit clears the pending request; reports are not permanent account records. `Save PDF` opens the browser print dialog, where the visitor can choose **Save as PDF**. There is no active checkout, subscription or paid unlock in the beta.
+A selected product file is passed between pages in temporary IndexedDB storage, removed on retrieval, and rejected if its transfer is over 15 minutes old. The audit report itself remains in sessionStorage. A completed audit clears the pending request; reports are not permanent account records. `Print / Save PDF` opens the browser print dialog; the print appendix includes **every recorded check**. Users can download a JSON report and later reopen it locally from the Results empty state; imported reports are labeled and **are not new live scans**. There is no active checkout, subscription or paid unlock in the beta.
 
 ## Run and test
 
@@ -45,6 +45,7 @@ python qa_tests.py
 python qa_product_browser.py
 python qa_launch_browser.py
 python qa_focus_results.py
+python qa_results_states.py
 node qa_problem_engine.mjs
 node qa_rendered_fixture.mjs
 node qa_multisite_accuracy.mjs
