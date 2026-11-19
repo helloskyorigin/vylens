@@ -452,11 +452,6 @@
     return;
   }
   $('main').hidden=false;
-  if(sessionStorage.getItem('vylens:imported')==='1'){
-    put('heroState','IMPORTED REPORT · NOT A NEW SCAN');
-    $('coverageMessage').insertAdjacentText('beforeend',' · Opened from a local JSON export.');
-    $('priorityDetails').setAttribute('aria-label','Review this saved finding and its evidence');
-  }
   render(report);
   if(sessionStorage.getItem('vylens:imported')==='1'){
     put('heroState','IMPORTED REPORT · NOT A NEW SCAN');
