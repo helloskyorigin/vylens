@@ -1,10 +1,10 @@
 /* VYLENS Conversion Report v1 — quiet editorial hierarchy, not a dashboard. */
 .conversion-report{margin-top:16px;color:#172117}
-.conversion-intro{padding:0 0 28px}
+.conversion-intro{padding:0 0 12px}
 .conversion-intro-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .conversion-kicker{color:#77876d;font-size:10px;line-height:1.5;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
 .conversion-count{color:#526b3b;font-size:11px;font-weight:750;background:#f3f8ee;border:1px solid #e7efdd;padding:7px 11px;border-radius:99px}
-.conversion-intro h2{font:800 clamp(24px,3.8vw,33px)/1.23 var(--head);letter-spacing:-.05em;margin:14px 0 10px;max-width:700px}
+.conversion-intro h2{font:800 clamp(18px,2.6vw,22px)/1.28 var(--head);letter-spacing:-.04em;margin:9px 0 6px;max-width:700px}
 #conversionIntro{color:#64735e;font-size:13.5px;line-height:1.73;max-width:700px;margin:0}
 .conversion-goal{margin:14px 0 0;padding:10px 12px;border-left:2px solid #b1df77;color:#617459;background:#f9fbf7;font-size:11.5px;line-height:1.65;overflow-wrap:anywhere}
 .conversion-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:16px}
@@ -21,7 +21,7 @@
 .journey-stage.attention .journey-stage-state{color:#966a38}
 .journey-stage.observed{background:#f8fbf5;border-color:#dce9d3}
 .journey-stage.observed .journey-stage-state{color:#4f8040}
-.blocker-section{padding:30px 0 24px}
+.blocker-section{padding:13px 0 26px}
 .buyer-blocker{border:1px solid #e2e9dd;background:#fff;box-shadow:0 5px 22px #111b1206;border-radius:19px;min-width:0}
 .buyer-blocker.featured{padding:23px 25px 22px;border-color:#d8e6cf;box-shadow:0 13px 35px #1a3a100a}
 .blocker-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -93,8 +93,8 @@
 .print-conversion{display:none}
 @media(max-width:700px){
  .conversion-report{margin-top:9px}
- .conversion-intro{padding-bottom:24px}
- .conversion-intro h2{font-size:26px;margin:12px 0 8px}
+ .conversion-intro{padding-bottom:11px}
+ .conversion-intro h2{font-size:20px;margin:9px 0 5px}
  #conversionIntro{font-size:13px}
  .conversion-goal{font-size:11px;margin-top:12px}
  .conversion-section-head h3{font-size:19px}
@@ -104,7 +104,7 @@
  .journey-stage{min-height:125px;padding:12px;gap:6px}
  .journey-stage strong{font-size:12px}
  .journey-stage small{font-size:9.5px}
- .blocker-section{padding:26px 0 24px}
+ .blocker-section{padding:10px 0 23px}
  .buyer-blocker.featured{padding:18px 16px 17px;border-radius:16px}
  .blocker-heading{font-size:21px;margin:14px 0 17px}
  .blocker-field{padding:12px 0}
@@ -125,7 +125,7 @@
  .technical-appendix>summary{min-height:72px;padding:12px}
 }
 @media(max-width:355px){
- .conversion-intro h2{font-size:24px}
+ .conversion-intro h2{font-size:19px}
  .conversion-count{font-size:10px}
  .journey-stage{padding:11px 10px}
  .journey-stage strong{font-size:11.5px}
