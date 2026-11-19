@@ -166,6 +166,49 @@
       'To evaluate why people hesitate before buying, add the public sales page and price, then compare the findings with actual customer feedback.':
       'Review the conversion path with actual signup, checkout or analytics data. No changes are recommended without stronger evidence.'));
   }
+  // Compare *detected evidence*, never claim that a missing issue was fixed.
+  if(sessionStorage.getItem('vylens:imported')!=='1'){
+    try{
+      const previous=JSON.parse(sessionStorage.getItem('vylens:previous-conversion')||'null');
+      const sourceKey=report.mode==='website'?
+        (()=>{try{const u=new URL(report.url);return u.origin+u.pathname.replace(/\/$/,'');}catch{return '';}})():
+        String(report.subject||'').trim().toLowerCase();
+      if(previous?.mode===report.mode&&previous.sourceKey===sourceKey&&
+        Array.isArray(previous.blockers)&&previous.blockers.length<=12){
+        const key=item=>clean(item.stage,40).toLowerCase()+'|'+
+          clean(item.title,155).toLowerCase()+'|'+clean(item.location,190).toLowerCase();
+        const oldKeys=new Set(previous.blockers.filter(x=>x&&typeof x==='object').map(key));
+        const currentKeys=new Set(blockers.map(key));
+        const added=blockers.filter(x=>!oldKeys.has(key(x)));
+        const continuing=blockers.filter(x=>oldKeys.has(key(x)));
+        const missing=previous.blockers.filter(x=>x&&typeof x==='object'&&!currentKeys.has(key(x)));
+        if(previous.blockers.length||blockers.length){
+          $('scanComparison').hidden=false;
+          for(const [number,label] of [
+            [added.length,'Newly detected'],
+            [continuing.length,'Still detected'],
+            [missing.length,'Not detected now']
+          ]){
+            const stat=element('div','comparison-stat');
+            stat.append(element('strong','',String(number)),element('span','',label));
+            $('scanComparisonSummary').append(stat);
+          }
+          if(added.length){
+            const section=element('div','comparison-changes');
+            section.append(element('strong','','New or newly visible'));
+            added.slice(0,4).forEach(item=>section.append(element('p','',item.title)));
+            $('scanComparisonDetails').append(section);
+          }
+          if(missing.length){
+            const section=element('div','comparison-changes');
+            section.append(element('strong','','Not detected in this scan'));
+            missing.slice(0,4).forEach(item=>section.append(element('p','',item.title)));
+            $('scanComparisonDetails').append(section);
+          }
+        }
+      }
+    }catch{/* No valid previous scan is available; keep comparison hidden. */}
+  }
   if(strengths.length){
     $('strengthsSection').hidden=false;
     strengths.slice(0,4).forEach(item=>{
