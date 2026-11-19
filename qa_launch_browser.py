@@ -123,7 +123,7 @@ with sync_playwright() as playwright:
     check(page.locator('#printAppendix .print-check').count()==int(page.locator('#checksCount').inner_text()),
           'Every recorded check is included in printed report')
     check(page.locator('#printAppendix .print-conversion').count()==1 and
-          'Template' in page.locator('#printAppendix .print-conversion').text_content(),
+          'draft text' in page.locator('#printAppendix .print-conversion').text_content().lower(),
           'Print report includes conversion diagnosis and recorded findings')
     page.emulate_media(media='screen')
     check(page.locator('.report-footer a').filter(has_text='Contact').count()==1,
