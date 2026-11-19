@@ -137,7 +137,7 @@
   }
   function unsafeZipPath(name){
     const normalized=String(name).replace(/\\/g,'/');
-    return normalized.startsWith('/') || /^[a-z]:\//i.test(normalized) || normalized.split('/').includes('..') || normalized.includes('\0');
+    return normalized.startsWith('/') || /^[a-z]:/i.test(normalized) || normalized.split('/').some(part=>/^\.\.[. ]*$/.test(part)) || normalized.includes('\0');
   }
   function parseZip(bytes){
     const d=new DataView(bytes),u=new Uint8Array(bytes),start=Math.max(0,bytes.byteLength-65557);
@@ -151,8 +151,10 @@
     for(let i=0;i<count;i++){
       if(pos+46>bytes.byteLength||d.getUint32(pos,true)!==0x02014b50)throw new Error('The ZIP file list is damaged.');
       const flags=d.getUint16(pos+8,true),method=d.getUint16(pos+10,true),comp=d.getUint32(pos+20,true),raw=d.getUint32(pos+24,true),nameLength=d.getUint16(pos+28,true),extra=d.getUint16(pos+30,true),comment=d.getUint16(pos+32,true),local=d.getUint32(pos+42,true);
-      if(pos+46+nameLength+extra+comment>bytes.byteLength)throw new Error('ZIP entries are truncated.');
-      const name=new TextDecoder('utf-8',{fatal:false}).decode(u.subarray(pos+46,pos+46+nameLength)).slice(0,300);
+      if(pos+46+nameLength+extra+comment>bytes.byteLength || pos+46+nameLength+extra+comment>offset+size)throw new Error('ZIP entries are truncated or the directory length is incorrect.');
+      if(nameLength>2048)throw new Error('A ZIP entry filename is too long to inspect safely.');
+      // Inspect the whole name. Truncating here could hide ../ or Windows drive paths near its end.
+      const name=new TextDecoder('utf-8',{fatal:false}).decode(u.subarray(pos+46,pos+46+nameLength));
       entries.push({name,flags,method,compressed:comp,uncompressed:raw,local});
       pos+=46+nameLength+extra+comment;
     }
