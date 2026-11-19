@@ -98,7 +98,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8c
 .check-row-text{flex:1;min-width:0}.check-row-text strong{font:750 11px/1.45 var(--head);display:block;overflow-wrap:anywhere}
 .check-row-text p{font-size:10.5px;line-height:1.55;color:#81917e;overflow-wrap:anywhere;margin:3px 0 0}
 .check-status{flex:0 0 auto;white-space:nowrap;border-radius:8px;padding:5px 8px;background:#edf7e9;color:#5f8d50;font-size:9px;font-weight:800}
-.check-status.attention{color:#966931;background:#fff4e7}.check-status.observed{color:#546d8b;background:#edf3fa}.check-status.unverified{color:#7d8b7b;background:#eff2ec}
+.check-status.attention{color:#966931;background:#fff4e7}.check-status.observed{color:#546d8b;background:#edf3fa}.check-status.unverified,.check-status.not_applicable{color:#7d8b7b;background:#eff2ec}
 .coverage{border-top:1px solid #e5ede1;margin-top:12px}
 .coverage>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:60px;padding:12px 0}
 .coverage>summary::-webkit-details-marker{display:none}
