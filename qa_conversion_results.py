@@ -47,6 +47,15 @@ with sync_playwright() as pw:
             errors=[]
             page.on('pageerror',lambda e:errors.append(str(e)))
             page.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(fixture))+')')
+            if kind=='website':
+                prior={'mode':'website','sourceKey':'https://example.org',
+                  'checkedAt':'2026-11-18T08:00:00Z','complete':True,
+                  'blockers':[
+                    {'stage':'clarity','title':fixture['conversion']['blockers'][0]['title'],
+                     'location':fixture['conversion']['blockers'][0]['location']},
+                    {'stage':'trust','title':'An older observation','location':'/pricing'}]}
+                page.add_init_script('sessionStorage.setItem("vylens:previous-conversion",'+
+                                     json.dumps(json.dumps(prior))+')')
             resp=page.goto(BASE+'/results.html',wait_until='load',timeout=55000)
             check(resp.status==200,f'{kind} results HTTP 200 at {width}')
             check(page.locator('#conversionReport').is_visible(),f'{kind} conversion view shown at {width}')
@@ -65,6 +74,12 @@ with sync_playwright() as pw:
                       f'prioritized action plan at {width}')
                 check(page.locator('#primaryBlocker').inner_text().find('WHY A BUYER MIGHT HESITATE')>=0,
                       f'first blocker has buyer concern and remedy at {width}')
+                check(page.locator('#scanComparison').is_visible(),
+                      f'previous comparable scan appears with cautious wording at {width}')
+                check([x.strip() for x in page.locator('.comparison-stat strong').all_inner_texts()]==['2','1','1'],
+                      f'new, continuing and unobserved findings compared correctly at {width}')
+                check('not proof' in page.locator('.comparison-caveat').inner_text().lower(),
+                      f'comparison avoids claiming a resolved conversion issue at {width}')
                 second=page.locator('#secondaryBlockers details').first
                 second.locator('summary').click()
                 check(second.evaluate('(e)=>e.open'),f'secondary blocker details open at {width}')
