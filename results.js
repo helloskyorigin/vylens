@@ -38,6 +38,7 @@
     if (/access/.test(name)) return 'Accessibility|Some visitors may find the content harder to navigate or understand.';
     if (/navigation|broken.link|links/.test(name)) return 'Navigation|Visitors may have difficulty reaching linked pages.';
     if (/security|transport|https/.test(name)) return 'Security|Some expected safeguards may be missing.';
+    if (/policy|legal/.test(name)) return 'Policy clarity|Visitors may find some policy information incomplete or unclear.';
     if (/mobile|viewport|responsive/.test(name)) return 'Mobile experience|Viewing the page on smaller screens may be affected.';
     if (/sharing|social/.test(name)) return 'Link previews|Links shared elsewhere may show incomplete information.';
     if (/brand|favicon/.test(name)) return 'Brand recognition|The browser tab or shared identity may be harder to recognize.';

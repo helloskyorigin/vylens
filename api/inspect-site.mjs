@@ -30,7 +30,7 @@ function normalize(target,base,root){
   }catch{return null;}
 }
 function legal(url,label=''){
-  return /privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|contact|about|accessibility/i.test(new URL(url).pathname+' '+label);
+  return /privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/i.test(new URL(url).pathname+' '+label);
 }
 function priority(entry){
   const s=(new URL(entry.url).pathname+' '+entry.via).toLowerCase();
@@ -168,16 +168,50 @@ async function rendered(session,url){
     const html=(await page.content()).slice(0,1400000);
     const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
       .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
+    const visibleText=await page.evaluate(()=>String(document.body?.innerText||'').slice(0,14000));
     await page.setViewportSize({width:390,height:844});
     await page.waitForTimeout(90);
     const mobile=await page.evaluate(()=>{
       const width=document.documentElement.clientWidth||window.innerWidth;
-      return {width,scrollWidth:document.documentElement.scrollWidth};
+      const small=[];
+      for(const el of document.querySelectorAll('button, nav a, a[role="button"], input[type="submit"]')){
+        const box=el.getBoundingClientRect(),styles=getComputedStyle(el);
+        if(box.width<1||box.height<1||styles.visibility==='hidden'||styles.display==='none')continue;
+        if(box.width<32||box.height<32)small.push({
+          label:String(el.getAttribute('aria-label')||el.textContent||el.tagName).trim().slice(0,40),
+          width:Math.round(box.width),height:Math.round(box.height)});
+        if(small.length>=12)break;
+      }
+      return {width,scrollWidth:document.documentElement.scrollWidth,small};
     });
-    return {status,html,links,mobile,browser:true,errors};
+    return {status,html,links,mobile,visibleText,browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
-function pageReview(html,url,status,browser,mobile){
+
+function policyContentReview(url,visibleText,html){
+  const path=new URL(url).pathname||'/';
+  if(!/(?:privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping)/i.test(path))
+    return {issues:[],checks:[]};
+  let text=str(visibleText);
+  if(!text)text=str(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' '));
+  const issues=[],checks=[];
+  const match=text.match(/\blorem ipsum\b|\bcoming soon\b|\bTODO\b|\[(?:insert|your)\s+(?:company|business|name|email|address|date)[^\]]{0,40}\]/i);
+  const shortContent=text.length<180;
+  checks.push({name:path+' · Policy content',status:match||shortContent?'attention':'passed',
+    detail:match?'Possible placeholder text: "'+match[0]+'".':
+      'Readable policy-page text: '+text.length+' characters.'});
+  if(match)issues.push({category:'Policy content',severity:'note',title:'Policy page may contain placeholder copy',
+    location:path,evidence:'Possible placeholder visible on the page: "'+match[0]+'".',
+    fix:'Review the page and replace any unfinished template text with accurate, site-specific information.',
+    verify:'Read the published page and check that template placeholders are gone.'});
+  if(shortContent)issues.push({category:'Policy content',severity:'note',title:'Policy page has very little readable content',
+    location:path,evidence:'Only '+text.length+' readable characters observed in the page during inspection.',
+    fix:'Review whether this page fully explains its intended policy. Requirements vary by site and jurisdiction.',
+    verify:'Read the complete rendered policy page and confirm the relevant information is present.'});
+  return {issues,checks};
+}
+function pageReview(html,url,status,browser,mobile,visibleText,errors){
   const data=source.review(html,url,{status});
   const path=new URL(url).pathname||'/';
   const checks=data.checks.map(x=>({...x,name:path+' · '+x.name}));
@@ -190,8 +224,20 @@ function pageReview(html,url,status,browser,mobile){
       location:path+' · mobile 390px',evidence:'Viewport '+mobile.width+'px; document scroll width '+mobile.scrollWidth+'px.',
       fix:'Inspect fixed-width elements and long text; prevent content extending outside the mobile viewport.',
       verify:'Open this page at 390px width and verify it does not scroll horizontally.'});
+    const small=mobile.small||[];
+    checks.push({name:path+' · Mobile interactive target sizing',status:small.length>=3?'attention':'passed',
+      detail:small.length?'Observed '+small.length+' interactive target(s) smaller than 32px in at least one dimension.':'No unusually small navigation/button targets were observed.'});
+    if(small.length>=3)issues.push({category:'Accessibility',severity:'note',title:'Some mobile interactive targets may be too small',
+      location:path+' · mobile 390px',
+      evidence:small.slice(0,4).map(t=>(t.label||'Control')+' '+t.width+'×'+t.height+'px').join('; '),
+      fix:'Increase the clickable area and spacing for the affected navigation links and buttons.',
+      verify:'Check tap targets with browser device emulation or a mobile device.'});
+    if(errors?.length)checks.push({name:path+' · Uncaught script errors',status:'unverified',
+      detail:'Browser observed '+errors.length+' script error(s). Some may depend on the inspection environment.'});
   }else checks.push({name:path+' · Rendered page',status:'unverified',detail:'Browser rendering unavailable. Only HTML source was checked.'});
-  return {issues,checks};
+  const policy=policyContentReview(url,visibleText,html);
+  checks.push(...policy.checks);issues.push(...policy.issues);
+  return {issues,checks,title:data.pageTitle};
 }
 function aggregate(analyses){
   const result=new Map();
@@ -216,7 +262,7 @@ async function scanSite(input){
   let session=null;
   try{session=await browserStart(root);}
   catch(error){console.error('Playwright unavailable',{name:error?.name});}
-  const pages=[],analyses=[],checks=[],done=new Set();let renderedCount=0,sourceCount=0;
+  const pages=[],analyses=[],checks=[],titles=[],done=new Set();let renderedCount=0,sourceCount=0;
   try{
     while(discoverer.queue.length&&pages.length<LIMIT&&Date.now()-started<TIME_BUDGET){
       discoverer.queue.sort((a,b)=>priority(a)-priority(b));
@@ -245,8 +291,9 @@ async function scanSite(input){
             fix:'Restore the page or update its internal links.',verify:'Open the link and confirm it loads.'}]});
         continue;
       }
-      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile);
+      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors);
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
+      if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
       if(visit.browser)renderedCount++;else sourceCount++;
       for(const link of visit.links||[])if(link.href)discoverer.add(link.href,'link',item.url);
@@ -259,6 +306,23 @@ async function scanSite(input){
   if(sourceCount)checks.push({name:'Playwright coverage',status:'unverified',detail:sourceCount+' page(s) used source fallback instead of rendered checks.'});
   if(remaining||skipped)checks.push({name:'Crawl coverage',status:'unverified',detail:remaining+' pages not visited; '+skipped+' blocked or unavailable.'});
   const issues=aggregate(analyses);
+  const byTitle=new Map();
+  for(const page of titles){
+    const group=byTitle.get(page.title)||[];
+    group.push(page.url);byTitle.set(page.title,group);
+  }
+  for(const [title,urls] of byTitle){
+    if(urls.length<2)continue;
+    issues.push({category:'Discoverability',severity:'note',title:'Multiple pages share the same title',
+      location:urls.length+' pages · '+urls.slice(0,4).map(u=>new URL(u).pathname||'/').join(', '),
+      affectedCount:urls.length,affectedPages:urls.slice(0,18).map(u=>new URL(u).pathname||'/'),
+      evidence:'The same page title appears on '+urls.length+' inspected pages: "'+title.slice(0,100)+'".',
+      fix:'Give distinct pages descriptive titles that match their individual content.',
+      verify:'Open the affected pages and compare their document titles.'});
+    checks.push({name:'Cross-page title uniqueness',status:'attention',detail:urls.length+' pages use the same document title.'});
+  }
+  issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-( {critical:0,high:1,note:2}[b.severity]??2));
+  issues.forEach((x,i)=>x.id=i+1);
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,
     coverage:{discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
@@ -298,4 +362,4 @@ export async function POST(request){
   }
 }
 export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',pageLimit:LIMIT});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate};
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview};
