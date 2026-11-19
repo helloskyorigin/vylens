@@ -13,7 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./report.css">
+  <link rel="stylesheet" href="./conversion-report.css">
   <script src="./results.js" defer></script>
+  <script src="./conversion-results.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to results</a>
@@ -37,6 +39,58 @@
     <div class="source-line"><span id="reportSubject">Your website</span><span aria-hidden="true">·</span><time id="reportDate">Today</time></div>
     <p id="coverageMessage" class="hero-coverage">Results depend on the pages and checks available to the scanner.</p>
   </header>
+
+  <!-- Conversion diagnosis owns the customer-facing results. The technical
+       audit remains accessible as an evidence appendix below. -->
+  <section id="conversionReport" class="conversion-report" aria-labelledby="conversionTitle" hidden>
+    <div class="conversion-intro">
+      <div class="conversion-intro-top">
+        <span class="conversion-kicker" id="conversionKicker">BUYER-JOURNEY REVIEW</span>
+        <span class="conversion-count" id="conversionCount">Evidence-led observations</span>
+      </div>
+      <h2 id="conversionTitle">Understand what may be holding buyers back.</h2>
+      <p id="conversionIntro">The analysis separates observable evidence from possible buyer concerns.</p>
+      <p class="conversion-goal" id="conversionGoal"></p>
+    </div>
+
+    <section class="journey-section" aria-label="Buyer journey review">
+      <div class="conversion-section-head">
+        <div><span class="conversion-kicker">THE BUYER JOURNEY</span><h3>Where to look first</h3></div>
+        <span class="conversion-aside">Not a measured funnel</span>
+      </div>
+      <div class="journey-grid" id="buyerJourney"></div>
+    </section>
+
+    <section class="blocker-section" aria-labelledby="blockerTitle">
+      <div class="conversion-section-head">
+        <div><span class="conversion-kicker">PRIORITIZED FINDINGS</span><h3 id="blockerTitle">Potential buying blockers</h3></div>
+        <span class="conversion-aside" id="blockerMeta"></span>
+      </div>
+      <div id="primaryBlocker"></div>
+      <div id="secondaryBlockers" class="secondary-blockers"></div>
+    </section>
+
+    <section class="action-plan" aria-labelledby="actionPlanTitle">
+      <div class="conversion-section-head">
+        <div><span class="conversion-kicker">TAKE ACTION</span><h3 id="actionPlanTitle">Your improvement plan</h3></div>
+      </div>
+      <div id="conversionPlan" class="conversion-plan"></div>
+      <button id="copyPlan" class="copy-plan" type="button" hidden>Copy improvement plan</button>
+    </section>
+
+    <section id="strengthsSection" class="strengths-section" aria-labelledby="strengthsTitle" hidden>
+      <div class="conversion-section-head">
+        <div><span class="conversion-kicker">OBSERVED POSITIVES</span><h3 id="strengthsTitle">What's already visible</h3></div>
+      </div>
+      <div id="conversionStrengths" class="strengths-grid"></div>
+    </section>
+
+    <details id="limitationsPanel" class="limitations-panel">
+      <summary>What this review couldn't verify <span id="limitationsCount"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div id="conversionUnverified" class="limitations-content"></div>
+    </details>
+    <p class="conversion-disclaimer">Potential blockers are hypotheses based on recorded evidence, not proof of lost sales. VYLENS never submits a purchase.</p>
+  </section>
 
   <section class="metrics-section" aria-label="Audit overview">
     <div class="metric metric-problems">
@@ -115,6 +169,15 @@
       </details>
       <button id="exportData" class="export-data" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Download report data (JSON)</button>
     </div>
+  </details>
+
+  <details id="technicalAppendix" class="technical-appendix" hidden>
+    <summary>
+      <span><strong>Technical checks &amp; scan coverage</strong>
+      <small>SEO, accessibility, page issues and what was inspected</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </summary>
+    <div id="technicalAppendixContent" class="technical-appendix-content"></div>
   </details>
 
   <section class="report-actions" aria-label="Report actions">
