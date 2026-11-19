@@ -73,3 +73,9 @@ a:focus-visible,button:focus-visible{outline:3px solid #79b400;outline-offset:4p
 @media(max-width:360px){.lens-scene{width:174px;height:174px;margin:18px auto 15px;gap:16px}.lens-stage{--stage-size:128px;border-radius:35px}.lens-stage::before{inset:9px;border-radius:28px}.lens-identity{width:95px;height:95px}.lens-identity img{width:83px;height:83px}.lens-progress-track{width:90px}}
 @media(max-height:640px){.lens-scene{width:154px;height:154px;margin:10px auto 8px;gap:13px}.lens-stage{--stage-size:114px;border-radius:31px}.lens-stage::before{inset:7px;border-radius:25px}.lens-identity{width:83px;height:83px}.lens-identity img{width:72px;height:72px}.lens-progress-track{width:80px}}
 @media(prefers-reduced-motion:reduce){.lens-beam,.lens-progress-indicator{animation:none!important}.lens-beam{display:none}.lens-progress-indicator{transform:translateX(90%)}.analysis-copy.is-leaving,.analysis-copy.is-entering{animation:none!important;opacity:1!important;transform:none!important}}
+
+
+/* Truthful website-scan timing; never use fabricated percentage progress. */
+.analysis-elapsed{margin:4px 0 0;color:#84937d;font:700 11px/1.6 var(--body);letter-spacing:.01em;text-align:center}
+.analysis-elapsed[hidden]{display:none!important}
+@media(max-width:390px){.analysis-elapsed{max-width:290px;font-size:10.5px;line-height:1.6}}
