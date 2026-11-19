@@ -22,19 +22,20 @@
       const priority={high:0,review:1,medium:1,low:2};
       return (priority[a.priority]??1)-(priority[b.priority]??1);
     });
+  const buyerBlockers=blockers.filter(item=>item.source!=='Locally inspected product file');
   const strengths=Array.isArray(data.strengths)?
     data.strengths.filter(s=>s&&typeof s==='object'&&s.title).slice(0,6):[];
   const level=blocker=>blocker.priority==='high'?'high':
     blocker.priority==='low'?'low':'medium';
   const count={high:0,medium:0,low:0};
-  blockers.forEach(b=>count[level(b)]++);
+  buyerBlockers.forEach(b=>count[level(b)]++);
   // Transparent editorial scoring rubric: only assess stages supported by rendered
   // public buyer-facing evidence. Never equate this with real conversion analytics.
   // Source-only sales pages, local product files and unverified stages are not graded.
   const renderedEvidence=Number(data.renderedPages)>0 && report.mode==='website';
   const stages=['clarity','value','trust','action'];
   const scoredStages=stages.map(stage=>{
-    const items=blockers.filter(item=>item.stage===stage);
+    const items=buyerBlockers.filter(item=>item.stage===stage);
     const positives=strengths.filter(item=>item.stage===stage);
     if(!renderedEvidence||(!items.length&&!positives.length))return null;
     // 20 = observed high-priority blocker, 55 = review issue,
@@ -84,7 +85,7 @@
     (report.mode==='product'?
       'A product file alone cannot reveal why shoppers hesitate. A public sales page helps evaluate the buying offer.':
       'Not enough buyer-facing evidence was observed for a defensible score.'):
-    blockers.length?
+    buyerBlockers.length?
       'Review the most important observed offer signals before changing your messaging.':
       'No specific blocker was detected in the assessed stages; actual customer behavior remains unknown.';
   add(summaryText,node('h2','five-score-title','Overall Conversion Score'),
@@ -145,27 +146,29 @@
     add(details,head,body);
     return details;
   };
-  blockers.forEach((item,i)=>{
+  buyerBlockers.forEach((item,i)=>{
     const issue=renderIssue(item,i);
     if(i>=3)issue.hidden=true;
     blockersPanel.append(issue);
   });
-  if(!blockers.length)blockersPanel.append(node('p','five-empty',
-    'No specific blocker was verified. More offer evidence or real buyer feedback may be needed.'));
-  if(blockers.length>3){
-    const more=node('button','five-more','Show all '+blockers.length+' findings');
+  if(!buyerBlockers.length)blockersPanel.append(node('p','five-empty',
+    report.mode==='product'?
+      'The uploaded product alone cannot establish why shoppers hesitate. Add a public sales page to assess the pre-purchase offer.':
+      'No specific blocker was verified. More offer evidence or real buyer feedback may be needed.'));
+  if(buyerBlockers.length>3){
+    const more=node('button','five-more','Show all '+buyerBlockers.length+' findings');
     more.type='button';more.setAttribute('aria-expanded','false');
     let expanded=false;
     more.addEventListener('click',()=>{
       expanded=!expanded;
       Array.from(blockersPanel.querySelectorAll('.five-finding')).slice(3)
         .forEach(el=>{el.hidden=!expanded;});
-      more.textContent=expanded?'Show fewer':'Show all '+blockers.length+' findings';
+      more.textContent=expanded?'Show fewer':'Show all '+buyerBlockers.length+' findings';
       more.setAttribute('aria-expanded',String(expanded));
     });blockersPanel.append(more);
   }
   const seen=new Set();let hesitationCount=0;
-  blockers.forEach(item=>{
+  buyerBlockers.forEach(item=>{
     const question=clean(item.buyerConcern,280);
     if(!question||seen.has(question.toLowerCase())||hesitationCount>=4)return;
     seen.add(question.toLowerCase());hesitationCount++;
@@ -175,9 +178,9 @@
     concernsPanel.append(row);
   });
   if(!hesitationCount)concernsPanel.append(node('p','five-empty',
-    'No specific buyer hesitation was supported by the available evidence.'));
+    'No pre-purchase objection was supported by the available evidence. Buyer doubts need offer-page or customer feedback.'));
 
-  const actionable=blockers.filter(item=>clean(item.fix).length>0).slice(0,5);
+  const actionable=blockers.filter(item=>clean(item.fix).length>0).slice(0,8);
   function makeChange(item,i){
     const cls=level(item),details=node('details','five-change');
     details.id='five-change-'+i;

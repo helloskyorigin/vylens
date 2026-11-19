@@ -103,8 +103,8 @@ with sync_playwright() as pw:
             check(page.locator("#five-changes .five-change").count() == min(5, len(sample["conversion"]["blockers"])),
                   f"{kind}: action count grounded {width}")
             ring = page.locator(".five-score-number").inner_text()
-            check(ring == "—" if kind == "limited" else ring.isdigit(),
-                  f"{kind}: score only when supported evidence exists {width}")
+            check(ring.isdigit() if kind == "website" else ring == "—",
+                  f"{kind}: score withheld unless multiple rendered stages are assessed {width}")
             check(page.locator(".five-counter.high").inner_text().strip().endswith(
                 "1 High" if kind in ("website", "product") else "0 High"),
                   f"{kind}: real high-priority count {width}")
@@ -134,6 +134,27 @@ with sync_playwright() as pw:
                 check(not page.locator("#printAppendix").is_visible(),
                       f"{kind}: technical print appendix hidden in PDF {width}")
             page.close()
+    # Even when most findings are collapsed visually, PDF must include them all.
+    page = browser.new_page(viewport={"width": 390, "height": 850})
+    sample = fixture(num=7)
+    page.add_init_script(
+        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
+    )
+    page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
+    check(page.locator(".five-finding[hidden]").count() == 4,
+          "extra findings are collapsed by default")
+    page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
+    check(page.locator(".five-finding:not([hidden])").count() == 7,
+          "all seven findings included when printing")
+    check(all(page.locator(".five-finding").nth(i).evaluate("(e) => e.open")
+              for i in range(7)), "print includes every finding's details")
+    page.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    check(page.locator(".five-finding[hidden]").count() == 4,
+          "after-print restores collapsed extras")
+    page.locator("#five-blockers .five-more").click()
+    check(page.locator(".five-finding:not([hidden])").count() == 7,
+          "show all expands additional findings")
+    page.close()
     # Legacy / imported technical-only reports are still readable.
     page = browser.new_page(viewport={"width": 390, "height": 850})
     legacy = fixture()
