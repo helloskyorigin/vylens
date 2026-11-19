@@ -48,33 +48,6 @@
     const date=new Date(report.checkedAt||report.completedAt||Date.now());
     return Number.isFinite(date.valueOf())?date.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'Recent audit';
   }
-  const impactLookup=name=>{
-    const c=name.toLowerCase();
-    if(/discover|seo|index|search/.test(c))return {title:'Search visibility',description:'Search engines may receive less clear information about this page.'};
-    if(/access/.test(c))return {title:'Accessibility',description:'Some visitors may find parts of this page harder to use.'};
-    if(/navigation|broken.link|links/.test(c))return {title:'Navigation',description:'Some visitors may struggle to reach linked pages or sections.'};
-    if(/security|transport|https/.test(c))return {title:'Security',description:'Some expected website safeguards may be missing.'};
-    if(/policy|legal/.test(c))return {title:'Policy clarity',description:'Some published policy information may be incomplete or unclear.'};
-    if(/completeness|draft|placeholder/.test(c))return {title:'Product readiness',description:'Parts of the deliverable may need review before sharing.'};
-    if(/mobile|viewport|responsive/.test(c))return {title:'Mobile experience',description:'Some small-screen visitors may experience layout or usability issues.'};
-    if(/sharing|social/.test(c))return {title:'Shared previews',description:'Links shared elsewhere may show incomplete previews.'};
-    if(/brand|favicon/.test(c))return {title:'Brand recognition',description:'Some browser or sharing cues may be harder to recognize.'};
-    if(/form|input/.test(c))return {title:'Form usability',description:'Some visitors may have difficulty understanding form controls.'};
-    if(/page structure|document structure|heading|content|readability|text|quality/.test(c))return {title:'Content clarity',description:'The page or product structure may be harder to follow.'};
-    if(/file|pdf|zip|archive|image|format|metadata/.test(c))return {title:'File usability',description:'Opening or navigating the delivered content may be affected.'};
-    return {title:name,description:'This area may need attention based on the findings.'};
-  };
-  function deriveImpact(issues){
-    const list=new Map();
-    for(const issue of issues){
-      const mapped=impactLookup(category(issue));
-      const item=list.get(mapped.title)||{...mapped,count:0,priority:2};
-      item.count+=occurrenceCount(issue);
-      item.priority=Math.min(item.priority,priority(issue));
-      list.set(mapped.title,item);
-    }
-    return [...list.values()].sort((a,b)=>a.priority-b.priority||b.count-a.count||a.title.localeCompare(b.title));
-  }
   function field(title,value,extra){
     const wrapper=node('div','finding-field'+(extra?' '+extra:''));
     wrapper.append(node('span','field-label',title),node('p','',clean(value,1800)));
