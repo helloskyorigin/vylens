@@ -72,3 +72,24 @@ No crawler can reliably judge private checkout, inaccessible logged-in content, 
 - Individual Copy and Copy kit both require a real click. Keep evidence and verification details in the existing issue rows.
 - For product-file-only audits, the Result UI supplies source-grounded checklists from actual file findings, not invented purchase behavior.
 - Both Journey Replay views and all kit items must be included in direct PDF export. Five report sections remain unchanged.
+
+
+## Additional evidence-specific quality standards
+
+### Paid CTA vs newsletter controls
+- A newsletter email subscription is not proof of a paid subscription. Distinguish newsletter forms from purchase controls using rendered form context.
+- Prefer genuine buying actions over unrelated signup buttons when describing a selling path. Contextual labels like Get instant access need a corroborating checkout/signup destination.
+- Numerical links like Purchase Readiness 64/100 never count as checkout CTAs.
+
+### Layout, disclosure and content checks
+- Compare mobile and desktop actions, prices, and physical DOM bounding boxes. Report measured viewport overflow/obstruction only.
+- Overlay detection uses button-center hit testing; it is not proof of a failed real checkout click.
+- Distant terms/refund links inside large sections are not buyer-adjacent. Measure physical proximity, not only DOM ancestry.
+- Report a mobile/desktop price text difference as Review only when each viewport yields exactly one distinct comparable sample. Do not conflate multiple pricing tiers.
+- Bounded text displays ellipses at word or sentence boundaries rather than chopping words without indication.
+- Up to 20 distinct supported buying observations can be listed; this bounded report is not exhaustive site coverage.
+
+### Independent local and production gates
+- Local quality gate: .github/workflows/local-quality-gate.yml. It tests buyer engine and product/result browser QA independent of production readiness.
+- Real browser scenarios: qa_commercial_acceptance.mjs checks clean and vague offers, numeric score links, newsletter vs Buy, mobile-hidden price, mobile buy button overflow, missing CTAs and overlay coverage.
+- Production READY GitHub commit equality is still a separate question. Never equate pushed commits or green local tests with a live deployment.

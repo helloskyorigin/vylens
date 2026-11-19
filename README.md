@@ -4,7 +4,17 @@ A free beta with a three-screen workflow:
 
 1. `index.html` — select a public website URL or a supported digital-product file.
 2. `inspect.html` / `analysis.js` — run the requested audit and show real states, errors and progress messages.
-3. `results.html` / `conversion-results.js` — buyer-journey review, evidence-backed potential sales blockers, possible buyer concern, prioritized fixes, strengths, limitations, print/export and cautious repeat-scan comparison. `results.js` keeps technical checks in a collapsible appendix and supports saved JSON report import.
+3. `results.html` / `results-five.js` — five-section buyer-focused report with observed desktop/mobile Buyer Journey Replay and a source-backed Conversion Fix Kit. `results-pdf.js` downloads the full report directly, without a print dialog. Legacy `results.js` supports historical reports and JSON import.
+
+## Local quality gate and production verification
+
+The independent GitHub Actions VYLENS local quality gate tests the scanner, contextual CTA classifier, Chromium buyer scenarios, ZIP/file handling, 320–1440px Result UI, direct PDF downloads, and slow/empty states WITHOUT requiring Vercel deployment. A Vercel build-rate limit does not mean the local code failed.
+
+Manual reproduction:
+- Install package dependencies and run QA action intent, conversion engine, buyer experience, rendered fixture, and commercial acceptance Node scripts.
+- Serve the repo locally with Python HTTP server on port 8765 and run qa_conversion_results.py against VYLENS_BASE=http://127.0.0.1:8765.
+- Compare each reported finding against the original public page on desktop and phone. Unverified hypotheses should be marked review, not confirmed buyer behavior.
+- Verify the latest GitHub commit SHA exactly matches a READY Vercel deployment before reporting the live website is updated.
 
 ## Website scan — what runs
 
