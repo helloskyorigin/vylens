@@ -145,3 +145,28 @@
  .print-buyer-blocker h4{break-after:avoid}
 }
 @media(prefers-reduced-motion:reduce){.conversion-report *, .technical-appendix *{scroll-behavior:auto!important;transition:none!important}}
+
+/* Honest scan-to-scan comparison: changes in detected evidence, not revenue. */
+.scan-comparison{padding:29px 0;border-top:1px solid #e7ede3}
+.comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.comparison-stat{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px solid #e2eadf;background:#fafcf8;border-radius:13px;padding:15px 16px}
+.comparison-stat strong{font:800 26px/1 var(--head);color:#284225;letter-spacing:-.04em}
+.comparison-stat span{font-size:11px;line-height:1.45;font-weight:750;color:#7b8b72}
+.comparison-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:13px}
+.comparison-changes{min-width:0;padding:14px 16px;border:1px solid #e7eee4;border-radius:12px}
+.comparison-changes>strong{font-size:11px;font-weight:800;color:#4d6944}
+.comparison-changes p{font-size:11.5px;line-height:1.55;color:#62735b;overflow-wrap:anywhere;margin:9px 0 0}
+.comparison-caveat{font-size:11px;line-height:1.65;color:#899583;margin:13px 0 0}
+@media(max-width:700px){
+ .scan-comparison{padding:25px 0}
+ .comparison-stat{padding:12px 10px}
+ .comparison-stat strong{font-size:23px}
+ .comparison-stat span{font-size:10px}
+ .comparison-details{grid-template-columns:1fr;gap:8px}
+ .comparison-changes{padding:12px 13px}
+}
+@media(max-width:355px){
+ .comparison-grid{gap:6px}
+ .comparison-stat{padding:11px 7px}
+ .comparison-stat span{font-size:9.5px}
+}
