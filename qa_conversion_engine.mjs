@@ -65,4 +65,44 @@ const dynamic=analyzeSourceOffer('<html><head></head><body><div id="app"></div><
   'https://example.org/product');
 assert.equal(dynamic.blockers.length,0,'blank SPA source cannot imply a missing CTA');
 assert.ok(dynamic.unverified.some(x=>x.includes('JavaScript')));
+
+// Buyer-proximate trust cues must not be confused with an unrelated footer link.
+const footerTerms=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/order',top:320,inFirstView:true}],
+  hasPurchaseTerms:true,termsNearAction:false
+}))],{coverage:{complete:true}});
+assert.ok(footerTerms.blockers.some(x=>x.stage==='trust'&&x.evidence.includes('elsewhere')),
+  'footer policy link alone does not prove buyer-adjacent purchase terms');
+const nearbyTerms=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/order',top:320,inFirstView:true}],
+  hasPurchaseTerms:true,termsNearAction:true
+}))],{coverage:{complete:true}});
+assert.ok(!nearbyTerms.blockers.some(x=>x.stage==='trust'),'terms beside purchase action avoid this heuristic blocker');
+const belowFold=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/order',top:1350,inFirstView:false}]
+}))],{coverage:{complete:true}});
+assert.ok(belowFold.blockers.some(x=>x.stage==='action'&&x.title.includes('late')),
+  'off-screen buyer CTA becomes an evidence-qualified concern');
+const firstScreen=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/order',top:250,inFirstView:true}]
+}))],{coverage:{complete:true}});
+assert.ok(!firstScreen.blockers.some(x=>x.title.includes('late')),
+  'in-first-view CTA should not trigger a scroll-friction warning');
+const draft=analyzeWebsiteConversion([page('/',offer({
+  heading:'Coming soon',intro:'Tiny placeholder sentence.'
+}))],{coverage:{complete:true}});
+assert.ok(draft.blockers.some(x=>x.priority==='high'&&x.title.includes('Unfinished')),
+  'unpublished draft heading is more serious than an ordinary generic title');
+assert.ok(!draft.blockers.some(x=>x.title.includes('too generic')),
+  'one draft heading is not duplicated as a weaker generic finding');
+const customerProof=analyzeWebsiteConversion([page('/',offer({
+  hasProof:true,proofText:'Our small business customer saved onboarding time after using this product.'
+}))],{coverage:{complete:true}});
+assert.ok(customerProof.strengths.some(x=>x.stage==='trust'&&x.evidence.includes('customer saved')),
+  'proof section is grounded in an actual visible excerpt');
+const proofWithoutEvidence=analyzeWebsiteConversion([page('/',offer({hasProof:true}))],
+ {coverage:{complete:true}});
+assert.ok(!proofWithoutEvidence.strengths.some(x=>x.stage==='trust'),
+ 'trust positive is not claimed without observable supporting text');
+
 console.log('PASS conversion engine: commercial heuristics, source-only uncertainty, verified buying paths and no fake revenue math');
