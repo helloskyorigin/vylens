@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   ui:
     runs-on: ubuntu-latest
@@ -21,10 +24,10 @@ jobs:
           set -euo pipefail
           ready=0
           for i in $(seq 1 45); do
-            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/results.html' -o /tmp/vylens-results.html && grep -q 'focus-clarity-v4' /tmp/vylens-results.html; then ready=1; break; fi
+            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/api/inspect-site' -o /tmp/vylens-health.json && jq -e --arg sha "$GITHUB_SHA" '.engine=="bounded-playwright-crawl" and .deploymentCommit==$sha' /tmp/vylens-health.json >/dev/null; then ready=1; break; fi
             sleep 6
           done
-          test "$ready" -eq 1
+          if [ "$ready" -ne 1 ]; then echo 'Latest commit not yet confirmed on production (requires Vercel system env vars).'; exit 1; fi
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
       - name: Test focused red/green Results at desktop and mobile widths
