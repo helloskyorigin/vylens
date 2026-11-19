@@ -44,7 +44,7 @@
   write('conversionKicker',product?'PRODUCT & OFFER EVIDENCE':'PUBLIC BUYING EXPERIENCE');
   write('conversionCount',count?count+' possible blocker'+(count===1?'':'s'):'No confirmed blocker');
   write('conversionTitle',product?
-    'What your product evidence can tell you.':'Where buying friction may exist.');
+    'What the product evidence shows.':'What the public-page evidence shows.');
   write('conversionIntro',count?
     'These are prioritized observations. Each one explains the evidence, possible buyer concern and next improvement.':
     product?'No clear buyer-facing blocker was identified by the supported file checks. The sales funnel may still have issues the file cannot reveal.':
