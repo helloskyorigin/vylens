@@ -109,6 +109,23 @@
     // The source inspection is limited; no conversion score is calculated or invented.
     return {...data, issues:data.issues, completedAt:Date.now()};
   }
+  function combineProductAndOffer(fileReview,salesReview){
+    if(!fileReview||!salesReview)return fileReview;
+    const blockers=[...(salesReview.blockers||[]),...(fileReview.blockers||[])].slice(0,12);
+    blockers.forEach((item,i)=>{item.id='buyer-'+(i+1);});
+    const strengths=[...(salesReview.strengths||[]),...(fileReview.strengths||[])].slice(0,9);
+    const labels=[['clarity','Offer clarity'],['value','Price & delivered value'],
+      ['trust','Buyer confidence'],['action','Purchase & use']];
+    const journey=labels.map(([id,label])=>({
+      id,label,status:blockers.some(x=>x.stage===id)?'attention':
+        strengths.some(x=>x.stage===id)?'observed':'unverified',
+      detail:blockers.some(x=>x.stage===id)?'A possible blocker was identified':
+        strengths.some(x=>x.stage===id)?'Evidence was observed, not buyer behavior':'Not verified from supported evidence'
+    }));
+    return {...fileReview,blockers,strengths,journey,inspectedOfferPages:1,
+      unverified:[...(fileReview.unverified||[]),...(salesReview.unverified||[])],
+      scope:'Local delivered-file assessment and initial public sales-page HTML. No rendered checkout or real buyer behavior tested.'};
+  }
   async function run() {
     if (inspecting) return;
     if(Date.now()<retryUntil){showError('Another audit was requested recently. Please use the retry countdown.');return;}
@@ -165,6 +182,7 @@
             const scan=await response.json();
             if (!response.ok) throw new Error(scan.error||'The sales page could not be checked.');
             const url=new URL(scan.url).hostname;
+            if(scan.conversion)result.conversion=combineProductAndOffer(result.conversion,scan.conversion);
             result.issues.push(...scan.issues.map(item=>({
               ...item,id:result.issues.length+item.id,
               category:'Sales page · '+item.category,
@@ -178,6 +196,7 @@
             result.summary+=' Public sales-page source checks completed.';
             result.issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-({critical:0,high:1,note:2}[b.severity]??2));
             result.issues.forEach((item,index)=>item.id=index+1);
+            result.issues.length=Math.min(result.issues.length,250);
             result.totalDetected=result.issues.length;
             result.passed=result.issues.length===0;
           } catch (error) {
@@ -185,6 +204,7 @@
               `Sales URL could not be inspected: ${String(error?.message||'request failed').slice(0,160)}. No conclusions about sales performance were made.`});
             result.checksRun=result.checks.length;
             result.scope+=' The optional sales page could not be verified.';
+            result.conversion?.unverified?.push('The optional public sales page could not be inspected; pre-purchase observations remain unverified.');
           } finally {clearTimeout(salesTimer)}
         }
       }
