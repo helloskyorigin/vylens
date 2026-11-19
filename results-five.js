@@ -69,35 +69,43 @@
     'cta-late':{
       issue:'The purchase button may be difficult to find',
       question:'Where do I click to buy or sign up?',
-      action:'Make the main buying action easy to find'},
+      action:'Make the main buying action easy to find',
+      fix:'Check the actual purchase button on a phone and desktop. If it is hard to spot, put a clearly labeled buying button beside the main offer, linked to the same real destination.'},
     'purchase-terms':{
       issue:'Purchase conditions may not be easy to find',
       question:'What are the purchase and refund conditions?',
-      action:'Make purchase conditions easy to check'},
+      action:'Make purchase conditions easy to check',
+      fix:'Place a clear link to your real purchase, cancellation or refund conditions close to the payment button, where applicable. Do not add promises the business cannot honor.'},
     'generic-headline':{
       issue:'The headline may not explain the offer',
       question:'What does this product actually help me do?',
-      action:'Explain the real product benefit in the headline'},
+      action:'Explain the real product benefit in the headline',
+      fix:'Rewrite the headline to say who the product helps and what real outcome it provides. Use only benefits you can support.'},
     'draft-headline':{
       issue:'The offer headline contains unfinished wording',
       question:'Is this offer ready to purchase?',
-      action:'Replace unfinished headline text'},
+      action:'Replace unfinished headline text',
+      fix:'Replace the visible draft text with the actual product name and a clear, truthful description of the offer.'},
     'vague-cta':{
       issue:'The next-step button could be clearer',
       question:'What happens if I click this button?',
-      action:'Give the button a clear, accurate label'},
+      action:'Give the button a clear, accurate label',
+      fix:'Rename the button to describe what it really opens, such as “View pricing” for a pricing page. Keep the destination unchanged.'},
     'pricing-next':{
       issue:'The next step is unclear beside the price',
       question:'How do I buy at this price?',
-      action:'Put a clear next step beside the price'},
+      action:'Put a clear next step beside the price',
+      fix:'Check the live pricing page. If visitors cannot see how to continue, show a clearly labeled buying or signup action near the displayed price.'},
     'signup-fields':{
       issue:'The signup form asks for many required fields',
       question:'Why is all this information needed to start?',
-      action:'Check which signup fields are truly essential'},
+      action:'Check which signup fields are truly essential',
+      fix:'Review each required signup field. Keep the fields needed to get started, and ask for optional details later where possible.'},
     'broken-buy-link':{
       issue:'A buying-related destination may be unavailable',
       question:'Will the buying page actually open?',
-      action:'Repair or update the buying link'},
+      action:'Repair or update the buying link',
+      fix:'Open the reported link. If it is broken, correct its destination or restore the purchase page, then verify it opens normally.'},
     'empty-bundle':{action:'Include the promised product files in the download'},
     'empty-files':{action:'Replace empty delivered files with real content'},
     'missing-links':{action:'Repair missing links inside the product'},
@@ -112,6 +120,7 @@
   };
   const plainTitle=item=>labels[issueKey(item)]?.issue||clean(item.title,155);
   const actionTitle=item=>labels[issueKey(item)]?.action||'Review this improvement';
+  const readableFix=item=>labels[issueKey(item)]?.fix||clean(item.fix,850);
   const buyerQuestion=item=>clean(item.buyerQuestion||labels[issueKey(item)]?.question||'',250);
   const location=item=>{
     const raw=clean(item.location,180);
@@ -275,7 +284,7 @@
       append(after,make('strong','','Suggested'),make('span','',clean(item.copyTo,220)));
       append(action,before,after);
     }else{
-      append(action,make('strong','','Do this'),make('span','',clean(item.fix,850)));
+      append(action,make('strong','','Do this'),make('span','',readableFix(item)));
     }
     append(copy,make('strong','five-change-title',actionTitle(item)),action);
     append(head,make('span','five-index '+type,String(i+1)),copy,make('span','five-chevron','›'));
@@ -288,7 +297,7 @@
       button.type='button';
       button.addEventListener('click',async()=>{
         try{
-          await navigator.clipboard.writeText(clean(item.copyTo||item.fix,950));
+          await navigator.clipboard.writeText(clean(item.copyTo||readableFix(item),950));
           button.textContent='Copied';
         }catch{button.textContent='Copy unavailable';}
       });
