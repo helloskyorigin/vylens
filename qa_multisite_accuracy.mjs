@@ -77,7 +77,7 @@ assert.equal(dom.get('findingsCount').textContent,'2 issue types');
 assert.equal(dom.get('problemsCount').textContent,'5','top card counts affected-page occurrences');
 assert.equal(dom.get('findingsList').children.length,2);
 const first=dom.get('findingsList').children[0];
-assert.ok(first.children[0].children[1].children[1].textContent.includes('2 affected pages'));
+assert.ok(first.children[0].children[1].children[1].children[0].textContent.includes('2 affected pages'));
 console.log('PASS multi-page accuracy: robots, policy, distinct evidence, HTTP headers, affected-page counts');
 
 
