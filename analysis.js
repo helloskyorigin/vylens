@@ -211,6 +211,33 @@
       const report = normalizeResults(result);
       stopWaitingMessages();
       await messageQueue;
+      // Keep a tiny previous-buyer-finding snapshot for an honest before/after
+      // comparison. No original file bytes or browsing history are stored.
+      try{
+        const previous=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
+        const key=value=>{
+          if(value.mode==='website'){
+            try{
+              const u=new URL(value.url);return u.origin+u.pathname.replace(/\\/$/,'');
+            }catch{return '';}
+          }
+          return String(value.subject||'').trim().toLowerCase();
+        };
+        const same=previous&&previous.mode===report.mode&&
+          !sessionStorage.getItem('vylens:imported')&&key(previous)===key(report);
+        const buyer=previous?.conversion;
+        if(same&&buyer?.version===1&&Array.isArray(buyer.blockers)){
+          sessionStorage.setItem('vylens:previous-conversion',JSON.stringify({
+            mode:previous.mode,sourceKey:key(previous),checkedAt:previous.checkedAt||null,
+            complete:previous.coverage?.complete===true,
+            blockers:buyer.blockers.slice(0,12).map(item=>({
+              stage:String(item.stage||'').slice(0,40),
+              title:String(item.title||'').slice(0,155),
+              location:String(item.location||'').slice(0,190)
+            }))
+          }));
+        }else sessionStorage.removeItem('vylens:previous-conversion');
+      }catch{sessionStorage.removeItem('vylens:previous-conversion');}
       // Do not store source bytes; keep only limited findings in this tab's session.
       sessionStorage.setItem('vylens:result', JSON.stringify(report));
       sessionStorage.removeItem('vylens:imported');
