@@ -55,6 +55,14 @@
     if(t.includes('pricing is visible'))return 'pricing-next';
     if(t.includes('signup form'))return 'signup-fields';
     if(t.includes('may be unreachable'))return 'broken-buy-link';
+    if(t.includes('delivered bundle contains no product files'))return 'empty-bundle';
+    if(t.includes('delivered files are empty'))return 'empty-files';
+    if(t.includes('links in the product do not have destinations'))return 'missing-links';
+    if(t.includes('archive paths'))return 'unsafe-zip';
+    if(t.includes('overwrite each other'))return 'duplicate-files';
+    if(t.includes('getting-started instructions'))return 'no-start-guide';
+    if(t.includes('unfinished draft text'))return 'unfinished-product';
+    if(t.includes('sales-page source contains a draft'))return 'draft-sales-copy';
     return '';
   };
   const labels={
@@ -89,7 +97,18 @@
     'broken-buy-link':{
       issue:'A buying-related destination may be unavailable',
       question:'Will the buying page actually open?',
-      action:'Repair or update the buying link'}
+      action:'Repair or update the buying link'},
+    'empty-bundle':{action:'Include the promised product files in the download'},
+    'empty-files':{action:'Replace empty delivered files with real content'},
+    'missing-links':{action:'Repair missing links inside the product'},
+    'unsafe-zip':{action:'Remove unsafe paths from the ZIP file'},
+    'duplicate-files':{action:'Give product files unique names'},
+    'no-start-guide':{action:'Add a short “Start here” guide for buyers'},
+    'unfinished-product':{action:'Review unfinished text before delivery'},
+    'draft-sales-copy':{
+      issue:'The public sales-page source appears to contain a draft headline',
+      question:'Is the product description finished?',
+      action:'Check and replace unfinished sales-page wording'}
   };
   const plainTitle=item=>labels[issueKey(item)]?.issue||clean(item.title,155);
   const actionTitle=item=>labels[issueKey(item)]?.action||'Review this improvement';

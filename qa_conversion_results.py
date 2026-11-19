@@ -14,6 +14,7 @@ def blocker(n, priority="review", stage="clarity"):
         "title": f"Potential buying obstacle {n}: value presentation needs clarity",
         "evidence": f"On inspected public page {n}, the offer description was unclear.",
         "buyerConcern": f"Could visitors understand why option {n} is worth choosing?",
+        "buyerQuestion": f"What do I get from option {n}?",
         "fix": f"Explain the concrete buyer benefit for offer point {n} in everyday language.",
         "verify": f"Ask five qualified visitors whether offer point {n} is understandable.",
         "location": f"/offer-{n} · buying section",
@@ -100,6 +101,18 @@ with sync_playwright() as pw:
                   f"{kind}: blocker count grounded {width}")
             check(page.locator("#five-hesitations .five-concern").count() == min(4, len(sample["conversion"]["blockers"])),
                   f"{kind}: buyer concerns grounded {width}")
+            if sample["conversion"]["blockers"]:
+                check(page.locator("#five-hesitations .five-concern").first.inner_text().strip().endswith("?"),
+                      f"{kind}: buyer hesitation is a natural question {width}")
+                check(page.locator("#five-changes .five-action-note").first.is_visible(),
+                      f"{kind}: first recommendation visible without expansion {width}")
+            if sample["conversion"]["strengths"]:
+                positives=page.locator(".five-positive-details")
+                check(positives.count()==1 and not positives.evaluate("(e)=>e.open"),
+                      f"{kind}: real strengths available on demand {width}")
+                positives.locator("summary").click()
+                check("A button was observed." in positives.inner_text(),
+                      f"{kind}: positive observation explains its evidence {width}")
             check(page.locator("#five-changes .five-change").count() == min(5, len(sample["conversion"]["blockers"])),
                   f"{kind}: action count grounded {width}")
             ring = page.locator(".five-score-number").inner_text()
@@ -126,6 +139,11 @@ with sync_playwright() as pw:
                 check("Explain the concrete buyer benefit" in
                       page.locator("#five-change-0").inner_text(),
                       f"{kind}: real suggestion shown at {width}")
+                check(page.locator("#five-change-0 .five-change-details .five-detail-line").count()==2,
+                      f"{kind}: expanded fix has evidence and verification, no repeated fix text {width}")
+                check("On inspected public page" in
+                      page.locator("#five-change-0 .five-change-details").inner_text(),
+                      f"{kind}: full evidence available on request {width}")
             if kind == "website" and width in (390, 1280):
                 page.screenshot(path=str(OUT / f"five-report-{width}.png"), full_page=True)
                 page.emulate_media(media="print")
