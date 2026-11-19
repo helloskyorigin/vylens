@@ -25,11 +25,12 @@
     .slice(0,12).sort((a,b)=>({high:0,review:1,medium:1,low:2}[a.priority]??1)-
       ({high:0,review:1,medium:1,low:2}[b.priority]??1));
   const buyers=sorted.filter(item=>item.source!=='Locally inspected product file');
+  const problemItems=report.mode==='product'?sorted:buyers;
   const changes=sorted.filter(item=>clean(item.fix).length).slice(0,8);
   const strengths=Array.isArray(data.strengths)?
     data.strengths.filter(item=>item&&typeof item==='object'&&item.title).slice(0,6):[];
   const counts={high:0,medium:0,low:0};
-  buyers.forEach(item=>{counts[level(item)]++;});
+  problemItems.forEach(item=>{counts[level(item)]++;});
 
   // Coarse editorial review of observed stages, not a measured conversion rate.
   // Never give a precise-looking score for file-only, source-only or one-stage coverage.
@@ -157,17 +158,24 @@
   const inner=append(make('span','five-score-inner'),
     make('strong','five-score-number',score===null?'—':String(score)),
     make('span','five-score-denominator',score===null?'Limited evidence':'/ 100'));
-  ring.append(inner);visual.append(ring);
+  ring.append(inner);
+  const problems=make('div','five-problems-card');
+  append(problems,make('span','five-problems-label',report.mode==='product'?'Product issues':'Problems found'),
+    make('strong','five-problems-value',String(problemItems.length)));
+  const breakdown=make('div','five-problems-breakdown');
+  if(counts.high)breakdown.append(make('span','high',counts.high+' High'));
+  if(counts.medium)breakdown.append(make('span','medium',counts.medium+' Review'));
+  if(counts.low)breakdown.append(make('span','low',counts.low+' Low'));
+  if(!problemItems.length)breakdown.append(make('span','positive','No reported issues'));
+  problems.append(breakdown);
+  append(visual,ring,problems);
   const scoreCopy=make('div','five-score-copy');
   const verdict=make('span','five-verdict '+tone,score===null?'Not enough evidence':
     tone==='high'?'Needs attention':tone==='medium'?'Needs improvement':'Good signals found');
-  const highText=counts.high===1?'1 urgent issue':counts.high+' urgent issues';
-  const reviewText=counts.medium===1?'1 area to review':counts.medium+' areas to review';
   const assessment=score===null?
     (report.mode==='product'?'A product file alone cannot show why customers decide not to buy. A public sales page is needed for that assessment.':
       'Not enough verified buyer-facing signals were found to give a useful score.'):
-    buyers.length?('We found '+[counts.high?highText:null,counts.medium?reviewText:null].filter(Boolean).join(' and ')+
-      ' in the public offer. Start with the fixes below.'):
+    buyers.length?('Review the '+buyers.length+' potential buying issue'+(buyers.length===1?'':'s')+' below.'):
       'No specific buying obstacle was detected in the assessed areas. That does not establish real sales performance.';
   append(scoreCopy,make('h2','five-score-title','Overall Conversion Score'),
     verdict,make('p','five-score-description',assessment));
@@ -177,9 +185,7 @@
     append(badge,make('span','five-symbol',symbol),make('span','',label));
     return badge;
   }
-  append(metrics,metric('high',counts.high+' High','×'),
-    metric('medium',counts.medium+' Review','!'),
-    metric('low',strengths.length+' Positive','✓'));
+  append(metrics,metric('low',strengths.length+' Positive','✓'));
   scoreCopy.append(metrics);
   if(strengths.length){
     const details=make('details','five-positive-details');
@@ -193,11 +199,8 @@
     });
     append(details,list);scoreCopy.append(details);
   }
-  const scoreInfo=make('details','five-score-method');
-  append(scoreInfo,make('summary','','What does this number mean?'),
-    make('p','','A rough rating of visible offer signals across '+scored.length+
-      ' of 4 buying-experience areas. It is not your actual conversion rate, a prediction of sales or a measurement of customer behavior.'));
-  scoreCopy.append(scoreInfo);
+  scoreCopy.append(make('p','five-score-footnote',
+    score===null?'Not enough evidence for a score.':'Indicative only, not actual sales data.'));
   append(summary,visual,scoreCopy);root.append(summary);
 
   const grid1=make('div','five-grid'),grid2=make('div','five-grid');
@@ -207,14 +210,14 @@
     append(section,make('h2','five-panel-title',title),make('p','five-panel-subtitle',subtitle));
     return section;
   }
-  const blockersPanel=panel('five-blockers',"What's Stopping Buyers?",
+  const blockersPanel=panel('five-blockers',report.mode==='product'?'What Needs Fixing?':"What's Stopping Buyers?",
     'Potential issues observed on the public offer. Tap one for evidence.');
   const hesitationsPanel=panel('five-hesitations','Why People Hesitate',
-    'Possible buyer questions, not quotes or measured feedback.');
+    'Questions a potential buyer may ask.');
   const changesPanel=panel('five-changes','Exactly What to Change',
-    'Clear next steps based on what was actually observed.');
+    'Do these changes first.');
   const planPanel=panel('five-action-plan','Your Priority Action Plan',
-    'Start at step 1. Tap any step to see the full fix.');
+    'Tap a step for its fix.');
 
   // 2. Buyer blockers: concise summary, full evidence only after interaction.
   function detailLine(parent,title,content){
@@ -337,17 +340,25 @@
   append(grid2,changesPanel,planPanel);
   append(root,grid1,grid2);
   root.append(make('p','five-disclaimer',
-    'These findings are evidence-based possibilities, not measured lost sales. Validate changes with real buyers or analytics where available.'));
+    'Potential concerns, not measured lost sales. Verify improvements with real buyers.'));
   original.insertAdjacentElement('beforebegin',root);
   const download=byId('navDownload');
   if(download){
-    download.setAttribute('title','Print or save this report as PDF');
-    download.setAttribute('aria-label','Print or save report as PDF');
+    download.setAttribute('title','Download PDF report');
+    download.setAttribute('aria-label','Download PDF report');
     const span=download.querySelector('span');
     if(span)span.textContent='Save PDF';
   }
-  root.append(make('p','five-pdf-help',
-    'To save a PDF, tap Save PDF and choose “Save as PDF” in the print dialog.'));
+  const bottom=make('div','five-bottom-actions');
+  const pdf=make('button','five-bottom-download','↓  Download PDF');
+  pdf.id='fiveBottomDownload';pdf.type='button';
+  const next=make('button','five-bottom-new','New Check');
+  next.id='fiveBottomNew';next.type='button';
+  next.addEventListener('click',()=>{
+    try{sessionStorage.removeItem('vylens:pending');sessionStorage.removeItem('vylens:prefill-mode');}catch{}
+    window.location.assign('./index.html#audit-tool');
+  });
+  append(bottom,pdf,next);root.append(bottom);
 })();
 
 // Export every finding, including collapsed evidence, then restore the reading view.

@@ -357,3 +357,40 @@ body.five-report-ui .five-change>summary:focus-visible{outline:3px solid #8dbb56
  .five-report .five-positive-details,
  .five-report .five-score-method{break-inside:auto}
 }
+
+/* V8: compact score/problem pair, clear footer actions, tap-safe focus. */
+body.five-report-ui,body.five-report-ui *{-webkit-tap-highlight-color:transparent}
+body.five-report-ui :is(button,summary,a):focus:not(:focus-visible){outline:none!important;box-shadow:none}
+body.five-report-ui :is(button,summary,a):focus-visible{outline:2px solid #78ae36!important;outline-offset:3px!important;box-shadow:0 0 0 3px #e9f8d8!important}
+body.five-report-ui .five-score-card{grid-template-columns:380px minmax(0,1fr);gap:20px}
+body.five-report-ui .five-score-visual{display:grid;grid-template-columns:145px minmax(0,1fr);gap:14px;align-items:center;justify-content:stretch;padding-right:20px}
+body.five-report-ui .five-score-ring{width:145px;height:145px;flex-basis:145px}
+.five-report .five-problems-card{min-width:0;min-height:134px;border:1px solid #e6ece4;background:#f8faf6;border-radius:17px;padding:16px 12px;display:flex;flex-direction:column;justify-content:center}
+.five-report .five-problems-label{color:#6b786a;font:750 12px/1.4 var(--body)}
+.five-report .five-problems-value{color:#151b15;font:800 47px/1.1 var(--head);letter-spacing:-.06em}
+.five-report .five-problems-breakdown{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:6px}
+.five-report .five-problems-breakdown span{font:700 10px/1.35 var(--body)}
+.five-report .five-problems-breakdown .high{color:#b62d42}
+.five-report .five-problems-breakdown .medium{color:#956116}
+.five-report .five-problems-breakdown .low,.five-report .five-problems-breakdown .positive{color:#518527}
+.five-report .five-score-footnote{font:500 11px/1.45 var(--body);color:#818c80;margin:7px 0 0}
+.five-report .five-bottom-actions{display:grid;grid-template-columns:1fr 1fr;max-width:720px;gap:11px;margin:28px auto 20px}
+.five-report .five-bottom-actions button{cursor:pointer;min-height:52px;border-radius:14px;font:800 14px/1.3 var(--body);padding:12px;border:1px solid #dae7d2}
+.five-report .five-bottom-download{background:#141a13;color:#fff;border-color:#141a13!important}
+.five-report .five-bottom-new{background:#edfadf;color:#2c4b21}
+body.five-report-ui .report-hero{padding-bottom:18px}
+@media(max-width:950px){body.five-report-ui .five-score-card{grid-template-columns:1fr}
+ body.five-report-ui .five-score-visual{border-right:0;border-bottom:1px solid #e9ece7;padding:0 0 16px}}
+@media(max-width:480px){body.five-report-ui .five-score-visual{display:grid;grid-template-columns:112px minmax(0,1fr);gap:10px;align-items:center}
+ .five-report .five-score-ring{width:108px;height:108px;flex-basis:108px}
+ .five-report .five-score-ring:before{inset:11px}
+ .five-report .five-score-number{font-size:35px}
+ .five-report .five-problems-card{min-height:104px;padding:11px;border-radius:14px}
+ .five-report .five-problems-value{font-size:38px}
+ .five-report .five-problems-label{font-size:11px}
+ .five-report .five-bottom-actions button{font-size:12px;min-height:50px}
+}
+@media(max-width:350px){body.five-report-ui .five-score-visual{grid-template-columns:98px minmax(0,1fr);gap:6px}
+ .five-report .five-score-ring{width:96px;height:96px;flex-basis:96px}
+ .five-report .five-problems-value{font-size:33px}}
+@media print{.five-report .five-bottom-actions{display:none!important}}
