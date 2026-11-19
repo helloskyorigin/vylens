@@ -32,8 +32,10 @@ jobs:
         run: python qa_product_browser.py
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
-      - name: Test focused red/green Results at desktop and mobile widths
+      - name: Test focused Results at desktop and mobile widths
         run: python qa_focus_results.py
+      - name: Test zero, partial, long and paginated Results states
+        run: python qa_results_states.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
