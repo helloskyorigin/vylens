@@ -11,6 +11,7 @@ import https from 'node:https';
 import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
 import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
+import {analyzeWebsiteConversion} from '../lib/conversion-engine.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
 const UA='VYLENS-Inspector/4.0 (+https://vylens-tan.vercel.app/)';
@@ -327,6 +328,58 @@ async function captureRenderedSignals(page){
       collectsEmail,hasPrivacyLink,placeholderLinks,brokenImages};
   });
 }
+/**
+ * Non-invasive public offer observation. We do not click, submit, log in or
+ * assert that page copy causes a sale. Sampled DOM text is evidence, not analytics.
+ */
+async function captureCommerceSignals(page){
+  return page.evaluate(()=>{
+    const trim=(s,n=180)=>String(s??'').replace(/\s+/g,' ').trim().slice(0,n);
+    const visible=el=>{
+      if(!el||el.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
+      const st=getComputedStyle(el),r=el.getBoundingClientRect();
+      return st.visibility!=='hidden'&&st.display!=='none'&&Number(st.opacity)>0&&
+        r.width>2&&r.height>2;
+    };
+    const main=document.querySelector('main,[role="main"]')||document.body;
+    const content=trim(main.innerText||'',4200);
+    const h1=[...main.querySelectorAll('h1')].find(visible)||
+      [...document.querySelectorAll('h1')].find(visible);
+    const intro=[...main.querySelectorAll('p')].filter(visible)
+      .map(el=>trim(el.innerText||'',280)).find(v=>v.length>=25)||'';
+    const title=trim(h1?.innerText||'',180);
+    const label=el=>trim(el.getAttribute('aria-label')||el.innerText||
+      el.getAttribute('value')||el.getAttribute('title')||'',100);
+    const rawActions=[...main.querySelectorAll('a[href],button,[role="button"],input[type="submit"]')].slice(0,250)
+      .filter(el=>visible(el)&&!el.closest('nav,header,footer,aside'));
+    const actions=rawActions.map(el=>{
+      let path='';
+      if(el.matches('a[href]')){
+        try{
+          const u=new URL(el.getAttribute('href'),location.href);
+          path=u.origin===location.origin?u.pathname.slice(0,150):'External destination';
+        }catch{}
+      }
+      return {label:label(el),path};
+    }).filter(a=>a.label).slice(0,18);
+    const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d[\d,.]*(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d[\d,.]*)/gi)]
+      .slice(0,6).map(x=>trim(x[0],65));
+    const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,220);
+    const hasPurchaseTerms=links.some(a=>/refund|return|terms|cancellation|purchase.policy/i.test(
+      String(a.getAttribute('href')||'')+' '+String(a.innerText||'')))||
+      /refund policy|refunds? available|all sales final|money.back guarantee/i.test(content);
+    const hasProof=/\b(?:trusted by|used by|customer reviews?|customer stories|case stud(?:y|ies)|testimonials?|rated [45] out of 5|verified reviews?)\b/i.test(content);
+    const forms=[...main.querySelectorAll('form')].filter(visible);
+    const form=forms.map(f=>{
+      const fields=[...f.querySelectorAll('input:not([type="hidden"]),select,textarea')].filter(visible);
+      const context=trim((f.getAttribute('aria-label')||f.getAttribute('id')||'')+
+        ' '+(f.querySelector('h1,h2,h3,legend')?.textContent||'')+' '+(f.innerText||''),130);
+      return {context,fields:fields.length,required:fields.filter(el=>el.required||el.getAttribute('aria-required')==='true').length};
+    }).sort((a,b)=>b.required-a.required)[0]||null;
+    return {heading:title,intro,visibleText:content,actions,priceSamples:priceMatches,
+      hasPrice:priceMatches.length>0,hasPurchaseTerms,hasProof,form};
+  });
+}
 function evaluateRenderedSignals(signals,path){
   const issues=[],checks=[];
   if(!signals)return {issues,checks};
@@ -397,6 +450,7 @@ async function rendered(session,url){
         null,{timeout:1800}).catch(()=>{});
       signals=await captureRenderedSignals(page);
     }
+    const commerce=await captureCommerceSignals(page).catch(()=>null);
     const html=(await page.content()).slice(0,1400000);
     const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
       .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
@@ -453,7 +507,7 @@ async function rendered(session,url){
     await page.setViewportSize({width:320,height:780});
     await page.waitForTimeout(100);
     const narrow=await measureMobile();
-    return {status,html,links,mobile,narrow,visibleText,signals,headers:await response.allHeaders(),browser:true,errors};
+    return {status,html,links,mobile,narrow,visibleText,signals,commerce,headers:await response.allHeaders(),browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
 
@@ -600,7 +654,7 @@ async function scanSite(input){
   let session=null;
   try{session=await browserStart(root);}
   catch(error){console.error('Playwright unavailable',{name:error?.name});}
-  const pages=[],analyses=[],checks=[],titles=[],done=new Set();
+  const pages=[],analyses=[],checks=[],titles=[],commerceSnapshots=[],done=new Set();
   const mediaCache=new Map(),linkCandidates=new Map();
   let renderedCount=0,sourceCount=0;
   try{
@@ -670,6 +724,9 @@ async function scanSite(input){
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
+      if(visit.browser&&visit.commerce)commerceSnapshots.push({
+        url:item.url,status:'rendered',commerce:visit.commerce
+      });
       if(visit.browser)renderedCount++;else sourceCount++;
       for(const link of visit.links||[]){
         if(!link.href)continue;
@@ -755,7 +812,11 @@ async function scanSite(input){
   if(findingsLimited)checks.push({name:'Finding coverage',status:'unverified',detail:'Additional findings exceeded the 250-item report cap.'});
   issues.length=Math.min(issues.length,250);
   issues.forEach((x,i)=>x.id=i+1);
+  const conversion=analyzeWebsiteConversion(commerceSnapshots,{issues,coverage:{
+    complete:complete&&!findingsLimited,inspected,rendered:renderedCount,sourceOnly:sourceCount
+  }});
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
+    conversion,
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,
     coverage:{discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
       legal:legalCount,skipped,remaining,discoveryCapped:discoverer.discoveryCapped,findingsLimited,limit:LIMIT,complete:complete&&!findingsLimited,elapsedSeconds:Math.round((Date.now()-started)/1000)},
@@ -805,4 +866,4 @@ export async function POST(request){
   }
 }
 export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'problem-engine-v4',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals};
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion};
