@@ -116,9 +116,17 @@ try{
     'text in an enormous section is not near the checkout button');
   const blocked='<html><body><main><h1>Audit your offer</h1><p>$19</p>'+
     '<button id="buy" style="width:160px;height:56px">Buy now</button>'+
-    '<div style="position:fixed;z-index:10;top:68px;left:0;width:390px;height:56px;background:#eee"></div>'+
+    '<div id="overlay" style="position:fixed;z-index:10;background:#eee;pointer-events:auto"></div>'+
     '</main></body></html>';
   await page.setContent(blocked,{waitUntil:'load'});
+  await page.evaluate(()=>{
+    const target=document.getElementById('buy').getBoundingClientRect();
+    const overlay=document.getElementById('overlay');
+    overlay.style.left=target.left+'px';
+    overlay.style.top=target.top+'px';
+    overlay.style.width=target.width+'px';
+    overlay.style.height=target.height+'px';
+  });
   const covered=await engine.captureCommerceSignals(page);
   assert.equal(covered.actions.find(x=>x.label==='Buy now')?.centerReachable,false,
     'browser hit testing detects a covered mobile purchase control');
