@@ -74,29 +74,44 @@ with sync_playwright() as playwright:
     page.wait_for_url(re.compile(r'/results\.html'),timeout=55000)
     check('launch-check.md' in page.locator('#reportSubject').inner_text(),'Results identify uploaded product')
     check(page.locator('#reportType').inner_text()=='DIGITAL PRODUCT','Results show correct audit type')
-    check(page.locator('#findingsList .finding').count()>=1,'Real file findings are present')
-    check(page.locator('.metrics-section .metric').count()==2,'Only two summary cards')
+    check(page.locator('#conversionReport').is_visible(),
+          'Buyer-facing conversion report is visible')
+    check(page.locator('#reportHeadline').inner_text().strip()!='',
+          'Conversion Results contain a specific outcome headline')
+    check(page.locator('#primaryBlocker .buyer-blocker.featured').count()>=1,
+          'The documented product defect maps to an actionable buyer-delivery blocker')
+    check('TODO' in page.locator('#primaryBlocker').inner_text(),
+          'Buyer-delivery concern is grounded in file evidence')
+    check(page.locator('#conversionPlan .plan-row').count()>=1,
+          'Priority plan offers exact next actions')
+    check(page.locator('#buyerJourney .journey-stage').count()==4,
+          'Four review stages communicate evidence and limitations')
+    check(page.locator('#limitationsPanel').is_visible(),
+          'Unverified buying causes are disclosed')
+    check(page.locator('#technicalAppendix').is_visible() and
+          not page.locator('#technicalAppendix').evaluate('(e)=>e.open'),
+          'Technical findings do not distract from buying blockers')
+    check('delivered file' in page.locator('#conversionGoal').inner_text().lower(),
+          'File-only report does not claim knowledge of real sales')
+    page.locator('#technicalAppendix > summary').click()
+    check(page.locator('#technicalAppendix').evaluate('(e)=>e.open'),
+          'Technical appendix expands when requested')
+    check(page.locator('#findingsList .finding').count()>=1,
+          'Original evidence-backed technical findings are preserved')
+    check(page.locator('.metrics-section .metric').count()==2,'Technical metrics preserved')
     check(page.locator('#problemsCount').inner_text().strip().isdigit(),'Problem count reflects report')
     check(page.locator('#checksCount').inner_text().strip().isdigit(),'Checks count is numeric')
-    check(page.locator('#impactText').inner_text().strip()!='','Impact has an explanation')
-    check(page.locator('#checksPanel').is_visible() and not page.locator('#checksPanel').evaluate('(e)=>e.open'),
-          'Completed checks are collapsed by default')
-    check(page.locator('#priorityFindingTitle').inner_text().strip()!='',
-          'Results lead with an actionable real finding')
-    check(page.locator('#priorityFix').inner_text().strip()!='',
-          'First recommendation is visible without expanding a finding')
-    check('Local file review' in page.locator('#coverageMessage').inner_text(),
-          'Product results explain local file-only coverage')
     page.locator('#checksPanel > summary').click()
-    check(page.locator('#checksPanel').evaluate('(e)=>e.open'),'Checks expand inline')
+    check(page.locator('#checksPanel').evaluate('(e)=>e.open'),'Technical checks expand inline')
     check(page.locator('#checkBreakdownList .check-row').count()>=1,'Actual checks render')
     check(page.locator('#exportData').is_visible(),'Downloadable JSON report data is available')
     page.locator('#checksPanel > summary').click()
     first_finding=page.locator('#findingsList .finding').first
     first_finding.locator('.finding-head').click()
-    check(first_finding.evaluate('(e)=>e.open'),'Problem details open inline')
-    check(first_finding.locator('.finding-field').count()>=1,'Details show location, evidence or fix')
+    check(first_finding.evaluate('(e)=>e.open'),'Technical issue details open inline')
+    check(first_finding.locator('.finding-field').count()>=1,'Details preserve evidence and fix')
     first_finding.locator('.finding-head').click()
+    page.locator('#technicalAppendix > summary').click()
 
     # PDF is browser-print based; test click and print-mode appendix.
     page.evaluate('window.__printClicked=false;window.print=()=>{window.__printClicked=true}')
@@ -107,6 +122,9 @@ with sync_playwright() as playwright:
           'Print stylesheet includes full report')
     check(page.locator('#printAppendix .print-check').count()==int(page.locator('#checksCount').inner_text()),
           'Every recorded check is included in printed report')
+    check(page.locator('#printAppendix .print-conversion').count()==1 and
+          'Template' in page.locator('#printAppendix .print-conversion').text_content(),
+          'Print report includes conversion diagnosis and recorded findings')
     page.emulate_media(media='screen')
     check(page.locator('.report-footer a').filter(has_text='Contact').count()==1,
           'Results footer has one contact link')
