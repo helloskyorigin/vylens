@@ -380,7 +380,9 @@ async function captureCommerceSignals(page){
       // Purchase disclosures can be plain text, not just policy links.
       // Restrict this to the closest offer element, not the whole page/footer.
       const nearby=action.closest('section,article,form,[class*="pricing" i],[class*="offer" i]')||
-        action.parentElement?.parentElement;
+        action.parentElement;
+      // Do not climb into <body> and accidentally treat a distant footer
+      // refund link as adjacent to a purchase CTA.
       const localText=trim(nearby?.innerText||'',1300);
       const writtenNearby=/\b(?:refunds?|returns?|cancellations?|all sales final|money.back guarantee|purchase terms)\b/i.test(localText);
       return linkedNearby||writtenNearby;
