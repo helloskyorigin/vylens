@@ -98,7 +98,7 @@ with sync_playwright() as p:
         check(page.locator("#notApplicableList .check-row").count()==1,f"Unneeded check is not reported as an error at {width}px")
         check(page.locator("#siteCoverage").is_visible(),f"Page coverage inside checks at {width}px")
         check(page.locator("#exportData").is_visible(),f"Privacy-safe report data export is available at {width}px")
-        check(page.locator("#printAppendix").inner_text().find("All completed and attempted checks")>=0,
+        check(page.locator("#printAppendix").text_content().find("All completed and attempted checks")>=0,
               f"Printable appendix includes complete check breakdown at {width}px")
         bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
         check(max(bounds["b"],bounds["d"])<=bounds["w"]+3,f"No expanded overflow {width}px: {bounds}")
