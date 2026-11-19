@@ -14,16 +14,16 @@
   let elapsedTimer = null;
   const messages = {
     website: [
-      ['Reading your website…', 'Getting a closer look at your website.'],
-      ['Discovering linked pages…', 'Checking the pages we can access.'],
-      ['Inspecting page layouts…', 'Reviewing what the browser renders.'],
-      ['The audit is still running…', 'Larger websites can take longer to inspect.'],
-      ['Continuing the website checks…', 'Your final report will show what was verified and what could not be checked.']
+      ['Understanding your public offer…', 'Looking at what the page communicates to potential buyers.'],
+      ['Discovering relevant pages…', 'Checking reachable product, pricing and supporting pages.'],
+      ['Reviewing the next steps…', 'Observing public CTA labels, trust cues and mobile layout without clicking or paying.'],
+      ['Still inspecting public pages…', 'Larger websites may take longer; the report will disclose incomplete coverage.'],
+      ['Preparing evidence-backed findings…', 'Potential buyer concerns will be separated from observed page facts.']
     ],
     product: [
-      ['Opening your digital product…', 'Your file stays on this device.'],
-      ['Examining available content…', 'Looking for issues supported by the file itself.'],
-      ['Making sense of the details…', 'Getting your findings ready.']
+      ['Opening your delivered product…', 'Your original file stays on this device.'],
+      ['Checking usability and completeness…', 'Reviewing available instructions and delivered content.'],
+      ['Preparing buyer-facing observations…', 'File evidence will not be mistaken for real checkout behavior.']
     ]
   };
   function readableError(error) {
@@ -243,7 +243,7 @@
       sessionStorage.removeItem('vylens:imported');
       // Avoid rerunning a completed (potentially expensive) inspection when this page is refreshed.
       sessionStorage.removeItem('vylens:pending');
-      await changeMessage('Your audit is ready.', 'Opening your full results now.');
+      await changeMessage('Your buyer review is ready.', 'Opening the observations and priority improvement plan.');
       if (!motionReduced) await new Promise(resolve => setTimeout(resolve, 530));
       isFinished = true;
       window.location.replace('./results.html');
