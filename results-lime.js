@@ -13,7 +13,8 @@
   try{report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');}catch{return;}
   const d=report?.conversion;
   if(!report||!['website','product'].includes(report.mode)||
-    !d||d.version!==1||!Array.isArray(d.blockers)||d.blockers.length>24)return;
+    !d||d.version!==1||!Array.isArray(d.blockers)||d.blockers.length>24||
+    !Array.isArray(d.journey))return;
   const clean=(v,max=1000)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,max);
   const make=(tag,cls,content)=>{
     const el=document.createElement(tag);
@@ -30,7 +31,8 @@
       improve:'<path d="M9 18h6M10 21h4"/><path d="M9.2 14.8c-1.3-1.1-2.1-2.8-2.1-4.6a4.9 4.9 0 0 1 9.8 0c0 1.8-.8 3.5-2.1 4.6-.8.6-1.2 1.4-1.2 2.2H10.4c0-.8-.4-1.6-1.2-2.2Z"/>',
       verify:'<path d="m5 12 4 4 10-10"/>',
       chevron:'<path d="m6 9 6 6 6-6"/>',
-      copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
+      copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>'
     };
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');
@@ -195,7 +197,7 @@
   const note=$('conversionReport')?.querySelector('.conversion-disclaimer');
   if(note){
     note.replaceChildren();
-    note.append(symbol('evidence'));
+    note.append(symbol('info'));
     const copy=make('span','');
     copy.append(make('strong','','Note: '));
     copy.append(document.createTextNode(
