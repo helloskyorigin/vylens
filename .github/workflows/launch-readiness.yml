@@ -1,0 +1,37 @@
+name: VYLENS final launch browser QA
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium browser QA
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Wait for updated landing page on production
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/' | grep -q 'up to 24 pages per scan'; then ready=1; break; fi
+            sleep 6
+          done
+          test "$ready" -eq 1
+      - name: Run end-to-end production browser QA
+        run: python qa_launch_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vylens-launch-screenshots
+          path: qa-captures/
+          retention-days: 7

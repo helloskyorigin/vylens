@@ -339,5 +339,11 @@
   initScrollReveal();
 
   $('#year').textContent = String(new Date().getFullYear());
-  updateMode('website');
+  // Coming back from a completed digital-product report should keep the user's audit mode.
+  let initialMode='website';
+  try {
+    if (sessionStorage.getItem('vylens:prefill-mode')==='product') initialMode='product';
+    sessionStorage.removeItem('vylens:prefill-mode');
+  } catch {}
+  updateMode(initialMode);
 })();

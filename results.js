@@ -149,7 +149,7 @@
         root.append(by('p','print-line',(page.path||'/')+' — '+page.status+(page.type==='legal'?' (policy)':'')));
     }
     const scope = by('p','print-small', report.mode === 'website'
-      ? 'Source-based audit. Rendered visual design, user behavior and actual sales were not tested.'
+      ? 'Public page source and supported rendered DOM/mobile checks were inspected where available. Actual user behavior, sales and legal compliance were not tested.'
       : 'Product-file audit. Visual quality, buyer intent and actual sales were not measured.');
     root.append(scope);
   }
