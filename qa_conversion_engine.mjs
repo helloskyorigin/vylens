@@ -182,5 +182,7 @@ const bounded=_test.makeBlocker('clarity','review','Long observation',lengthy,
   'Might need more explanation','Check it','Reopen','/ · heading');
 assert.ok(bounded.evidence.length<=565&&bounded.evidence.endsWith('…'),
   'long findings visibly indicate abbreviated evidence');
-assert.ok(!/\S…$/.test(''), 'no platform-dependent clipping assumption');
+const excerpt=bounded.evidence.slice(0,-1);
+assert.ok([' ','.','!','?',''].includes(lengthy[excerpt.length]||''),
+  'bounded evidence ends at a word or sentence boundary');
 console.log('PASS conversion engine: bounded readable evidence, geometry and price parity');
