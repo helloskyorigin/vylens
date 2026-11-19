@@ -60,23 +60,48 @@ with sync_playwright() as pw:
             check(resp.status==200,f'{kind} results HTTP 200 at {width}')
             check(page.locator('#conversionReport').is_visible(),f'{kind} conversion view shown at {width}')
             check(page.locator('#buyerJourney .journey-stage').count()==4,f'{kind} four buyer stages at {width}')
-            check(page.locator('#primaryBlocker').evaluate('(e)=>e.getBoundingClientRect().top') <
-                  page.locator('.journey-section').evaluate('(e)=>e.getBoundingClientRect().top'),
-                  f'{kind} first useful buyer finding comes before summary cards at {width}')
+            check(page.locator('.conversion-overview').is_visible(),
+                  f'{kind} lime summary is visible at {width}')
+            check(page.locator('#navDownload').is_visible() and page.locator('#navRecheck').is_visible(),
+                  f'{kind} header download and recheck actions at {width}')
+            check(page.locator('#uiBlockerCount').inner_text()==str(len(fixture['conversion']['blockers'])),
+                  f'{kind} blocker count is backed by report data at {width}')
+            check(page.locator('#uiStrengthCount').inner_text()=='1',
+                  f'{kind} strengths count is backed by observed data at {width}')
+            check(page.locator('#uiImprovementCount').inner_text()==
+                  str(min(5,len(fixture['conversion']['blockers']))),
+                  f'{kind} actionable plan count is accurate at {width}')
+            check(page.locator('.buyer-journey-more').is_visible() and
+                  not page.locator('.buyer-journey-more').evaluate('(e)=>e.open'),
+                  f'{kind} optional journey stays out of primary UI at {width}')
+            if width>=900:
+                check(page.locator('.action-plan').evaluate('(e)=>e.getBoundingClientRect().left') >
+                      page.locator('#primaryBlocker').evaluate('(e)=>e.getBoundingClientRect().right'),
+                      f'{kind} desktop findings and action plan are real side-by-side columns at {width}')
+            else:
+                check(page.locator('.action-plan').evaluate('(e)=>e.getBoundingClientRect().top') >
+                      page.locator('#primaryBlocker').evaluate('(e)=>e.getBoundingClientRect().top'),
+                      f'{kind} mobile/tablet uses a genuinely stacked action plan at {width}')
             check(not page.locator('.metrics-section').is_visible(),
                   f'{kind} technical metrics initially secondary at {width}')
             check(page.locator('#technicalAppendix').is_visible() and
                   not page.locator('#technicalAppendix').evaluate('(e)=>e.open'),
                   f'{kind} technical appendix collapsed at {width}')
-            check('not measured' in page.locator('.conversion-disclaimer').inner_text().lower() or
-                  'proof of lost sales' in page.locator('.conversion-disclaimer').inner_text().lower(),
-                  f'{kind} no ungrounded sales attribution at {width}')
+            check('not actual visitor behavior' in page.locator('.conversion-disclaimer').inner_text().lower(),
+                  f'{kind} buying hypotheses are explicitly not measured conversion behavior at {width}')
             if kind=='website':
                 check(page.locator('.buyer-blocker').count()==3,f'three evidence-based blockers at {width}')
                 check(page.locator('#conversionPlan .plan-row').count()==3,
                       f'prioritized action plan at {width}')
-                check(page.locator('#primaryBlocker').inner_text().find('WHY A BUYER MIGHT HESITATE')>=0,
-                      f'first blocker has buyer concern and remedy at {width}')
+                check(page.locator('#primaryBlocker').inner_text().find('Possible buyer concern')>=0 and
+                      page.locator('#primaryBlocker .ui-evidence-row').count()>=3,
+                      f'first blocker has evidence, buyer concern and fix at {width}')
+                check(page.locator('#secondaryBlockers details').count()==2,
+                      f'secondary findings stay compact at {width}')
+                page.locator('#conversionPlan .ui-plan-row').nth(1).click()
+                check(page.locator('#secondaryBlockers details').first.evaluate('(e)=>e.open'),
+                      f'action-plan row actually opens the matching finding at {width}')
+                page.locator('#secondaryBlockers details').first.locator('summary').click()
                 check(page.locator('#scanComparison').is_visible(),
                       f'previous comparable scan appears with cautious wording at {width}')
                 check([x.strip() for x in page.locator('.comparison-stat strong').all_inner_texts()]==['2','1','1'],
@@ -93,8 +118,10 @@ with sync_playwright() as pw:
                 check(not page.locator('#copyPlan').is_visible(),
                       f'no misleading action plan at {width}')
             else:
-                check('delivered file only' in page.locator('#conversionGoal').inner_text().lower(),
-                      f'product report explains file-only scope at {width}')
+                check('delivered file only' in page.locator('#conversionGoal').text_content().lower(),
+                      f'product report still records file-only limitations at {width}')
+                check('Digital Product Diagnosis' in page.locator('#reportHeadline').inner_text(),
+                      f'product report uses a product-specific diagnosis title at {width}')
             page.locator('#technicalAppendix > summary').click()
             check(page.locator('#checksPanel').is_visible(),f'{kind} technical checks remain accessible at {width}')
             check(page.locator('#findingsList .finding').count()==1,
@@ -103,6 +130,11 @@ with sync_playwright() as pw:
                   f'{kind} printed buyer findings retained at {width}')
             check(page.locator('#printAppendix .print-check').count()==35,
                   f'{kind} complete technical print appendix at {width}')
+            page.evaluate('window.__printed=false;window.print=()=>{window.__printed=true;}')
+            page.locator('#navDownload').click()
+            check(page.evaluate('window.__printed'),f'{kind} header Download invokes actual print at {width}')
+            check(page.locator('#navDownload').get_attribute('aria-label') is not None,
+                  f'{kind} header action has an accessible label at {width}')
             dims=page.evaluate('()=>({w:innerWidth,body:document.body.scrollWidth,doc:document.documentElement.scrollWidth})')
             check(max(dims['body'],dims['doc'])<=dims['w']+3,
                   f'{kind} no horizontal overflow at {width}: {dims}')
