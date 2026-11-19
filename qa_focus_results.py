@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 BASE=os.environ.get("VYLENS_BASE","https://vylens-tan.vercel.app").rstrip("/")
 OUT=Path("qa-captures");OUT.mkdir(exist_ok=True)
 checks=[
-    {"name":f"Navigation · check {i}","status":"attention" if i<4 else ("unverified" if i<7 else ("not_applicable" if i==7 else "passed")),
+    {"name":f"Navigation · check {i}","status":"attention" if i<4 else ("unverified" if i<7 else ("not_applicable" if i==7 else ("observed" if i==8 else "passed"))),
      "detail":"Real browser or source-based inspection."}
     for i in range(36)
 ]
@@ -64,14 +64,25 @@ with sync_playwright() as p:
         second.locator(".finding-head").click()
         check(not first.evaluate("(e)=>e.open"),f"Only one issue expands at a time {width}px")
         second.locator(".finding-head").click()
+        first.locator(".finding-head").click()
+        check(first.evaluate("(e)=>e.open"),f"First finding reopened at {width}px")
         page.locator("#moreProblems").click()
-        check(page.locator("#findingsList .finding").count()==6,f"View all exposes 6 at {width}px")
+        check(page.locator("#findingsList .finding:visible").count()==6,f"View all exposes 6 at {width}px")
+        check(first.evaluate("(e)=>e.open"),f"Expanded finding state preserved at {width}px")
         check(page.locator("#findingsList").evaluate("(e)=>getComputedStyle(e).overflowY")=="auto",
               f"Expanded issues have bounded scroller at {width}px")
         page.locator("#moreProblems").click()
-        check(page.locator("#findingsList .finding").count()==3,f"Collapse restores compact list at {width}px")
+        check(page.locator("#findingsList .finding:visible").count()==3,f"Collapse restores compact list at {width}px")
+        check(first.evaluate("(e)=>e.open"),f"Open finding survives Show fewer at {width}px")
+        page.locator("#moreProblems").click()
+        check(page.locator("#findingsList .finding").count()==6,f"Repeated expansion does not duplicate findings at {width}px")
+        page.locator("#moreProblems").click()
         page.locator("#checksPanel > summary").click()
         check(page.locator("#checkBreakdownList .check-row").count()==35,f"Applicable and unverified checks visible at {width}px")
+        check("1 observed" in page.locator("#checksExtra").inner_text(),
+              f"Observed checks stay distinct from unverified at {width}px")
+        check(page.locator("#checkBreakdownList .check-status.observed").count()==1,
+              f"Observed neutral status rendered at {width}px")
         check(page.locator("#notApplicableGroup").is_visible(),f"N/A checks separated at {width}px")
         check(page.locator("#notApplicableList .check-row").count()==1,f"Unneeded check is not reported as an error at {width}px")
         check(page.locator("#siteCoverage").is_visible(),f"Page coverage inside checks at {width}px")
