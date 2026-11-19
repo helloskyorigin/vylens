@@ -28,6 +28,8 @@ jobs:
             sleep 6
           done
           if [ "$ready" -ne 1 ]; then echo 'Latest commit not yet confirmed on production (requires Vercel system env vars).'; exit 1; fi
+      - name: Test local digital-product audit and ZIP safety regressions
+        run: python qa_product_browser.py
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
       - name: Test focused red/green Results at desktop and mobile widths
