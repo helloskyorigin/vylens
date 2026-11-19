@@ -73,10 +73,11 @@ new Function('document','window','sessionStorage','navigator',script)(document,w
 assert.equal(dom.get('criticalCount').textContent,'0');
 assert.equal(dom.get('highCount').textContent,'2');
 assert.equal(dom.get('otherCount').textContent,'3');
-assert.equal(dom.get('findingsCount').textContent,'5 issues');
+assert.equal(dom.get('findingsCount').textContent,'2 issue types');
+assert.equal(dom.get('problemsCount').textContent,'5','top card counts affected-page occurrences');
 assert.equal(dom.get('findingsList').children.length,2);
 const first=dom.get('findingsList').children[0];
-assert.ok(first.children[0].children[1].children[1].textContent.includes('2 pages'));
+assert.ok(first.children[0].children[1].children[1].textContent.includes('2 affected pages'));
 console.log('PASS multi-page accuracy: robots, policy, distinct evidence, HTTP headers, affected-page counts');
 
 
