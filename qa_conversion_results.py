@@ -139,8 +139,9 @@ with sync_playwright() as pw:
                 check("Explain the concrete buyer benefit" in
                       page.locator("#five-change-0").inner_text(),
                       f"{kind}: real suggestion shown at {width}")
-                check(page.locator("#five-change-0 .five-change-details .five-detail-line").count()==2,
-                      f"{kind}: expanded fix has evidence and verification, no repeated fix text {width}")
+                detail_count=page.locator("#five-change-0 .five-change-details .five-detail-line").count()
+                check(2 <= detail_count <= 3,
+                      f"{kind}: expanded fix has evidence, optional location and verification only {width}")
                 check("On inspected public page" in
                       page.locator("#five-change-0 .five-change-details").inner_text(),
                       f"{kind}: full evidence available on request {width}")
