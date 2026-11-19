@@ -105,4 +105,22 @@ const proofWithoutEvidence=analyzeWebsiteConversion([page('/',offer({hasProof:tr
 assert.ok(!proofWithoutEvidence.strengths.some(x=>x.stage==='trust'),
  'trust positive is not claimed without observable supporting text');
 
-console.log('PASS conversion engine: commercial heuristics, source-only uncertainty, verified buying paths and no fake revenue math');
+// A navigation item about purchase readiness is NOT a buy/checkout button.
+const scoreLink=analyzeWebsiteConversion([page('/',offer({
+  heading:'Purchase Readiness Audit',
+  actions:[{label:'Purchase Readiness 64/100',path:'/score',top:1206,inFirstView:false}],
+  hasPurchaseTerms:true,termsNearAction:false
+}))],{coverage:{complete:true}});
+assert.ok(!scoreLink.blockers.some(x=>/main buying action may appear late|purchase terms/i.test(x.title)),
+  'purchase readiness text must not masquerade as a real purchase CTA');
+assert.ok(!scoreLink.strengths.some(x=>x.stage==='action'),
+  'purchase readiness score must not count as clear purchase action');
+const exactCTA=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/purchase',top:1250,inFirstView:false}],
+  hasPurchaseTerms:true,termsNearAction:false
+}))],{coverage:{complete:true}});
+assert.ok(exactCTA.blockers.some(x=>/main buying action may appear late/.test(x.title)),
+  'real offscreen Buy now button still causes a cautious review');
+assert.ok(exactCTA.blockers.every(x=>x.buyerQuestion || !['action','trust'].includes(x.stage)),
+  'buyer-facing concerns have question-style explanations');
+console.log('PASS conversion engine: commercial heuristics, CTA score false positives, offer evidence and no fake revenue math');

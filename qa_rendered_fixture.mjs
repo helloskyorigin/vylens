@@ -94,6 +94,17 @@ try{
   const lateSignals=await engine.captureCommerceSignals(page);
   assert.ok(lateSignals.actions.some(x=>x.label==='Buy now'&&x.inFirstView===false&&x.top>1100),
     'first screen visibility is measured, not guessed from button text');
+  // Regression: score links with the word Purchase are not transactional CTAs.
+  await page.setContent('<html><body><main><h1>Purchase readiness audit</h1>'+
+    '<p>The audit is available for $5.</p><a href="/score" style="display:block;margin-top:1200px">'+
+    'Purchase Readiness 64/100</a></main></body></html>',{waitUntil:'load'});
+  const scoreSignals=await engine.captureCommerceSignals(page);
+  assert.ok(scoreSignals.actions.some(x=>x.label==='Purchase Readiness 64/100'&&
+    x.isPurchaseAction===false),'score link is informational, not a buying action');
+  assert.ok(!engine.analyzeWebsiteConversion([
+    {url:'https://example.org/',status:'rendered',commerce:scoreSignals}
+  ],{coverage:{complete:true}}).blockers.some(x=>/main buying action may appear late|purchase terms/i.test(x.title)),
+  'score link must not create purchase CTA or missing-terms blocker');
   await page.close();
-  console.log('PASS: real Chromium fixtures cover rendered offer, public price, CTA and evidence-based buyer concerns alongside DOM/accessibility checks.');
+  console.log('PASS: Chromium checks true buying CTAs separately from informational purchase-readiness scores.');
 }finally{await browser.close();}

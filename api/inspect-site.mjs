@@ -350,6 +350,7 @@ async function captureCommerceSignals(page){
     const title=trim(h1?.innerText||'',180);
     const label=el=>trim(el.getAttribute('aria-label')||el.innerText||
       el.getAttribute('value')||el.getAttribute('title')||'',100);
+    const purchaseAction=/^(?:(?:buy|purchase)(?:\s+(?:now|this|the|my|your|access|for)\b[^\n]{0,65})?|checkout|check out|pay now|order now|add to cart|subscribe(?:\s+now)?)\s*[.!?›→]*$/i;
     const rawActions=[...main.querySelectorAll('a[href],button,[role="button"],input[type="submit"]')].slice(0,250)
       .filter(el=>visible(el)&&!el.closest('nav,header,footer,aside'));
     const actions=rawActions.map(el=>{
@@ -361,7 +362,9 @@ async function captureCommerceSignals(page){
         }catch{}
       }
       const rect=el.getBoundingClientRect();
-      return {label:label(el),path,top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
+      const actionLabel=label(el);
+      return {label:actionLabel,path,isPurchaseAction:purchaseAction.test(actionLabel),
+        top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
     }).filter(a=>a.label).slice(0,18);
     const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d+(?:,\d{3})*(?:\.\d{1,2})?(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d+(?:,\d{3})*(?:\.\d{1,2})?)/gi)]
       .slice(0,6).map(x=>trim(x[0],65));
@@ -370,7 +373,7 @@ async function captureCommerceSignals(page){
       String(a.getAttribute('href')||'')+' '+String(a.innerText||'')));
     const hasPurchaseTerms=termsLinks.length>0||
       /refund policy|refunds? available|all sales final|money.back guarantee/i.test(content);
-    const buyingActions=rawActions.filter(el=>/\b(?:buy|purchase|checkout|pay now|order|subscribe|add to cart)\b/i.test(label(el)));
+    const buyingActions=rawActions.filter(el=>purchaseAction.test(label(el)));
     const termsNearAction=buyingActions.some(action=>{
       const buttonTop=action.getBoundingClientRect().top;
       const linkedNearby=termsLinks.some(link=>{
