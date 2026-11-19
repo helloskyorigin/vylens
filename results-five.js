@@ -22,13 +22,13 @@
   const shortLevel=type=>type==='high'?'High':type==='low'?'Low':'Review';
   const stageNames={clarity:'Messaging',value:'Offer & value',trust:'Buyer confidence',action:'Buying step'};
   const sorted=data.blockers.filter(item=>item&&typeof item==='object'&&typeof item.title==='string')
-    .slice(0,12).sort((a,b)=>({high:0,review:1,medium:1,low:2}[a.priority]??1)-
+    .slice(0,20).sort((a,b)=>({high:0,review:1,medium:1,low:2}[a.priority]??1)-
       ({high:0,review:1,medium:1,low:2}[b.priority]??1));
   const buyers=sorted.filter(item=>item.source!=='Locally inspected product file');
   const problemItems=report.mode==='product'?sorted:buyers;
   // Use the same evidence-backed issue collection for cards, counts and fixes.
   const primaryFindings=problemItems;
-  const changes=primaryFindings.filter(item=>clean(item.fix).length).slice(0,8);
+  const changes=primaryFindings.filter(item=>clean(item.fix).length).slice(0,12);
   const strengths=Array.isArray(data.strengths)?
     data.strengths.filter(item=>item&&typeof item==='object'&&item.title).slice(0,6):[];
   const counts={high:0,medium:0,low:0};
@@ -320,7 +320,7 @@
       source:clean(item.location||item.source,160),verify:clean(item.verify,450)
     }));
   const safeKit=rawKit.filter(item=>item&&typeof item.content==='string'&&
-    item.content.trim()&&['copy','checklist'].includes(item.kind)).slice(0,12);
+    item.content.trim()&&['copy','checklist'].includes(item.kind)).slice(0,20);
   if(safeKit.length){
     const kit=make('div','five-fix-kit');kit.id='fiveConversionFixKit';
     const header=make('div','five-kit-heading');

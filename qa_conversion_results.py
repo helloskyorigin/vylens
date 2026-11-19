@@ -176,8 +176,8 @@ with sync_playwright() as pw:
             if sample["conversion"]["fixKit"]:
                 check(page.locator("#fiveConversionFixKit").is_visible(),
                       f"{kind}: copyable fix kit present inside section 4 at {width}")
-                check(page.locator("#fiveConversionFixKit .five-kit-item").count() == 2,
-                      f"{kind}: only source-backed kit items rendered at {width}")
+                check(page.locator("#fiveConversionFixKit .five-kit-item").count() == 1,
+                      f"{kind}: copy-ready kit avoids duplicating checklist cards at {width}")
                 check("View pricing" in page.locator("#fiveConversionFixKit").inner_text(),
                       f"{kind}: supported CTA wording preserved at {width}")
             ring = page.locator(".five-score-number").inner_text()
@@ -223,7 +223,8 @@ with sync_playwright() as pw:
                       f"{kind}: real PDF file downloaded, not print dialog at {width}")
                 check(b"Buyer Journey Replay" in pdf_bytes and
                       b"Conversion Fix Kit" in pdf_bytes and
-                      b"View pricing" in pdf_bytes,
+                      b"View pricing" in pdf_bytes and
+                      b"Clarify the buyer benefit" in pdf_bytes,
                       f"{kind}: both new features exported in PDF at {width}")
                 with page.expect_download(timeout=15000) as top_started:
                     page.locator("#navDownload").click()

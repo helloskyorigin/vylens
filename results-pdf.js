@@ -4,6 +4,9 @@
   const cleaned=(value)=>String(value??'')
     .replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"')
     .replace(/[\u2013\u2014\u2212]/g,'-').replace(/\u2022/g,'-')
+    .replace(/₹/g,'INR ').replace(/€/g,'EUR ').replace(/£/g,'GBP ')
+    .replace(/¥/g,'JPY ').replace(/₩/g,'KRW ').replace(/₽/g,'RUB ')
+    .replace(/₿/g,'BTC ')
     .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^\x20-\x7e]/g,'?').replace(/\s+/g,' ').trim();
   const escaped=s=>cleaned(s).replace(/[\\()]/g,'\\$&');
@@ -107,13 +110,27 @@
     if(!questions.length)paragraph(text('#five-hesitations .five-empty'));
     questions.forEach((item,i)=>paragraph((i+1)+'. '+item.textContent,{size:10,gap:9}));
     section('4. Exactly What to Change');
-    const kit=list('#five-changes .five-kit-item');
-    if(kit.length){
+    // The compact UI only previews copy-ready wording. The PDF includes ALL
+    // source-backed kit actions, even the checklists hidden from UI to prevent repeats.
+    let savedKit=[];
+    try{
+      const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
+      savedKit=Array.isArray(report?.conversion?.fixKit)?report.conversion.fixKit:[];
+    }catch{}
+    if(!savedKit.length){
+      savedKit=list('#five-changes .five-kit-item').map(item=>({
+        label:text('.five-kit-asset-type',item),content:text('.five-kit-content',item)
+      }));
+    }
+    if(savedKit.length){
       paragraph('Conversion Fix Kit - copyable wording and actionable instructions',
         {size:10,bold:true,gap:9});
-      kit.forEach((item,i)=>{
-        paragraph((i+1)+'. '+text('.five-kit-asset-type',item)+
-          ' - '+text('.five-kit-content',item),{size:9.5,gap:8,indent:8});
+      savedKit.slice(0,20).forEach((item,i)=>{
+        paragraph((i+1)+'. '+String(item.label||'Fix')+
+          ' - '+String(item.content||''),
+          {size:9.5,gap:8,indent:8});
+        if(item.verify)paragraph('Verify: '+String(item.verify),
+          {size:8.5,gap:5,indent:12});
       });
     }
     const changes=list('#five-changes .five-change');
