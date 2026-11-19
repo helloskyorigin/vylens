@@ -363,6 +363,13 @@ async function captureCommerceSignals(page){
       }
       const rect=el.getBoundingClientRect();
       const actionLabel=label(el);
+      const relatedForm=el.closest('form');
+      const formContext=String(relatedForm?.id||'')+' '+
+        String(relatedForm?.getAttribute('aria-label')||'')+' '+
+        String(relatedForm?.innerText||'').slice(0,260);
+      const isNewsletter=!!relatedForm&&!!relatedForm.querySelector('input[type="email"]')&&
+        /\b(?:newsletter|updates|mailing list|email updates)\b/i.test(formContext)&&
+        !/\b(?:checkout|card details|billing|payment)\b/i.test(formContext);
       const href=el.matches('a[href]')?String(el.getAttribute('href')||'').trim():'';
       const onScreen=rect.top>=0&&rect.bottom<=window.innerHeight&&
         rect.left>=0&&rect.right<=window.innerWidth;
@@ -372,7 +379,8 @@ async function captureCommerceSignals(page){
       ):null;
       const centerReachable=onScreen?!!hit&&(hit===el||el.contains(hit)):null;
       const clippedHorizontally=rect.left< -3||rect.right>window.innerWidth+3;
-      return {label:actionLabel,path,isPurchaseAction:purchaseAction.test(actionLabel),
+      return {label:actionLabel,path,isNewsletter,
+        isPurchaseAction:!isNewsletter&&purchaseAction.test(actionLabel),
         isPlaceholderDestination:el.matches('a[href]')&&/^(?:#|javascript:.*)$/i.test(href),
         top:Math.round(rect.top),
         width:Math.round(rect.width),height:Math.round(rect.height),
@@ -386,7 +394,14 @@ async function captureCommerceSignals(page){
       String(a.getAttribute('href')||'')+' '+String(a.innerText||'')));
     const hasPurchaseTerms=termsLinks.length>0||
       /refund policy|refunds? available|all sales final|money.back guarantee/i.test(content);
-    const buyingActions=rawActions.filter(el=>purchaseAction.test(label(el)));
+    const buyingActions=rawActions.filter(el=>{
+      if(!purchaseAction.test(label(el)))return false;
+      const form=el.closest('form');
+      const context=String(form?.id||'')+' '+String(form?.getAttribute('aria-label')||'')+
+        ' '+String(form?.innerText||'').slice(0,260);
+      return !(form?.querySelector('input[type="email"]')&&
+        /\b(?:newsletter|updates|mailing list|email updates)\b/i.test(context));
+    });
     const termsNearAction=buyingActions.some(action=>{
       const buttonTop=action.getBoundingClientRect().top;
       const linkedNearby=termsLinks.some(link=>{

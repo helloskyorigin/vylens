@@ -81,6 +81,14 @@ assert.ok(!nearbyTerms.blockers.some(x=>x.stage==='trust'),'terms beside purchas
 const belowFold=analyzeWebsiteConversion([page('/',offer({
   actions:[{label:'Buy now',path:'/order',top:1350,inFirstView:false}]
 }))],{coverage:{complete:true}});
+const newsletterAboveBuy=analyzeWebsiteConversion([page('/',offer({
+  actions:[
+    {label:'Subscribe',isNewsletter:true,path:'',top:150,inFirstView:true},
+    {label:'Buy now',path:'/checkout',top:1550,inFirstView:false}
+  ]
+}))],{coverage:{complete:true}});
+assert.ok(newsletterAboveBuy.blockers.some(x=>x.title.includes('may appear late')),
+  'newsletter subscription near the top cannot hide a buried purchase CTA');
 assert.ok(belowFold.blockers.some(x=>x.stage==='action'&&x.title.includes('late')),
   'off-screen buyer CTA becomes an evidence-qualified concern');
 const firstScreen=analyzeWebsiteConversion([page('/',offer({

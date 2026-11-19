@@ -23,6 +23,9 @@ assert.equal(isPurchaseAction(t('See pricing','/pricing')),false,
   'pricing navigation is not a completed buy action');
 assert.equal(isDirectAction(t('Learn more','/pricing')),false,
   'ambiguous copy stays a review item');
+assert.equal(classifyAction({...t('Subscribe'),isNewsletter:true}).reason,'newsletter',
+  'newsletter form submit must not count as a purchase CTA');
+assert.equal(isPurchaseAction({...t('Subscribe'),isNewsletter:true}),false);
 assert.equal(classifyAction(t('Get your score','/score')).reason,'unverified',
   'an uncorroborated score view is not a purchase CTA');
 console.log('PASS action classifier: contextual buying actions, genuine buttons and score false positives');
