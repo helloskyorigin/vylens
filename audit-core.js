@@ -193,7 +193,8 @@
     else if(empty.length)issue(issues,'Completeness','note','Some ZIP entries are empty',
       `${empty.length} zero-byte files, including ${empty.slice(0,4).map(x=>x.name).join(', ')}.`,
       'Check that empty files are intentional and not missing deliverables.','ZIP file list','Open the named files.');
-    const encrypted=regular.filter(e=>e.flags&1),traversal=regular.filter(e=>unsafeZipPath(e.name));
+    // Unsafe directory entries can escape the extraction root even without a regular file.
+    const encrypted=regular.filter(e=>e.flags&1),traversal=entries.filter(e=>unsafeZipPath(e.name));
     check(checks,'Archive entry paths',traversal.length?'attention':'passed',traversal.length?`${traversal.length} path(s) contain unsafe directory traversal.`:'No absolute or parent-traversal entry paths detected.');
     if(traversal.length)issue(issues,'Delivery safety','high','Unsafe paths inside ZIP',
       `${traversal.length} entry name(s) contain parent-directory segments or absolute paths.`,
