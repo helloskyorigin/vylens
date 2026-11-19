@@ -276,12 +276,16 @@
     put('findingsCount',issues.length?(issues.length+' distinct '+(issues.length===1?'finding':'findings')):'No findings');
     const list=$('findingsList'),initial=Math.min(3,issues.length);
     // A single open issue keeps the page compact on narrow screens.
-    list.addEventListener('toggle',event=>{
-      if(!event.target.matches?.('.finding')||!event.target.open)return;
+    list.addEventListener('click',event=>{
+      const heading=event.target.closest?.('summary.finding-head');
+      if(!heading)return;
+      const current=heading.parentElement;
+      if(current.open)return; // Clicking the open item closes it naturally.
+      // Close sibling details synchronously, before the native summary toggle.
       list.querySelectorAll('.finding[open]').forEach(item=>{
-        if(item!==event.target)item.open=false;
+        if(item!==current)item.open=false;
       });
-    },true);
+    });
     const add=(start,end)=>issues.slice(start,end).forEach((issue,i)=>list.append(issueElement(issue,start+i+1,report.url)));
     if(issues.length){
       add(0,initial);
