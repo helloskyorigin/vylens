@@ -244,6 +244,75 @@
       'Consider a smaller web export for previews while retaining the original.','Image size','Compare load time and quality at intended sizes.');
     return {issues,checks,summary:`Decoded a ${w} × ${h} image. Visual content and design quality were not judged.`,meta:`${w} × ${h} px`,coverageLabel:'Image metadata'};
   }
+  /**
+   * A product file is a delivered asset, not a sales funnel.
+   * These observations cover buyer fulfillment and promise alignment only.
+   * Without a public offer page there is no evidence of pre-purchase objections.
+   */
+  function productConversion(issues,checks,ext,payload={}){
+    const blockers=[],strengths=[];
+    const categories={
+      'ZIP contains no product files':['value','high','The delivered bundle contains no product files',
+        'A buyer opening this package would not receive the expected deliverables.'],
+      'All packaged files are empty':['value','high','The delivered files are empty',
+        'A buyer would receive empty files instead of usable content.'],
+      'Markdown links contain empty destinations':['action','high','Some links in the product do not have destinations',
+        'A buyer following these guide links may be unable to access the next resource.'],
+      'Unsafe paths inside ZIP':['trust','high','The download contains unsafe archive paths',
+        'Archive extraction could create an avoidable security or installation concern.'],
+      'Product files have duplicate paths':['value','review','Some package files may overwrite each other',
+        'Buyers might not receive every intended deliverable after extraction.'],
+      'Bundle has no recognizable getting-started file':['action','review','Getting-started instructions are not obvious',
+        'New buyers may spend extra time discovering how to use the product.'],
+      'Possible template or draft placeholders detected':['trust','review','Some content looks like unfinished draft text',
+        'If these markers are not intentional editable placeholders, they could weaken buyer confidence.'],
+      'Long PDF has no bookmark outline':['action','review','A long guide may be harder to navigate',
+        'Buyers of longer guides may benefit from faster navigation to relevant sections.']
+    };
+    for(const finding of issues){
+      const mapping=categories[finding.title];
+      if(!mapping)continue;
+      const [stage,priority,title,buyerConcern]=mapping;
+      blockers.push({
+        id:'file-'+(blockers.length+1),stage,priority,title,
+        evidence:String(finding.evidence||'').slice(0,560),
+        buyerConcern,fix:String(finding.fix||'').slice(0,680),
+        verify:String(finding.verify||'').slice(0,440),
+        location:String(finding.location||'Uploaded file').slice(0,180),
+        confidence:'observed',source:'Locally inspected product file',effort:'small'
+      });
+      if(blockers.length>=8)break;
+    }
+    if(checks.some(c=>c.name==='PDF opens and has pages'&&c.status==='passed'))
+      strengths.push({stage:'value',title:'The PDF opened successfully',
+        evidence:'The selected PDF was readable by the local file parser. Visual and factual quality were not verified.',
+        location:'Uploaded PDF'});
+    if(checks.some(c=>c.name==='Original file accessible'&&c.status==='passed'))
+      strengths.push({stage:'action',title:'The supplied file could be inspected locally',
+        evidence:'VYLENS accessed the file on this device without uploading its bytes.',location:'Uploaded file'});
+    const price=String(payload.price||'').replace(/\s+/g,' ').trim().slice(0,30);
+    const unverified=[
+      'A product file alone cannot reveal why visitors did not buy. Offer wording, checkout and visitor behavior were not assessed.',
+      'Buyer intent, traffic, sales conversions, refunds and real product satisfaction were not measured.'
+    ];
+    if(!payload.salesPage)unverified.unshift('No sales page was supplied. Pre-purchase price presentation, offer clarity and trust cues could not be assessed.');
+    if(price)unverified.push('A listed price ('+price+') was supplied, but its suitability or buyer willingness to pay was not verified.');
+    if(['png','jpg','jpeg','webp'].includes(ext))unverified.push(
+      'Image review covered file properties only, not the visual persuasiveness of the offer or design.');
+    const stageLabels=[
+      ['clarity','Offer clarity'],['value','Delivered value'],['trust','Buyer confidence'],['action','Buyer onboarding']
+    ];
+    const journey=stageLabels.map(([id,label])=>({
+      id,label,status:blockers.some(b=>b.stage===id)?'attention':strengths.some(x=>x.stage===id)?'observed':'unverified',
+      detail:blockers.some(b=>b.stage===id)?'A delivery-related concern needs review':
+        strengths.some(x=>x.stage===id)?'Supported file evidence was observed':'Cannot verify this stage from the supplied file'
+    }));
+    return {version:1,kind:'product',goal:'Understanding offer and delivery blockers',
+      goalEvidence:'Delivered file only; actual purchase behavior was not measured',
+      blockers,strengths,journey,unverified,
+      inspectedOfferPages:0,renderedPages:0,
+      scope:'Local file observations are post-purchase usability evidence, not proof of why someone did not buy.'};
+  }
   async function productReview(file,payload={}){
     if(!file||!file.name||!file.size||file.size>MAX_FILE)throw new Error('Select a nonempty file no larger than 15 MB.');
     const ext=file.name.split('.').pop().toLowerCase();
@@ -261,7 +330,8 @@
     check(checks,'Original file accessible','passed',`Read the selected ${ext.toUpperCase()} file locally (${(file.size/1048576).toFixed(2)} MB).`);
     const rank={critical:0,high:1,note:2};issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
     issues.forEach((item,i)=>item.id=i+1);
-    return {mode:'product',subject:file.name,pageTitle:file.name,summary:result.summary,
+    const conversion=productConversion(issues,checks,ext,payload);
+    return {mode:'product',conversion,subject:file.name,pageTitle:file.name,summary:result.summary,
       meta:result.meta+(payload.price?` · Listed price: ${String(payload.price).slice(0,30)}`:''),coverageLabel:result.coverageLabel,checkedAt:new Date().toISOString(),
       checked:checks.map(x=>x.name),checks,checksRun:checks.length,issues,totalDetected:issues.length,
       scope:'Local file inspection only; files are not uploaded to VYLENS. PDF text, file structure, ZIP metadata, instruction files and image properties are examined where supported. Visual layout, claim accuracy, buyer intent and sales conversion cannot be determined from these checks alone.',
