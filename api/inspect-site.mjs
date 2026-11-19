@@ -373,10 +373,17 @@ async function captureCommerceSignals(page){
     const buyingActions=rawActions.filter(el=>/\b(?:buy|purchase|checkout|pay now|order|subscribe|add to cart)\b/i.test(label(el)));
     const termsNearAction=buyingActions.some(action=>{
       const buttonTop=action.getBoundingClientRect().top;
-      return termsLinks.some(link=>{
+      const linkedNearby=termsLinks.some(link=>{
         const distance=Math.abs(link.getBoundingClientRect().top-buttonTop);
         return distance<=550;
       });
+      // Purchase disclosures can be plain text, not just policy links.
+      // Restrict this to the closest offer element, not the whole page/footer.
+      const nearby=action.closest('section,article,form,[class*="pricing" i],[class*="offer" i]')||
+        action.parentElement?.parentElement;
+      const localText=trim(nearby?.innerText||'',1300);
+      const writtenNearby=/\b(?:refunds?|returns?|cancellations?|all sales final|money.back guarantee|purchase terms)\b/i.test(localText);
+      return linkedNearby||writtenNearby;
     });
     const proofCandidates=[...main.querySelectorAll(
       '[class*="testimonial" i],[id*="testimonial" i],[class*="customer-review" i],[class*="case-study" i],blockquote'
