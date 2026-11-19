@@ -41,7 +41,7 @@ body.conversion-mode button:focus-visible,
 body.conversion-mode a:focus-visible,
 body.conversion-mode summary:focus-visible{outline:3px solid #88C82C;outline-offset:3px}
 
-body.conversion-mode .report-wrap{max-width:1360px;padding:0 clamp(20px,4vw,64px);margin:0 auto}
+body.conversion-mode .report-wrap{max-width:1440px;padding:0 clamp(20px,3.8vw,56px);margin:0 auto}
 body.conversion-mode .report-hero{
   display:flex;flex-direction:column;align-items:flex-start;gap:0;
   padding:47px 0 24px;min-width:0
@@ -94,7 +94,7 @@ body.conversion-mode .ui-partial-note{
   color:#82784D;font-size:11px;line-height:1.5
 }
 body.conversion-mode .conversion-body-grid{
-  display:grid;grid-template-columns:minmax(0,2.1fr) minmax(295px,1fr);
+  display:grid;grid-template-columns:minmax(0,2fr) minmax(295px,1fr);
   gap:28px;align-items:start;min-width:0
 }
 body.conversion-mode .conversion-findings-column,
@@ -141,7 +141,7 @@ body.conversion-mode .ui-feature-lead{
 body.conversion-mode .ui-feature-content{display:flex;flex-direction:column;gap:0}
 body.conversion-mode .ui-evidence-row{
   display:grid;grid-template-columns:42px minmax(132px,185px) minmax(0,1fr);
-  align-items:start;gap:13px;padding:11px 0;min-width:0
+  align-items:start;gap:13px;padding:7px 0;min-width:0
 }
 body.conversion-mode .ui-evidence-row>.lime-ui-icon{
   display:grid;place-items:center;width:38px;height:38px;
