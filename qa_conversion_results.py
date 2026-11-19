@@ -60,6 +60,9 @@ with sync_playwright() as pw:
             check(resp.status==200,f'{kind} results HTTP 200 at {width}')
             check(page.locator('#conversionReport').is_visible(),f'{kind} conversion view shown at {width}')
             check(page.locator('#buyerJourney .journey-stage').count()==4,f'{kind} four buyer stages at {width}')
+            check(page.locator('#primaryBlocker').evaluate('(e)=>e.getBoundingClientRect().top') <
+                  page.locator('.journey-section').evaluate('(e)=>e.getBoundingClientRect().top'),
+                  f'{kind} first useful buyer finding comes before summary cards at {width}')
             check(not page.locator('.metrics-section').is_visible(),
                   f'{kind} technical metrics initially secondary at {width}')
             check(page.locator('#technicalAppendix').is_visible() and
