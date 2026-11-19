@@ -39,6 +39,7 @@
     if (/navigation|broken.link|links/.test(name)) return 'Navigation|Visitors may have difficulty reaching linked pages.';
     if (/security|transport|https/.test(name)) return 'Security|Some expected safeguards may be missing.';
     if (/policy|legal/.test(name)) return 'Policy clarity|Visitors may find some policy information incomplete or unclear.';
+    if (/completeness|draft|placeholder/.test(name)) return 'Product readiness|Some parts of the deliverable may need finishing or review before sharing.';
     if (/mobile|viewport|responsive/.test(name)) return 'Mobile experience|Viewing the page on smaller screens may be affected.';
     if (/sharing|social/.test(name)) return 'Link previews|Links shared elsewhere may show incomplete information.';
     if (/brand|favicon/.test(name)) return 'Brand recognition|The browser tab or shared identity may be harder to recognize.';
@@ -249,7 +250,7 @@
         allChip.type='button';
         allChip.dataset.area='all';
         allChip.setAttribute('aria-controls','findingsList');
-        allChip.append(by('span','','All areas'),by('strong','',issues.length));
+        allChip.append(by('span','','All areas'),by('strong','',issues.reduce((sum,item)=>sum+issueWeight(item),0)));
         allChip.addEventListener('click',() => {activeArea=null;showFindings();});
         chips.append(allChip);
       }

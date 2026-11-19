@@ -84,6 +84,8 @@ with sync_playwright() as playwright:
     check(page.locator('#printAppendix').evaluate('(e)=>getComputedStyle(e).display')!='none',
           'Print stylesheet includes full report')
     page.emulate_media(media='screen')
+    check(page.locator('.report-footer a').filter(has_text='Contact').count()==1,
+          'Results footer has one contact link')
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
 
     # "Scan another file" must return to Product tab, not Website.
@@ -109,6 +111,8 @@ with sync_playwright() as playwright:
             check(mobile.locator('#submitAudit').is_visible(),f'Audit CTA visible at {width}px')
             mobile.screenshot(path=str(CAPTURE/f'landing-{width}.png'),full_page=True,animations='disabled')
         if width==390:
+            check(not mobile.locator('#mobileDock').is_visible(),
+                  'No sticky button obscures mobile content')
             mobile.locator('#menuButton').click()
             check(mobile.locator('#mobileMenu').is_visible(),'Mobile menu opens')
             mobile.locator('#mobileMenu a').first.click()

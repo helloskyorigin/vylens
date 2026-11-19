@@ -56,3 +56,8 @@ button.area-chip.is-active{background:#e9f8d9;border-color:#badb91;color:#314e22
 .coverage-policy{color:#688249}.coverage-status{color:#9b7c56}.coverage-status.is-verified{color:#4c8631}
 @media(max-width:700px){.coverage{margin-top:12px;padding:15px 14px 0;border-radius:16px}.coverage-top strong{font-size:12px}.coverage-top p{font-size:10px}.coverage-legal{font-size:9px;padding:6px 8px}.coverage-page-meta{gap:5px}.coverage-page-meta small{font-size:8.5px}}
 @media print{.coverage{padding:10px;border:1px solid #ddd;background:white}.coverage-track,.coverage-details{display:none!important}.coverage-top p{color:#555}}
+
+/* Hide skip navigation until keyboard focus, including full-page captures and print. */
+.skip-link:not(:focus){position:absolute!important;top:0!important;left:0!important;width:1px!important;height:1px!important;padding:0!important;margin:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+.skip-link:focus{position:fixed!important;top:12px!important;left:12px!important;z-index:1000!important;width:auto!important;height:auto!important;clip-path:none!important}
+@media print{.skip-link{display:none!important}}

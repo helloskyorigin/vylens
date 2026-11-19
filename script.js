@@ -7,7 +7,7 @@
   const auditData = {
     website: {
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
-      description: "Check real page-source problems before they reach your visitors. See the exact evidence and fixes.",
+      description: "Inspect your public website pages for observable issues, including mobile and policy-page checks. See evidence and practical fixes.",
       cta: 'Find My Conversion Leaks',
       mobileTitle: 'Example CTA blends in',
       mobileDescription: 'The sample button needs more contrast.',
