@@ -36,9 +36,11 @@
   write('heroState',sessionStorage.getItem('vylens:imported')==='1'?
     'IMPORTED REPORT · NOT A NEW SCAN':
     product?'DIGITAL PRODUCT · BUYER REVIEW':'CONVERSION BLOCKER REVIEW');
+  const shallow=!Number(d.inspectedOfferPages)&&!Number(d.renderedPages);
   write('reportHeadline',count?
     (count===1?'1 potential buying blocker to review.':count+' potential buying blockers to review.'):
-    product?'Your product review is ready.':'No specific buying blocker confirmed.');
+    shallow?'Not enough buying evidence to diagnose yet.':
+    'No specific buying blockers detected in the inspected pages.');
   write('conversionKicker',product?'PRODUCT & OFFER EVIDENCE':'PUBLIC BUYING EXPERIENCE');
   write('conversionCount',count?count+' possible blocker'+(count===1?'':'s'):'No confirmed blocker');
   write('conversionTitle',product?
@@ -57,7 +59,11 @@
   write('limitationsCount',limitations.length+' limitations');
   limitations.forEach(note=>$('conversionUnverified').append(element('p','',note)));
   const stageCopy={attention:'Needs review',observed:'Evidence found',unverified:'Not verified'};
-  d.journey.slice(0,4).forEach((stage,i)=>{
+  const journeyOrder=['clarity','value','trust','action'];
+  const reliableJourney=journeyOrder.map(id=>
+    d.journey.find(stage=>stage&&typeof stage==='object'&&stage.id===id)||
+    {id,label:stages[id],status:'unverified',detail:'Not assessed from the available evidence'});
+  reliableJourney.forEach((stage,i)=>{
     const key=validStage(stage.id),state=['attention','observed'].includes(stage.status)?stage.status:'unverified';
     const card=element('div','journey-stage '+state);
     card.append(element('span','journey-index',String(i+1).padStart(2,'0')),
@@ -239,6 +245,15 @@
         if(val)part.append(element('p','',label+': '+clean(val,850)));
       printable.append(part);
     });
+    printable.append(element('h3','','Priority improvement plan'));
+    if(!count)printable.append(element('p','','No unsupported fixes were recommended from the available evidence.'));
+    blockers.slice(0,5).forEach((item,i)=>
+      printable.append(element('p','',(i+1)+'. '+clean(item.fix||'Review the evidence.',700))));
+    if(strengths.length){
+      printable.append(element('h3','','Recorded positive observations'));
+      strengths.slice(0,5).forEach(item=>
+        printable.append(element('p','',clean(item.title||'',130)+' — '+clean(item.evidence||'',450))));
+    }
     printable.append(element('h3','','Limitations and unverified areas'));
     limitations.forEach(note=>printable.append(element('p','',note)));
     root.prepend(printable);
