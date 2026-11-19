@@ -25,7 +25,10 @@ const grouped=multi.aggregate([
   {url:'https://example.org/pricing',issues:[b,x]},
   {url:'https://example.org/privacy',issues:[x]}
 ]);
-assert.equal(grouped.length,3,'do not merge different evidence');
+assert.equal(grouped.length,2,'same issue type groups across pages while preserving exact page evidence');
+assert.equal(grouped.find(i=>i.title==='Page title length deserves review').affectedCount,2);
+assert.deepEqual(grouped.find(i=>i.title==='Page title length deserves review').occurrences.map(x=>x.evidence),
+  ['Title contains 9 characters','Title contains 80 characters']);
 assert.equal(grouped.find(i=>i.title==='Document language not declared').affectedCount,3);
 assert.deepEqual(grouped.find(i=>i.title==='Document language not declared').affectedPages,['/','/pricing','/privacy']);
 assert.equal(grouped.find(i=>i.title==='Document language not declared').occurrences.length,3);
@@ -34,6 +37,8 @@ assert.equal(grouped.find(i=>i.title==='Document language not declared').occurre
 assert.ok(multi.policyContentReview('https://example.org/privacy','Short text','').issues.some(i=>i.title.includes('very little readable')));
 assert.ok(multi.policyContentReview('https://example.org/terms','[insert company name] '.repeat(14),'').issues.some(i=>i.title.includes('placeholder')));
 assert.equal(multi.policyContentReview('https://example.org/privacy','Detailed privacy terms and clear contact instructions. '.repeat(18),'').issues.length,0);
+assert.equal(multi.policyContentReview('https://example.org/privacy','Detailed privacy terms and clear contact instructions. '.repeat(18),'').checks[0].status,'observed',
+  'adequate text length cannot certify a policy as passed');
 assert.equal(multi.policyContentReview('https://example.org/contact','Short contact details','').issues.length,0);
 
 const valid='<html lang="en"><head><title>Independent tools for creators</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><h1>Tools</h1></body></html>';
@@ -81,7 +86,9 @@ assert.equal(dom.get('affectedOccurrences').textContent,'5 affected-page occurre
 assert.equal(dom.get('findingsList').children.length,2);
 const first=dom.get('findingsList').children[0];
 assert.ok(first.children[0].children[1].children[1].children[0].textContent.includes('2 affected pages'));
-console.log('PASS multi-page accuracy: robots, policy, distinct evidence, HTTP headers, affected-page counts');
+assert.ok(dom.get('priorityFindingTitle').textContent.includes('Page title length'));
+assert.ok(dom.get('impactText').textContent.includes('Title contains'));
+console.log('PASS multi-page accuracy: robots, policy, grouped page-specific evidence, accurate report priorities, HTTP headers and affected-page counts');
 
 
 // Real DOM-browser observations: no fabricated issue for clean signals.
