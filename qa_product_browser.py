@@ -22,12 +22,18 @@ with sync_playwright() as pw:
  def run(name,script):
   val=page.evaluate(script)
   print(name,json.dumps(val)[:600]);return val
- good=run('Markdown clear',"""async () => { const f=new File(['# Getting Started\\n\\n## Step One\\nFill in the details and export your file.'],'guide.md',{type:'text/markdown'}); let r=await VylensCore.productReview(f);return {checks:r.checksRun,issues:r.issues.map(x=>x.title),passes:r.checks.filter(x=>x.status==='passed').length};}""")
+ good=run('Markdown clear',"""async () => { const f=new File(['# Getting Started\\n\\n## Step One\\nFill in the details and export your file.'],'guide.md',{type:'text/markdown'}); let r=await VylensCore.productReview(f);return {checks:r.checksRun,issues:r.issues.map(x=>x.title),passes:r.checks.filter(x=>x.status==='passed').length,conversion:r.conversion};}""")
  assert good['checks']>=4 and good['passes']>0
+ assert good['conversion']['kind']=='product' and len(good['conversion']['journey'])==4
+ assert not good['conversion']['blockers'],'clean simple guide has no invented sales blocker'
+ assert any('cannot reveal why visitors did not buy' in x for x in good['conversion']['unverified'])
  observed=run('Neutral observation',"""async () => {const r=await VylensCore.productReview(new File(['A short text note without section markers.'],'note.md'));return r.checks.find(x=>x.name==='Section heading markers').status;}""")
  assert observed=='observed',observed
  placeholder=run('Template markers',"""async () => { const f=new File(['# A TEMPLATE\\nTODO insert your company here.'],'template.md');let r=await VylensCore.productReview(f);return r.issues.map(x=>[x.title,x.severity]);}""")
  assert all(x[1]=='note' for x in placeholder)
+ conversion=run('Local buyer review',"""async () => {const r=await VylensCore.productReview(new File(['# Offer guide\\nTODO: replace draft text.'],'kit.md'));return {count:r.conversion.blockers.length,stages:r.conversion.journey.map(x=>x.id),evidence:r.conversion.blockers.map(x=>x.evidence)};}""")
+ assert conversion['count']>=1 and 'trust' in conversion['stages']
+ assert any('TODO' in x for x in conversion['evidence'])
  z=run('ZIP with guide',f"""async () => {{let a=Uint8Array.from(atob('{ZIP}'),c=>c.charCodeAt(0));let f=new File([a],'bundle.zip');let r=await VylensCore.productReview(f);return {{checks:r.checksRun,critical:r.issues.filter(x=>x.severity==='critical').length,detail:r.checks.filter(x=>x.name==='Instructions readability')}};}}""")
  assert z['critical']==0 and z['checks']>=7
  ze=run('Empty archive',f"""async () => {{let a=Uint8Array.from(atob('{EMPTY}'),c=>c.charCodeAt(0));let r=await VylensCore.productReview(new File([a],'empty.zip'));return r.issues.map(x=>[x.title,x.severity]);}}""")
