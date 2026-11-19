@@ -94,6 +94,19 @@ try{
   const lateSignals=await engine.captureCommerceSignals(page);
   assert.ok(lateSignals.actions.some(x=>x.label==='Buy now'&&x.inFirstView===false&&x.top>1100),
     'first screen visibility is measured, not guessed from button text');
+  // A nav/header CTA is a legitimate public buying action, not an absent CTA.
+  const navOffer='<html><body><header><nav><a href="/checkout">Buy now</a></nav></header>'+
+    '<main><h1>Get a buyer-focused audit</h1><p>$19</p><a href="/details">Learn more</a>'+
+    '</main></body></html>';
+  await page.setContent(navOffer,{waitUntil:'load'});
+  const navSignals=await engine.captureCommerceSignals(page);
+  assert.ok(navSignals.actions.some(x=>x.label==='Buy now'&&x.region==='navigation'),
+    'main-independent header buying link is recorded with correct region');
+  const navReport=engine.analyzeWebsiteConversion([{
+    url:'https://example.org/',status:'rendered',commerce:navSignals
+  }],{coverage:{complete:true}});
+  assert.ok(!navReport.blockers.some(x=>/action labels|main buying action may appear late|Purchase terms/i.test(x.title)),
+    'navbar purchase link prevents false missing-CTA/terms warning');
   // A newsletter signup is not itself a paid purchase action.
   const newsletter='<html><body><main><h1>Buy the guide</h1><p>$29</p>'+
     '<form id="newsletter"><label>Email updates</label><input type="email" />'+

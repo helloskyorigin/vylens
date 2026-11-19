@@ -356,8 +356,16 @@ async function captureCommerceSignals(page){
     const label=el=>trim(el.getAttribute('aria-label')||el.innerText||
       el.getAttribute('value')||el.getAttribute('title')||'',100);
     const purchaseAction=/^(?:(?:buy|purchase)(?:\s+(?:now|this|the|my|your|access|for)\b[^\n]{0,65})?|checkout|check out|pay now|order now|add to cart|subscribe(?:\s+now)?)\s*[.!?›→]*$/i;
-    const rawActions=[...main.querySelectorAll('a[href],button,[role="button"],input[type="submit"]')].slice(0,250)
+    const bodyActions=[...main.querySelectorAll('a[href],button,[role="button"],input[type="submit"]')].slice(0,250)
       .filter(el=>visible(el)&&!el.closest('nav,header,footer,aside'));
+    // Many legitimate public offers have their ONLY purchase link in a
+    // fixed header/navigation. Include it without treating the header as
+    // evidence about disclosures next to a product checkout section.
+    const headerActions=[...document.querySelectorAll('header a[href],header button,nav a[href],nav button')]
+      .slice(0,100).filter(visible).filter(el=>
+        /^(?:buy|purchase|order|checkout|pay now|subscribe|sign ?up|get started|start free|register|book demo)\b/i.test(label(el)));
+    const rawActions=[...bodyActions,...headerActions]
+      .filter((el,i,list)=>list.indexOf(el)===i).slice(0,250);
     const actions=rawActions.map(el=>{
       let path='';
       if(el.matches('a[href]')){
@@ -385,6 +393,7 @@ async function captureCommerceSignals(page){
       const centerReachable=onScreen?!!hit&&(hit===el||el.contains(hit)):null;
       const clippedHorizontally=rect.left< -3||rect.right>window.innerWidth+3;
       return {label:actionLabel,path,isNewsletter,
+        region:el.closest('nav,header')?'navigation':'main',
         isPurchaseAction:!isNewsletter&&purchaseAction.test(actionLabel),
         isPlaceholderDestination:el.matches('a[href]')&&/^(?:#|javascript:.*)$/i.test(href),
         top:Math.round(rect.top),
@@ -400,6 +409,7 @@ async function captureCommerceSignals(page){
     const hasPurchaseTerms=termsLinks.length>0||
       /refund policy|refunds? available|all sales final|money.back guarantee/i.test(content);
     const buyingActions=rawActions.filter(el=>{
+      if(el.closest('nav,header'))return false;
       if(!purchaseAction.test(label(el)))return false;
       const form=el.closest('form');
       const context=String(form?.id||'')+' '+String(form?.getAttribute('aria-label')||'')+
