@@ -24,6 +24,8 @@ jobs:
       - name: Validate frontend and scanner JavaScript syntax
         run: |
           node --check results.js
+          node --check conversion-results.js
+          node --check lib/conversion-engine.mjs
           node --check analysis.js
           node --check script.js
           node --check audit-core.js
@@ -31,6 +33,8 @@ jobs:
           node --check api/inspect.mjs
       - name: Test crawl accuracy, legal-page heuristics and result counts
         run: node qa_multisite_accuracy.mjs
+      - name: Test conversion-blocker analysis, evidence and false positives
+        run: node qa_conversion_engine.mjs
       - name: Test evidence-first problem engine and metadata accuracy
         run: node qa_problem_engine.mjs
       - name: Test actual rendered DOM fixtures in Chromium
