@@ -48,6 +48,8 @@ jobs:
         run: node qa_problem_engine.mjs
       - name: Test actual rendered DOM fixtures in Chromium
         run: node qa_rendered_fixture.mjs
+      - name: Test real Chromium buyer scenarios across desktop and mobile
+        run: node qa_commercial_acceptance.mjs
       - name: Verify deployed browser-audit endpoint
         shell: bash
         run: |
