@@ -25,6 +25,7 @@ jobs:
         run: |
           node --check results.js
           node --check conversion-results.js
+          node --check results-lime.js
           node --check lib/conversion-engine.mjs
           node --check analysis.js
           node --check script.js
