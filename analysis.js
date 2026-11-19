@@ -218,7 +218,7 @@
         const key=value=>{
           if(value.mode==='website'){
             try{
-              const u=new URL(value.url);return u.origin+u.pathname.replace(/\\/$/,'');
+              const u=new URL(value.url);return u.origin+u.pathname.replace(/\/$/,'');
             }catch{return '';}
           }
           return String(value.subject||'').trim().toLowerCase();
