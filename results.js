@@ -90,7 +90,8 @@
     main.append(by('strong', '', clean(issue.title || 'Finding', 160)), by('small', '', issueCategory(issue)));
     const sev = severity(issue);
     const sevEl = by('span', 'severity ' + sev, sev === 'critical' ? 'Critical' : sev === 'high' ? 'High' : 'Note');
-    const chevron = by('svg','chevron');
+    const chevron = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    chevron.setAttribute('class','chevron');
     chevron.setAttribute('viewBox','0 0 24 24');
     chevron.setAttribute('aria-hidden','true');
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -120,7 +121,7 @@
     node.append(body);
     return node;
   }
-  function printDetails(issues, impacts, areas, report) {
+  function printDetails(issues, report) {
     const root = $('printAppendix');
     // The impact and affected areas already appear on the printable page.
     // Keep one complete list of findings rather than repeating each section.
@@ -162,7 +163,12 @@
     if (!issues.length) {
       const calm = by('div','empty-state');
       calm.append(by('span','empty-symbol','✓'),by('div','',''));
-      calm.lastChild.append(by('strong','','No issues detected.'),by('p','','Nothing was flagged by the checks completed.'));
+      const attempts = checkCount(report);
+      const unavailable = Array.isArray(report.checks) ? report.checks.filter(check => check?.status === 'unverified').length : 0;
+      const cleanResult = attempts > 0 && unavailable === 0;
+      const mainText = attempts === 0 ? 'No checks completed.' : cleanResult ? 'No issues detected.' : 'No confirmed issues found.';
+      const helpText = attempts === 0 ? 'Please run a new audit.' : unavailable > 0 ? 'Some checks could not be verified.' : 'Nothing was flagged by the checks completed.';
+      calm.lastChild.append(by('strong','',mainText),by('p','',helpText));
       impactList.append(calm);
       $('areasSection').hidden = true;
       $('findingsSection').hidden = true;
@@ -187,24 +193,36 @@
           : issues;
         list.replaceChildren();
         filtered.forEach((issue,index) => list.append(finding(issue,index+1,index===0)));
-        put('findingsCount', filtered.length + (filtered.length === 1 ? ' issue' : ' issues'));
+        put('findingsCount',filtered.length + (filtered.length === 1 ? ' issue' : ' issues'));
         for (const chip of chips.children) {
-          const selected = chip.dataset.area === activeArea;
-          chip.classList.toggle('is-active', selected);
-          chip.setAttribute('aria-pressed', String(selected));
+          if (chip.tagName && chip.tagName.toLowerCase() !== 'button') continue;
+          const selected = chip.dataset.area === (activeArea ?? 'all');
+          chip.classList.toggle('is-active',selected);
+          chip.setAttribute('aria-pressed',String(selected));
         }
       };
+      // A single area needs no redundant filter. Multiple areas get an explicit reset.
+      if (areas.length > 1) {
+        const allChip = by('button','area-chip');
+        allChip.type='button';
+        allChip.dataset.area='all';
+        allChip.setAttribute('aria-controls','findingsList');
+        allChip.append(by('span','','All areas'),by('strong','',issues.length));
+        allChip.addEventListener('click',() => {activeArea=null;showFindings();});
+        chips.append(allChip);
+      }
       areas.forEach(area => {
-        const chip = by('button','area-chip');
-        chip.type='button';
-        chip.dataset.area=area.name.toLowerCase();
-        chip.setAttribute('aria-pressed','false');
-        chip.setAttribute('aria-label','Filter findings: '+area.name);
+        const interactive=areas.length > 1;
+        const chip = by(interactive?'button':'span','area-chip'+(interactive?'':' is-static'));
+        if (interactive) {
+          chip.type='button';
+          chip.dataset.area=area.name.toLowerCase();
+          chip.setAttribute('aria-controls','findingsList');
+          chip.setAttribute('aria-pressed','false');
+          chip.setAttribute('aria-label','Show findings in '+area.name);
+          chip.addEventListener('click',() => {activeArea=chip.dataset.area;showFindings();});
+        }
         chip.append(by('span','',area.name),by('strong','',area.count));
-        chip.addEventListener('click',() => {
-          activeArea = activeArea === chip.dataset.area ? null : chip.dataset.area;
-          showFindings();
-        });
         chips.append(chip);
       });
       showFindings();
@@ -212,9 +230,10 @@
     put('scopeNote',report.mode === 'website'
       ? 'Based on available website source. Visual design and conversion behavior were not tested.'
       : 'Based on the supplied file and supported checks. Actual buyer behavior was not measured.');
-    printDetails(issues, impacts, areas, report);
+    printDetails(issues, report);
 
     $('savePdf').addEventListener('click', () => window.print());
+    if (report.mode === 'product') $('recheck').lastChild.textContent = 'Scan another file';
     $('recheck').addEventListener('click', () => {
       if (report.mode === 'website' && report.url) {
         try {

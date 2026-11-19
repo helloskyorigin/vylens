@@ -14,3 +14,26 @@
 @media(max-width:365px){.report-wrap{padding:0 14px}.report-hero h1{font-size:33px}.metric{padding:12px}.metric strong{font-size:34px}.finding-head{gap:7px}.severity{padding:5px 7px;font-size:9px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 @media print{@page{size:auto;margin:14mm}html,body{background:#fff!important;color:#111!important}body{font:10pt/1.4 Arial,sans-serif;overflow:visible!important}.page-header,.findings-section,.report-actions,.report-footer,.scope-note{display:none!important}.report-wrap{max-width:none!important;padding:0!important}.report-hero{padding:2px 0 18px}.report-hero h1{font-size:29pt}.metrics-section{gap:8px}.metric{height:78px;padding:11px;border-color:#d5ded0}.metric strong{font-size:25pt}.impact-section,.areas-section{margin-top:18px}.impact-list{box-shadow:none;padding:3px 9px}.impact-row{padding:9px 0;break-inside:avoid}.print-only{display:block!important;margin-top:20px}.print-only h2{font-size:15pt;margin:18px 0 9px}.print-line{font-size:10pt;margin:6px 0}.print-finding{break-inside:avoid;border-top:1px solid #ccd3c7;padding:11px 0}.print-finding h3{font-size:12pt;margin:0 0 6px}.print-finding p{font-size:9pt;margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere}.print-small{font-size:9pt;color:#666}}
+
+/* Audit polish — unambiguous area filtering, accessible mobile targets, predictable wrapping. */
+.areas-list{align-items:center}
+.area-chip{min-height:42px;transition:border-color .16s,background .16s,color .16s}
+button.area-chip{cursor:pointer}
+button.area-chip:hover{border-color:#c6dfa8;background:#f0f9e6}
+button.area-chip.is-active{background:#e9f8d9;border-color:#badb91;color:#314e22}
+.area-chip.is-static{cursor:default;background:#fafbf9}
+.finding-head:focus-visible,.area-chip:focus-visible{outline:3px solid #85b72c;outline-offset:3px}
+.finding[open] .finding-head{padding-bottom:14px}
+.finding-body{align-items:start}
+.impact-copy p,.issue-detail p{overflow-wrap:anywhere}
+@media(max-width:700px){
+ .impact-section,.areas-section,.findings-section{margin-top:33px}
+ .areas-list{gap:7px}
+ .area-chip{min-height:44px;font-size:11px;padding:10px 11px}
+ .finding-head{min-height:72px}
+ .severity{flex-shrink:0}
+ .impact-copy{overflow-wrap:anywhere}
+ .report-actions{gap:9px}
+}
+@media(max-width:360px){.finding-number{min-width:17px;flex-basis:17px}.finding-head{gap:6px}.finding-main strong{font-size:12px}.severity{font-size:9px;padding:5px 6px}}
+@media print{.area-chip.is-active{border-color:#d5ded0;background:#fff}.findings-section[hidden]{display:none!important}}
