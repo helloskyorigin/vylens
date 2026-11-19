@@ -81,6 +81,13 @@ try{
   await page.setContent(near,{waitUntil:'load'});
   const nearby=await engine.captureCommerceSignals(page);
   assert.equal(nearby.termsNearAction,true,'terms beside the CTA are detected');
+  const disclosure='<html><body><main><section><h1>Buy this product</h1>'+
+    '<p>$29 one-time</p><button>Buy now</button><p>All sales final.</p>'+
+    '</section></main></body></html>';
+  await page.setContent(disclosure,{waitUntil:'load'});
+  const plainTerms=await engine.captureCommerceSignals(page);
+  assert.equal(plainTerms.termsNearAction,true,
+    'nearby plain-text purchase conditions are recognized, without requiring a link');
   const late='<html><body><main><h1>Digital toolkit</h1><p>$29 one-time</p>'+
     '<div style="height:1700px"></div><a href="/purchase">Buy now</a></main></body></html>';
   await page.setContent(late,{waitUntil:'load'});
