@@ -163,6 +163,10 @@ with sync_playwright() as pw:
                 check("Review this improvement" not in
                       page.locator("#five-action-plan").inner_text(),
                       f"{kind}: action titles are specific, not generic at {width}")
+                first_change_title=page.locator("#five-change-0 .five-change-title").inner_text().strip()
+                first_change_action=page.locator("#five-change-0 .five-action-note span").first.inner_text().strip()
+                check(first_change_title.rstrip(".") != first_change_action.rstrip("."),
+                      f"{kind}: issue heading does not duplicate the fix text at {width}")
             if sample["conversion"]["strengths"]:
                 positives=page.locator(".five-positive-details")
                 check(positives.count()==1 and not positives.evaluate("(e)=>e.open"),

@@ -170,11 +170,9 @@
       action:'Check and replace unfinished sales-page wording'}
   };
   const plainTitle=item=>labels[issueKey(item)]?.issue||clean(item.title,155);
-  const actionTitle=item=>{
+  const planActionTitle=item=>{
     const mapped=labels[issueKey(item)]?.action;
     if(mapped)return mapped;
-    // A finding without a hardcoded label still needs a concrete instruction.
-    // Prefer its observed recommendation, never a generic "Review this" title.
     const fix=clean(item.fix,250);
     const first=fix.split(/[.!?](?:\s|$)/)[0].trim();
     if(first.length>=12&&first.length<=110&&
@@ -183,6 +181,8 @@
     }
     return clean(item.title,105)||'Inspect the recorded evidence';
   };
+  const actionTitle=item=>
+    labels[issueKey(item)]?.action||clean(item.title,110)||planActionTitle(item);
   const readableFix=item=>labels[issueKey(item)]?.fix||clean(item.fix,850);
   const buyerQuestion=item=>clean(item.buyerQuestion||labels[issueKey(item)]?.question||'',250);
   const location=item=>{
@@ -510,9 +510,9 @@
   changes.forEach((item,i)=>{
     const type=level(item);
     const button=make('button','five-plan-row');button.type='button';
-    button.setAttribute('aria-label','Open step '+(i+1)+': '+actionTitle(item));
+    button.setAttribute('aria-label','Open step '+(i+1)+': '+planActionTitle(item));
     const contents=make('span','five-plan-text');
-    append(contents,make('strong','',actionTitle(item)),
+    append(contents,make('strong','',planActionTitle(item)),
       make('small','', (stageNames[item.stage]||'Product review')+' · View instructions'));
     append(button,make('span','five-index '+type,String(i+1)),contents,
       make('span','five-plan-arrow','›'));
