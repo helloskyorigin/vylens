@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {analyzeWebsiteConversion,analyzeSourceOffer} from './lib/conversion-engine.mjs';
+import {analyzeWebsiteConversion,analyzeSourceOffer,_test} from './lib/conversion-engine.mjs';
 
 const page=(path,commerce)=>({url:'https://example.org'+path,status:'rendered',commerce});
 const offer=(overrides={})=>({
