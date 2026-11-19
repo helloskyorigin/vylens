@@ -394,3 +394,126 @@ body.five-report-ui .report-hero{padding-bottom:18px}
  .five-report .five-score-ring{width:96px;height:96px;flex-basis:96px}
  .five-report .five-problems-value{font-size:33px}}
 @media print{.five-report .five-bottom-actions{display:none!important}}
+
+
+/* Buyer Journey Replay + Conversion Fix Kit — scoped under existing five cards. */
+.five-report .five-replay,.five-report .five-fix-kit{
+ margin:15px 0 18px;padding:16px;border:1px solid #e4ebe0;
+ background:#f9fbf7;border-radius:17px;min-width:0
+}
+.five-report .five-replay-heading,.five-report .five-kit-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0
+}
+.five-report .five-replay-intro,.five-report .five-kit-title{
+ display:flex;flex:1;min-width:0;flex-direction:column;gap:3px
+}
+.five-report .five-replay-intro strong,.five-report .five-kit-title strong{
+ color:#182018;font:800 13.5px/1.4 var(--body);letter-spacing:-.01em
+}
+.five-report .five-replay-intro small,.five-report .five-kit-title small{
+ color:#71816d;font:500 11px/1.42 var(--body);overflow-wrap:anywhere
+}
+.five-report .five-replay-switch{
+ flex:0 0 auto;display:flex;align-items:center;padding:3px;border:1px solid #e3eadc;
+ border-radius:11px;background:#ecf1e8;gap:2px
+}
+.five-report .five-replay-switch button{
+ border:0;border-radius:8px;background:transparent;color:#758171;
+ cursor:pointer;font:750 10.5px/1.2 var(--body);padding:8px 9px;min-height:31px
+}
+.five-report .five-replay-switch button[aria-pressed="true"]{
+ background:#fff;color:#253826;box-shadow:0 1px 4px #17271615
+}
+.five-report .five-replay-steps{
+ display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:15px
+}
+.five-report .five-replay-step{
+ border:1px solid #edf0e9;background:#fff;border-radius:13px;
+ padding:12px;display:flex;align-items:flex-start;gap:9px;min-width:0
+}
+.five-report .five-replay-marker{
+ flex:0 0 25px;width:25px;height:25px;display:grid;place-items:center;
+ border-radius:50%;font:800 12px/1 var(--body);
+ color:#778476;background:#eff2ec
+}
+.five-report .five-replay-step.observed .five-replay-marker{color:#3d7625;background:#e8f8dd}
+.five-report .five-replay-step.review .five-replay-marker{color:#92610d;background:#fff1cf}
+.five-report .five-replay-copy{flex:1;min-width:0}
+.five-report .five-replay-copy strong{
+ display:block;color:#273526;font:800 11.5px/1.4 var(--body);margin:1px 0 4px
+}
+.five-report .five-replay-copy p{
+ color:#4d5d4b;font:500 11px/1.52 var(--body);overflow-wrap:anywhere;margin:0
+}
+.five-report .five-replay-copy small{
+ display:block;font:650 10px/1.4 var(--body);color:#869385;
+ margin-top:5px;overflow-wrap:anywhere
+}
+.five-report .five-kit-heading{margin-bottom:13px}
+.five-report .five-kit-copy-all,.five-report .five-kit-copy{
+ flex:0 0 auto;cursor:pointer;border:1px solid #d6e5c8;
+ background:#eaf7db;color:#365d23;border-radius:10px;
+ min-height:35px;padding:8px 11px;font:750 11px/1.3 var(--body)
+}
+.five-report .five-kit-copy-all:hover,.five-report .five-kit-copy:hover{background:#deefca}
+.five-report .five-kit-list{display:flex;flex-direction:column;gap:8px}
+.five-report .five-kit-item{
+ border:1px solid #e8ede4;background:#fff;
+ border-radius:13px;padding:12px 13px;min-width:0
+}
+.five-report .five-kit-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.five-report .five-kit-tag{
+ display:inline-flex;padding:4px 8px;border-radius:7px;
+ font:800 10px/1.25 var(--body)
+}
+.five-report .five-kit-tag.copy{color:#357318;background:#e9f8dd}
+.five-report .five-kit-tag.checklist{color:#866018;background:#fff4dd}
+.five-report .five-kit-asset-type{font:700 10.5px/1.35 var(--body);color:#869180}
+.five-report .five-kit-content{
+ font:650 12.5px/1.6 var(--body);color:#2e3c2b;
+ overflow-wrap:anywhere;white-space:pre-wrap;margin:10px 0
+}
+.five-report .five-kit-footer{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ border-top:1px solid #eff2eb;padding-top:9px
+}
+.five-report .five-kit-footer small{
+ font:500 10px/1.5 var(--body);color:#818d80;
+ flex:1;min-width:0;overflow-wrap:anywhere
+}
+.five-report .five-kit-copy{min-width:58px;min-height:33px}
+.five-report .five-kit-more{
+ margin:10px 0 0;width:100%;min-height:40px;cursor:pointer;
+ border:1px solid #e1ebd7;border-radius:10px;background:#f0f8e7;
+ color:#4d792d;font:750 11.5px var(--body)
+}
+@media(max-width:1100px){
+ .five-report .five-replay-steps{grid-template-columns:1fr}
+}
+@media(max-width:730px){
+ .five-report .five-replay,.five-report .five-fix-kit{margin:12px 0 16px;padding:14px}
+ .five-report .five-replay-steps{grid-template-columns:1fr 1fr}
+}
+@media(max-width:525px){
+ .five-report .five-replay,.five-report .five-fix-kit{padding:12px;border-radius:14px}
+ .five-report .five-replay-heading{align-items:flex-start;flex-direction:column;gap:10px}
+ .five-report .five-replay-switch{align-self:stretch;width:100%}
+ .five-report .five-replay-switch button{flex:1;font-size:11px;min-height:38px}
+ .five-report .five-replay-steps{grid-template-columns:1fr;gap:7px;margin-top:12px}
+ .five-report .five-replay-step{padding:10px 11px;min-height:58px}
+ .five-report .five-replay-copy strong{font-size:12px}
+ .five-report .five-replay-copy p{font-size:11.5px}
+ .five-report .five-kit-heading{align-items:flex-start}
+ .five-report .five-kit-title strong,.five-report .five-replay-intro strong{font-size:13px}
+ .five-report .five-kit-copy-all{font-size:10px;padding:8px 9px}
+ .five-report .five-kit-content{font-size:12px}
+ .five-report .five-kit-item{padding:11px}
+}
+@media print{
+ .five-report .five-replay,.five-report .five-fix-kit{break-inside:auto;padding:8px;border-color:#e2e9dd}
+ .five-report .five-replay-switch,.five-report .five-kit-copy,.five-report .five-kit-copy-all,
+ .five-report .five-kit-more{display:none!important}
+ .five-report .five-replay-steps{grid-template-columns:1fr 1fr}
+ .five-report .five-kit-item[hidden]{display:block!important}
+ .five-report .five-replay-step{break-inside:avoid}
+}
