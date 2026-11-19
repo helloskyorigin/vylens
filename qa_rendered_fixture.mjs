@@ -94,6 +94,17 @@ try{
   const lateSignals=await engine.captureCommerceSignals(page);
   assert.ok(lateSignals.actions.some(x=>x.label==='Buy now'&&x.inFirstView===false&&x.top>1100),
     'first screen visibility is measured, not guessed from button text');
+  // A newsletter signup is not itself a paid purchase action.
+  const newsletter='<html><body><main><h1>Buy the guide</h1><p>$29</p>'+
+    '<form id="newsletter"><label>Email updates</label><input type="email" />'+
+    '<button>Subscribe</button></form><a href="/checkout">Buy now</a>'+
+    '</main></body></html>';
+  await page.setContent(newsletter,{waitUntil:'load'});
+  const withEmail=await engine.captureCommerceSignals(page);
+  assert.ok(withEmail.actions.some(x=>x.label==='Subscribe'&&x.isNewsletter===true),
+    'actual newsletter form is identified before action inference');
+  assert.ok(withEmail.actions.some(x=>x.label==='Buy now'&&!x.isNewsletter),
+    'buying action stays independent from newsletter control');
   // Regression: score links with the word Purchase are not transactional CTAs.
   await page.setContent('<html><body><main><h1>Purchase readiness audit</h1>'+
     '<p>The audit is available for $5.</p><a href="/score" style="display:block;margin-top:1200px">'+

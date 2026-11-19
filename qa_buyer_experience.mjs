@@ -16,7 +16,7 @@ assert.equal(journey.desktop[2].status,'observed');
 assert.equal(journey.mobile[2].status,'review');
 assert.ok(journey.desktop[3].description.includes('/checkout'));
 assert.equal(journey.desktop[3].status,'unknown','href is not proof of successful checkout');
-assert.match(journey.scope,/No visitor recording/);
+assert.match(journey.scope,/not a recorded visitor path/);
 assert.equal(buildBuyerReplay([]),null);
 
 const scores=p('/',{
@@ -27,6 +27,24 @@ const scores=p('/',{
 const scoreJourney=buildBuyerReplay([scores]);
 assert.equal(scoreJourney.desktop[2].status,'review','score text is not a real CTA');
 assert.equal(scoreJourney.desktop[3].status,'unknown');
+const withNewsletter=p('/',{
+  heading:'Buy a guide',intro:'We help founders improve the way visitors discover digital products.',
+  hasPrice:true,priceSamples:['$29'],
+  actions:[
+    {label:'Subscribe',isNewsletter:true,path:'',top:110,inFirstView:true},
+    {label:'Buy now',path:'/checkout',top:860,inFirstView:false}
+  ],
+  mobileActions:[
+    {label:'Subscribe',isNewsletter:true,path:'',top:140,inFirstView:true},
+    {label:'Buy now',path:'/checkout',top:990,inFirstView:false}
+  ]
+});
+const purchaseJourney=buildBuyerReplay([withNewsletter]);
+assert.match(purchaseJourney.desktop[2].description,/Buy now/);
+assert.equal(purchaseJourney.desktop[2].status,'review',
+  'a newsletter button cannot hide a below-the-fold real checkout button');
+assert.match(purchaseJourney.mobile[2].description,/Buy now/);
+assert.match(purchaseJourney.desktop[3].title,/Check the destination/);
 
 const problems=[
   {id:'buyer-1',stage:'clarity',title:'The main headline is too generic to explain the offer',
