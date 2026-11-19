@@ -1,0 +1,85 @@
+name: VYLENS independent local quality gate
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vylens-local-quality
+  cancel-in-progress: true
+
+jobs:
+  buyer-engine:
+    name: Buyer engine and Chromium evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install crawler test dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Parse all relevant JavaScript
+        run: |
+          node --check api/inspect-site.mjs
+          node --check lib/action-intent.mjs
+          node --check lib/buyer-experience.mjs
+          node --check lib/conversion-engine.mjs
+          node --check results-five.js
+          node --check results-pdf.js
+          node --check analysis.js
+          node --check audit-core.js
+      - name: Test bounded crawler and metadata
+        run: node qa_multisite_accuracy.mjs
+      - name: Test conversion issue detection and false-positive controls
+        run: node qa_conversion_engine.mjs
+      - name: Test contextual CTA action classifier
+        run: node qa_action_intent.mjs
+      - name: Test journey checkpoints and Fix Kit source grounding
+        run: node qa_buyer_experience.mjs
+      - name: Test evidence-first scanner and safety
+        run: node qa_problem_engine.mjs
+      - name: Test live DOM geometry in headless Chromium
+        run: node qa_rendered_fixture.mjs
+      - name: Test realistic purchase scenarios on phone and desktop
+        run: node qa_commercial_acceptance.mjs
+
+  responsive-results:
+    name: Offline mobile, result, file and PDF QA
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.56.0-noble
+    timeout-minutes: 10
+    env:
+      VYLENS_BASE: http://127.0.0.1:8765
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python browser driver
+        run: python -m pip install playwright==1.56.0
+      - name: Verify local product-file parsing
+        run: python qa_product_browser.py
+      - name: Run the five-section Results quality matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/vylens-local-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/results.html -o /dev/null; then break; fi
+            sleep 1
+          done
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_conversion_results.py
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_focus_results.py
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_results_states.py
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_retry_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vylens-local-quality-captures
+          path: qa-captures/
+          retention-days: 7
