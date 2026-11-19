@@ -135,6 +135,11 @@
   <img src="./assets/vylens-mark.webp" alt="" width="68" height="68">
   <h1>No audit yet.</h1><p>Start a scan to see your results here.</p>
   <a href="./index.html#audit-tool">Start an audit <span aria-hidden="true">↗</span></a>
+  <div class="missing-divider">or reopen a report saved earlier</div>
+  <button id="importReport" class="import-report" type="button">Open saved VYLENS report (JSON)</button>
+  <input id="reportFile" type="file" accept=".json,application/json" hidden aria-label="Choose a saved VYLENS report JSON file">
+  <p id="reportImportError" class="import-error" role="alert" hidden></p>
+  <p class="import-note">Saved reports are opened in this browser tab. No file is uploaded.</p>
 </main>
 </body>
 </html>
