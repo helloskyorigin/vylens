@@ -391,3 +391,13 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8c
  .print-finding{break-inside:auto}
  .print-finding h3{break-after:avoid}
 }
+
+
+/* Offline report recovery */
+.missing-divider{margin:20px 0 10px;color:#82917b;font-size:11px}
+.import-report{min-height:43px;border:1px solid #dfe9d8;background:#f7fbf1;
+  color:#426b32;border-radius:12px;padding:10px 17px;font-size:12px;font-weight:800}
+.import-report:hover{background:#eefaeb}
+.import-report:focus-visible{outline:3px solid #8cb63d;outline-offset:3px}
+.import-note{margin:11px 0 0!important;font-size:11px!important;color:#899582!important}
+.import-error{margin:13px 0 0!important;color:#ae403c!important;font-size:12px!important}
