@@ -277,25 +277,67 @@
     put('year',new Date().getFullYear());
     renderChecks(report);
     renderCoverage(report);
-    const impacts=deriveImpact(issues);
-    if(issues.length){
-      const top=impacts.slice(0,3).map(x=>x.title.toLowerCase());
-      const areas=top.length===1?top[0]:top.length===2?top.join(' and '):
-        top.slice(0,-1).join(', ')+' and '+top.at(-1);
-      const urgent=totals.critical+totals.high;
-      put('impactText',urgent?
-        urgent+' high-priority finding'+(urgent===1?'':'s')+' need review. The detected issues relate to '+areas+'. Actual traffic or sales impact was not measured.':
-        'The scan found review items related to '+areas+'. No Critical or High findings were confirmed by the supported checks.');
-      impacts.slice(0,3).forEach(i=>$('impactTags').append(node('span','impact-chip',i.title)));
+    const highPriority=totals.critical+totals.high;
+    const c=report.coverage;
+    const partial=report.mode==='website'&&c&&!c.complete;
+    const incompleteChecks=Array.isArray(report.checks)?
+      report.checks.filter(item=>checkState(item)==='unverified').length:0;
+    const inspected=Number(c?.inspected)||0,discovered=Number(c?.discovered)||0;
+    put('heroState',report.mode==='product'?'FILE REVIEW READY':partial?'PARTIAL SITE AUDIT':'AUDIT READY');
+    put('reportHeadline',!checks?'No completed checks.':
+      highPriority?highPriority+' high-priority '+(highPriority===1?'finding':'findings')+' to review.':
+      issues.length?issues.length+' '+(issues.length===1?'finding':'findings')+' worth reviewing.':
+      'No confirmed issues in the completed checks.');
+    const coverageCopy=report.mode==='website'?
+      (discovered?inspected+' of '+discovered+' discovered pages inspected':
+        inspected+' pages inspected')+
+      (c?.rendered?', '+c.rendered+' browser-rendered':'')+
+      (c?.sourceOnly?', '+c.sourceOnly+' source-only':'')+
+      (partial?' · Coverage is partial.':' · Within discovered public-page coverage.'):
+      'Local file review only · Your original file was not uploaded.'+
+      (incompleteChecks?' Some checks could not be verified.':'');
+    put('coverageMessage',coverageCopy);
+    const first=issues[0];
+    if(first){
+      put('priorityStep','START HERE · PRIORITY 01');
+      put('prioritySeverity',severity(first)==='critical'?'Critical':severity(first)==='high'?'High priority':'Review');
+      $('prioritySeverity').className='priority-severity '+severity(first);
+      put('impactTitle',highPriority?'Start with this fix.':'Start with this finding.');
+      put('priorityFindingTitle',clean(first.title||'Finding',180));
+      put('impactText',clean(first.evidence||'This issue needs closer review. Only recorded evidence is shown.',650));
+      const location=clean(first.location||
+        (Array.isArray(first.occurrences)?first.occurrences[0]?.location:'')||'',240);
+      $('priorityLocation').hidden=!location;
+      if(location)put('priorityLocation','Found at · '+location);
+      $('priorityFixBox').hidden=!first.fix;
+      put('priorityFix',clean(first.fix||'',750));
+      $('priorityDetails').hidden=false;
     }else{
-      const unverified=Array.isArray(report.checks)?report.checks.filter(x=>checkState(x)==='unverified').length:0;
-      put('impactText',checks===0?'No checks were completed. Run another audit to inspect the site.':
-        unverified?'No confirmed problems in the completed checks. Some checks could not be verified.':
-        'No problems were flagged by the checks completed. Other issues may still exist.');
+      put('priorityStep',!checks?'CHECKS NOT COMPLETED':'SUPPORTED CHECKS');
+      put('prioritySeverity',incompleteChecks?'Some unverified':'No flagged findings');
+      $('prioritySeverity').className='priority-severity other';
+      put('impactTitle',!checks?'No check results available.':'No confirmed problems in the checked areas.');
+      put('priorityFindingTitle','');
+      put('impactText',!checks?
+        'The inspection did not produce recorded checks. Retry the audit to inspect the selected source.':
+        incompleteChecks||partial?
+        'Nothing was flagged by completed checks. Some pages or checks were not verified, so this is not an all-clear.':
+        'No problems were flagged by the supported checks. This does not certify complete website or product quality.');
+      $('priorityLocation').hidden=true;
+      $('priorityFixBox').hidden=true;
+      $('priorityDetails').hidden=true;
+      $('impactSection').classList.add('no-findings');
     }
     put('findingsTitle',totals.critical+totals.high?'Fix these first':'Findings to review');
     put('findingsCount',issues.length?(issues.length+' distinct '+(issues.length===1?'finding':'findings')):'No findings');
     const list=$('findingsList'),initial=Math.min(3,issues.length);
+    $('priorityDetails').addEventListener('click',()=>{
+      const item=list.querySelector('.finding');
+      if(!item)return;
+      item.open=true;
+      item.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});
+      item.querySelector('summary')?.focus({preventScroll:true});
+    });
     // A single open issue keeps the page compact on narrow screens.
     list.addEventListener('click',event=>{
       const heading=event.target.closest?.('summary.finding-head');
