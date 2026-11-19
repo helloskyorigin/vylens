@@ -37,3 +37,22 @@ button.area-chip.is-active{background:#e9f8d9;border-color:#badb91;color:#314e22
 }
 @media(max-width:360px){.finding-number{min-width:17px;flex-basis:17px}.finding-head{gap:6px}.finding-main strong{font-size:12px}.severity{font-size:9px;padding:5px 6px}}
 @media print{.area-chip.is-active{border-color:#d5ded0;background:#fff}.findings-section[hidden]{display:none!important}}
+
+/* Site crawl coverage: compact, readable and transparent on mobile. */
+.coverage{margin-top:16px;padding:18px 19px 0;border:1px solid #e6ece1;background:#fafcf8;border-radius:18px}
+.coverage-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.coverage-top strong{font:800 13px/1.4 var(--head);letter-spacing:-.025em}
+.coverage-top p{color:#7c8976;font-size:11px;line-height:1.5;margin:4px 0 0}
+.coverage-legal{flex-shrink:0;white-space:nowrap;font-size:10px;color:#537833;border:1px solid #dcecc9;background:#edf7e3;padding:7px 10px;border-radius:10px;font-weight:800}
+.coverage-track{height:5px;background:#e8eee3;border-radius:99px;margin:15px 0 0;overflow:hidden}
+.coverage-track>span{display:block;height:100%;width:0;background:#92d022;border-radius:99px;transition:width .3s}
+.coverage-details{margin-top:3px}.coverage-details summary{display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;cursor:pointer;padding:12px 0 14px;min-height:44px;font-size:11px;font-weight:800;color:#547044}
+.coverage-details summary::-webkit-details-marker{display:none}.coverage-details summary svg{height:15px;width:15px;color:#78966d;transition:transform .2s}
+.coverage-details[open] summary svg{transform:rotate(180deg)}
+.coverage-pages{max-height:245px;overflow-y:auto;border-top:1px solid #e6ece1;padding:4px 0 10px}
+.coverage-page{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #eef1eb}
+.coverage-page:last-child{border:0}.coverage-path{font-size:11px;color:#43543c;font-weight:700;overflow-wrap:anywhere;min-width:0}
+.coverage-page-meta{flex-shrink:0;display:flex;align-items:center;gap:7px}.coverage-page-meta small{font-size:9px;font-weight:800}
+.coverage-policy{color:#688249}.coverage-status{color:#9b7c56}.coverage-status.is-verified{color:#4c8631}
+@media(max-width:700px){.coverage{margin-top:12px;padding:15px 14px 0;border-radius:16px}.coverage-top strong{font-size:12px}.coverage-top p{font-size:10px}.coverage-legal{font-size:9px;padding:6px 8px}.coverage-page-meta{gap:5px}.coverage-page-meta small{font-size:8.5px}}
+@media print{.coverage{padding:10px;border:1px solid #ddd;background:white}.coverage-track,.coverage-details{display:none!important}.coverage-top p{color:#555}}

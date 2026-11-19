@@ -101,6 +101,8 @@
     node.append(head);
     const body = by('div', 'finding-body');
     if (issue.location) body.append(detail('LOCATION', issue.location));
+    if (Array.isArray(issue.affectedPages) && issue.affectedPages.length>1)
+      body.append(detail('AFFECTED PAGES',issue.affectedPages.join(', ')));
     if (issue.evidence) body.append(detail('EVIDENCE', issue.evidence));
     if (issue.fix) body.append(detail('HOW TO FIX', issue.fix, 'fix-detail'));
     if (issue.verify) body.append(detail('VERIFY', issue.verify));
@@ -131,15 +133,49 @@
       item.append(by('h3','', String(index + 1) + '. ' + clean(issue.title || 'Finding',160) + ' — ' + severity(issue).toUpperCase()));
       item.append(by('p','', 'Area: ' + issueCategory(issue)));
       if (issue.location) item.append(by('p','', 'Location: ' + clean(issue.location,500)));
+      if (Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
+        item.append(by('p','', 'Affected pages: ' + issue.affectedPages.join(', ')));
       if (issue.evidence) item.append(by('p','', 'Evidence: ' + clean(issue.evidence,1800)));
       if (issue.fix) item.append(by('p','', 'Fix: ' + clean(issue.fix,1800)));
       if (issue.verify) item.append(by('p','', 'Verify: ' + clean(issue.verify,1200)));
       root.append(item);
     });
+    if (report.mode==='website' && Array.isArray(report.pages) && report.pages.length) {
+      root.append(by('h2','','Page coverage'));
+      for(const page of report.pages.slice(0,70))
+        root.append(by('p','print-line',(page.path||'/')+' — '+page.status+(page.type==='legal'?' (policy)':'')));
+    }
     const scope = by('p','print-small', report.mode === 'website'
       ? 'Source-based audit. Rendered visual design, user behavior and actual sales were not tested.'
       : 'Product-file audit. Visual quality, buyer intent and actual sales were not measured.');
     root.append(scope);
+  }
+
+  function renderCoverage(report) {
+    const c=report.coverage;
+    if(!c || !Array.isArray(report.pages))return;
+    $('siteCoverage').hidden=false;
+    const total=Math.max(1,Number(c.discovered)||0),inspected=Number(c.inspected)||0;
+    put('coverageTitle',inspected+' of '+(Number(c.discovered)||0)+' pages inspected');
+    const pending=(Number(c.remaining)||0)+(Number(c.skipped)||0);
+    put('coverageSubtitle',c.complete?'All discovered pages checked.':
+      pending?pending+' page'+(pending===1?'':'s')+' not fully checked.':
+      c.sourceOnly?c.sourceOnly+' page'+(c.sourceOnly===1?'':'s')+' checked without browser rendering.':
+      'Only discovered public pages are included.');
+    put('legalCount',(Number(c.legal)||0)+' legal / policy');
+    $('coverageFill').style.width=Math.max(0,Math.min(100,Math.round(inspected/total*100)))+'%';
+    for(const p of report.pages.slice(0,70)) {
+      const row=by('div','coverage-page');
+      const path=by('span','coverage-path',clean(p.path||'/',160));
+      path.title=clean(p.url||p.path,300);
+      const meta=by('span','coverage-page-meta');
+      if(p.type==='legal')meta.append(by('small','coverage-policy','Policy'));
+      const text=p.status==='rendered'?'Rendered':p.status==='source'?'Source only':p.status==='skipped'?'Skipped':'Unverified';
+      meta.append(by('small','coverage-status '+(p.status==='rendered'?'is-verified':'is-unverified'),text));
+      row.append(path,meta);
+      if(p.reason)row.title=clean(p.reason,150);
+      $('coveragePages').append(row);
+    }
   }
   function render(report) {
     const issues = report.issues.slice().sort((a,b) => rank(severity(a))-rank(severity(b)));
@@ -156,6 +192,7 @@
     put('reportSubject',clean(report.subject || report.url || 'Your product',180));
     put('reportDate',dateLabel(report));
     put('year',new Date().getFullYear());
+    renderCoverage(report);
 
     const impacts = impactMap(issues);
     const areas = areaMap(issues);
@@ -228,7 +265,7 @@
       showFindings();
     }
     put('scopeNote',report.mode === 'website'
-      ? 'Based on available website source. Visual design and conversion behavior were not tested.'
+      ? clean(report.scope || 'Only supported public checks were performed; real conversions were not measured.',650)
       : 'Based on the supplied file and supported checks. Actual buyer behavior was not measured.');
     printDetails(issues, report);
 

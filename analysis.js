@@ -12,8 +12,8 @@
   const messages = {
     website: [
       ['Reading your website…', 'Getting a closer look at your website.'],
-      ['Looking for meaningful signals…', 'Looking for details worth your attention.'],
-      ['Still looking closely…', 'Putting the details together.']
+      ['Discovering linked pages…', 'Checking the pages we can access.'],
+      ['Inspecting page layouts…', 'Reviewing what the browser renders.']
     ],
     product: [
       ['Opening your digital product…', 'Your file stays on this device.'],
@@ -22,7 +22,7 @@
     ]
   };
   function readableError(error) {
-    if (error?.name === 'AbortError') return 'This website took too long to respond. Please try again.';
+    if (error?.name === 'AbortError') return 'The website audit ran too long. Please retry.';
     return error?.message || 'Something interrupted this inspection.';
   }
   function renderMessage(headline, description) {
@@ -81,10 +81,10 @@
         const url = payload.url;
         if (!url) throw new Error('No website URL was provided. Please start from the homepage.');
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 28000);
+        const timeout = setTimeout(() => controller.abort(), 135000);
         let response;
         try {
-          response = await fetch('./api/inspect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});
+          response = await fetch('./api/inspect-site', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});
         } finally {clearTimeout(timeout);}
         const type=response.headers.get('content-type')||'';
         if (!type.includes('application/json')) {
@@ -94,7 +94,7 @@
         let data;
         try {data = await response.json();} catch {throw new Error('The scanner service returned invalid JSON.');}
         if (!response.ok) throw new Error(data?.error || `Scanner service returned HTTP ${response.status}.`);
-        result={...data,summary:data.summary||'Public source checks completed.',meta:data.meta||'Public HTML · no visual rendering',coverageLabel:data.coverageLabel||'Page source'};
+        result={...data,summary:data.summary||'Multi-page inspection completed.',meta:data.meta||'Public pages',coverageLabel:data.coverageLabel||'Site audit'};
       } else {
         if (!selectedFile) { const transfer = await window.VylensCore.takeFile(); selectedFile = transfer?.file || null; }
         const file = selectedFile;

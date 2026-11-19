@@ -350,4 +350,4 @@ export async function POST(request){
     return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.',failureCode,failureType},bad?400:422);
   }
 }
-export const _test={isPublicIP,choosePublicAddress,pinnedLookup,validateURL,review,scan,decode,getAttr};
+export const _test={isPublicIP,choosePublicAddress,pinnedLookup,validateURL,review,scan,fetchPublic,decode,getAttr};

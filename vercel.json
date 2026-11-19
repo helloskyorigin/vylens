@@ -1,9 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/inspect.mjs": { "maxDuration": 30 }
+    "api/inspect.mjs": {
+      "maxDuration": 30
+    },
+    "api/inspect-site.mjs": {
+      "maxDuration": 160,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    }
   },
   "headers": [
-    {"source": "/api/(.*)", "headers": [{"key": "Cache-Control", "value": "no-store"}]}
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
   ]
 }
