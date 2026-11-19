@@ -177,16 +177,25 @@
       target.append(row);
     }
     const root=$('checkBreakdownList'),na=$('notApplicableList');
-    for(const {item} of ordered.slice(0,650)){
-      if(checkState(item)==='not_applicable')addRow(na,item);
-      else addRow(root,item);
-    }
+    const relevant=ordered.filter(({item})=>checkState(item)!=='not_applicable');
+    const notRelevant=ordered.filter(({item})=>checkState(item)==='not_applicable');
+    for(const {item} of notRelevant)addRow(na,item);
     if(!checks.length)root.append(node('p','panel-empty','No checks were recorded.'));
     if(counts.not_applicable){
       $('notApplicableGroup').hidden=false;
       put('notApplicableSummary',counts.not_applicable+' checks not applicable to these pages');
     }
-    if(ordered.length>650)root.append(node('p','panel-empty','Showing the first 650 checks.'));
+    const more=$('moreChecks');let shown=0;
+    const addNext=()=>{
+      const next=Math.min(relevant.length,shown+40);
+      for(const {item} of relevant.slice(shown,next))addRow(root,item);
+      shown=next;
+      more.hidden=shown>=relevant.length;
+      if(!more.hidden)more.textContent='Show next '+Math.min(40,relevant.length-shown)+
+        ' checks · '+shown+' of '+relevant.length+' shown';
+    };
+    if(relevant.length)addNext();
+    more.addEventListener('click',addNext);
   }
   function renderCoverage(report){
     if(report.mode!=='website'||!report.coverage||!Array.isArray(report.pages))return;
