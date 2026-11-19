@@ -48,7 +48,44 @@ def fixture(mode="website", num=3, coverage=True):
                          if coverage else [],
             "unverified": ["Real buyers and checkout completion are not measured."],
             "inspectedOfferPages": 1 if coverage else 0,
-            "renderedPages": 2 if coverage else 0
+            "renderedPages": 2 if coverage else 0,
+            "buyerReplay": {
+                "version": 1,
+                "source": "rendered-dom",
+                "desktop": [
+                    {"id": "offer", "title": "1. See the offer",
+                     "description": "Page headline: Example offer.", "status": "observed", "place": "/"},
+                    {"id": "price", "title": "2. Check price",
+                     "description": "A price of $19 was observed.", "status": "observed", "place": "/pricing"},
+                    {"id": "action", "title": "3. Find the next step",
+                     "description": "Buy now appears in the first screen.", "status": "observed", "place": "/"},
+                    {"id": "destination", "title": "4. Follow the destination",
+                     "description": "Link points to /checkout; payment was not tested.",
+                     "status": "unknown", "place": "/checkout"}
+                ],
+                "mobile": [
+                    {"id": "offer", "title": "1. See the offer",
+                     "description": "Phone offer was visible.", "status": "observed", "place": "/"},
+                    {"id": "price", "title": "2. Check price",
+                     "description": "Phone price was visible.", "status": "observed", "place": "/pricing"},
+                    {"id": "action", "title": "3. Find the next step",
+                     "description": "Buy now was below the first phone screen.",
+                     "status": "review", "place": "/"},
+                    {"id": "destination", "title": "4. Follow the destination",
+                     "description": "Checkout success was not measured.",
+                     "status": "unknown", "place": "/checkout"}
+                ]
+            } if coverage and mode == "website" else None,
+            "fixKit": [
+                {"id": "kit-1", "blockerId": "buyer-1", "kind": "copy",
+                 "label": "CTA label", "title": "A supported CTA wording",
+                 "content": "View pricing", "source": "Observed pricing link",
+                 "verify": "Confirm it opens the pricing page"},
+                {"id": "kit-2", "blockerId": "buyer-2", "kind": "checklist",
+                 "label": "Fix checklist", "title": "Offer clarity action",
+                 "content": "Clarify the buyer benefit in a single sentence.",
+                 "source": "Page heading", "verify": "Ask a visitor"}
+            ] if num and coverage else []
         },
     }
 
@@ -123,6 +160,26 @@ with sync_playwright() as pw:
                       f"{kind}: positive observation explains its evidence {width}")
             check(page.locator("#five-changes .five-change").count() == min(5, len(sample["conversion"]["blockers"])),
                   f"{kind}: action count grounded {width}")
+            if kind == "website":
+                check(page.locator("#fiveBuyerReplay").is_visible(),
+                      f"{kind}: observed buyer replay visible inside section 2 at {width}")
+                check(page.locator("#fiveBuyerReplay .five-replay-step").count() == 4,
+                      f"{kind}: exactly four public journey steps at {width}")
+                check("below the first phone screen" in page.locator("#fiveBuyerReplay").inner_text(),
+                      f"{kind}: mobile observations selected by default at {width}")
+                page.locator("#fiveBuyerReplay button").filter(has_text="Desktop").click()
+                check("Buy now appears in the first screen" in page.locator("#fiveBuyerReplay").inner_text(),
+                      f"{kind}: switching to desktop updates the real journey at {width}")
+                check(page.locator("#fiveBuyerReplay button").filter(has_text="Desktop")
+                      .get_attribute("aria-pressed") == "true",
+                      f"{kind}: replay switch exposes its pressed state at {width}")
+            if sample["conversion"]["fixKit"]:
+                check(page.locator("#fiveConversionFixKit").is_visible(),
+                      f"{kind}: copyable fix kit present inside section 4 at {width}")
+                check(page.locator("#fiveConversionFixKit .five-kit-item").count() == 2,
+                      f"{kind}: only source-backed kit items rendered at {width}")
+                check("View pricing" in page.locator("#fiveConversionFixKit").inner_text(),
+                      f"{kind}: supported CTA wording preserved at {width}")
             ring = page.locator(".five-score-number").inner_text()
             check(ring.isdigit() if kind == "website" else ring == "—",
                   f"{kind}: score withheld unless multiple rendered stages are assessed {width}")
@@ -164,6 +221,10 @@ with sync_playwright() as pw:
                       pdf_bytes.startswith(b"%PDF-1.4") and b"%%EOF" in pdf_bytes[-40:]
                       and len(pdf_bytes)>2200 and b"/Type /Page" in pdf_bytes,
                       f"{kind}: real PDF file downloaded, not print dialog at {width}")
+                check(b"Buyer Journey Replay" in pdf_bytes and
+                      b"Conversion Fix Kit" in pdf_bytes and
+                      b"View pricing" in pdf_bytes,
+                      f"{kind}: both new features exported in PDF at {width}")
                 with page.expect_download(timeout=15000) as top_started:
                     page.locator("#navDownload").click()
                 check(top_started.value.suggested_filename.endswith(".pdf"),
