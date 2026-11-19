@@ -201,3 +201,36 @@ body.five-report-ui .five-more:focus-visible{outline:3px solid #7bbb2d;outline-o
  body.five-report-ui .page-header,body.five-report-ui .report-footer{display:none!important}
  body.five-report-ui .print-only,body.five-report-ui .print-conversion{display:block!important}
 }
+
+/* FIVE REPORT PRINT OVERRIDE — the download matches the five-section report,
+   rather than exposing a technical appendix or an unrelated dashboard. */
+@media print{
+ @page{size:auto;margin:13mm}
+ body.five-report-ui #fiveReport{display:block!important;margin:0}
+ body.five-report-ui #printAppendix,
+ body.five-report-ui .print-only,
+ body.five-report-ui .print-conversion{display:none!important}
+ body.five-report-ui .report-hero{display:block!important}
+ body.five-report-ui .report-wrap{max-width:none;width:100%;padding:0!important}
+ .five-report .five-score-card{grid-template-columns:140px 1fr;padding:15px;border-radius:12px;gap:15px;margin-bottom:12px}
+ .five-report .five-score-visual{min-height:116px;padding-right:15px}
+ .five-report .five-score-ring{width:106px;height:106px;flex-basis:106px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .five-report .five-score-ring:before{inset:11px}
+ .five-report .five-score-number{font-size:31px}
+ .five-report .five-score-title{font-size:16px}
+ .five-report .five-score-description{font-size:11px}
+ .five-report .five-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+ .five-report .five-panel{padding:13px;border-radius:12px;box-shadow:none;break-inside:avoid}
+ .five-report .five-panel-title{font-size:15px}
+ .five-report .five-panel-subtitle{font-size:9px}
+ .five-report .five-row-title,.five-report .five-plan-text strong{font-size:10px}
+ .five-report .five-reveal{font-size:9px}
+ .five-report .five-change .five-before-after{gap:3px}
+ .five-report .five-score-meta{margin-top:9px}
+ .five-report .five-counter,.five-report .five-concern,
+ .five-report .five-level,.five-report .five-index,
+ .five-report .five-before,.five-report .five-after,
+ .five-report .five-verdict{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .five-report .five-copy-btn,.five-report .five-more,.five-report .five-chevron{display:none!important}
+ .five-report .five-disclaimer{font-size:9px}
+}

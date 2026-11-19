@@ -223,3 +223,22 @@
     if(title)title.textContent='Download Report';
   }
 })();
+/* Expand evidence for the five-section PDF, then restore the interactive view. */
+(() => {
+  'use strict';
+  window.addEventListener('beforeprint',()=>{
+    if(!document.body.classList.contains('five-report-ui'))return;
+    const report=document.getElementById('fiveReport');
+    if(!report)return;
+    report.querySelectorAll('details').forEach(d=>{
+      if(!d.open){d.dataset.fivePrintOpened='true';d.open=true;}
+    });
+  });
+  window.addEventListener('afterprint',()=>{
+    const report=document.getElementById('fiveReport');
+    if(!report)return;
+    report.querySelectorAll('details[data-five-print-opened]').forEach(d=>{
+      d.open=false;delete d.dataset.fivePrintOpened;
+    });
+  });
+})();

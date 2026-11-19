@@ -129,10 +129,10 @@ with sync_playwright() as pw:
             if kind == "website" and width in (390, 1280):
                 page.screenshot(path=str(OUT / f"five-report-{width}.png"), full_page=True)
                 page.emulate_media(media="print")
-                check(page.locator(".print-conversion").is_visible(),
-                      f"{kind}: printable evidence appendix {width}")
-                check(not page.locator("#fiveReport").is_visible(),
-                      f"{kind}: no duplicate report in PDF {width}")
+                check(page.locator("#fiveReport").is_visible(),
+                      f"{kind}: same five sections visible in PDF {width}")
+                check(not page.locator("#printAppendix").is_visible(),
+                      f"{kind}: technical print appendix hidden in PDF {width}")
             page.close()
     # Legacy / imported technical-only reports are still readable.
     page = browser.new_page(viewport={"width": 390, "height": 850})
