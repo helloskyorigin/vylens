@@ -170,7 +170,19 @@
       action:'Check and replace unfinished sales-page wording'}
   };
   const plainTitle=item=>labels[issueKey(item)]?.issue||clean(item.title,155);
-  const actionTitle=item=>labels[issueKey(item)]?.action||'Review this improvement';
+  const actionTitle=item=>{
+    const mapped=labels[issueKey(item)]?.action;
+    if(mapped)return mapped;
+    // A finding without a hardcoded label still needs a concrete instruction.
+    // Prefer its observed recommendation, never a generic "Review this" title.
+    const fix=clean(item.fix,250);
+    const first=fix.split(/[.!?](?:\s|$)/)[0].trim();
+    if(first.length>=12&&first.length<=110&&
+      /^(?:add|adjust|ask|bring|change|check|choose|clarify|compare|confirm|correct|create|ensure|explain|fix|include|keep|make|move|open|place|reduce|remove|rename|repair|replace|restore|review|rewrite|show|simplify|test|update|use|verify)\b/i.test(first)){
+      return first;
+    }
+    return clean(item.title,105)||'Inspect the recorded evidence';
+  };
   const readableFix=item=>labels[issueKey(item)]?.fix||clean(item.fix,850);
   const buyerQuestion=item=>clean(item.buyerQuestion||labels[issueKey(item)]?.question||'',250);
   const location=item=>{

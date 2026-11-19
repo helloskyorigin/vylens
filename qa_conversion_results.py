@@ -122,6 +122,15 @@ with sync_playwright() as pw:
                   f"{kind}: score summary {width}")
             check(page.locator(".five-score-visual .five-problems-card").is_visible(),
                   f"{kind}: problems card next to score ring at {width}")
+            overlap=page.evaluate("""() => {
+                const ring=document.querySelector('.five-score-ring').getBoundingClientRect();
+                const box=document.querySelector('.five-problems-card').getBoundingClientRect();
+                return {ringRight:ring.right,boxLeft:box.left,
+                        ringBottom:ring.bottom,boxTop:box.top,
+                        ringWidth:ring.width};
+            }""")
+            check(overlap["ringRight"]<=overlap["boxLeft"]+1,
+                  f"{kind}: score circle does not overlap problem box at {width}: {overlap}")
             check(page.locator(".five-problems-value").inner_text() ==
                   str(len(sample["conversion"]["blockers"])),
                   f"{kind}: problem count comes from findings at {width}")
@@ -151,6 +160,9 @@ with sync_playwright() as pw:
                       f"{kind}: buyer hesitation is a natural question {width}")
                 check(page.locator("#five-changes .five-action-note").first.is_visible(),
                       f"{kind}: first recommendation visible without expansion {width}")
+                check("Review this improvement" not in
+                      page.locator("#five-action-plan").inner_text(),
+                      f"{kind}: action titles are specific, not generic at {width}")
             if sample["conversion"]["strengths"]:
                 positives=page.locator(".five-positive-details")
                 check(positives.count()==1 and not positives.evaluate("(e)=>e.open"),

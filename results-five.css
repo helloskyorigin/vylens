@@ -519,3 +519,21 @@ body.five-report-ui .report-hero{padding-bottom:18px}
 }
 
 .five-report .five-kit-summary-note{margin:8px 0 0;color:#667762;font:500 12px/1.6 var(--body)}
+
+/* Pixel QA fix: desktop score-ring specificity previously overrode 108/96px
+ * mobile sizes and caused the ring to overlap the Problems Found card. */
+@media(max-width:730px){
+  body.five-report-ui .five-score-ring{width:125px;height:125px;flex-basis:125px;max-width:100%}
+}
+@media(max-width:480px){
+  body.five-report-ui .five-score-ring{
+    width:108px;height:108px;flex-basis:108px;max-width:100%;
+    min-width:0
+  }
+  body.five-report-ui .five-score-visual{grid-template-columns:112px minmax(0,1fr);gap:10px}
+  body.five-report-ui .five-problems-card{max-width:100%;min-width:0}
+}
+@media(max-width:350px){
+  body.five-report-ui .five-score-ring{width:96px;height:96px;flex-basis:96px}
+  body.five-report-ui .five-score-visual{grid-template-columns:98px minmax(0,1fr);gap:6px}
+}
