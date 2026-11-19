@@ -9,6 +9,8 @@
   let messageQueue = Promise.resolve();
   let isFinished = false;
   let waitingTimer = null;
+  let retryTimer = null;
+  let retryUntil = 0;
   const messages = {
     website: [
       ['Reading your website…', 'Getting a closer look at your website.'],
@@ -61,13 +63,27 @@
     }, payload.mode === 'website' ? 8000 : 2700);
   }
   function stopWaitingMessages() { clearInterval(waitingTimer); waitingTimer = null; }
+  function updateRetryState() {
+    const button=$('#analysisRetry');
+    const remaining=Math.max(0,Math.ceil((retryUntil-Date.now())/1000));
+    button.disabled=remaining>0;
+    button.firstChild.textContent=remaining?'Retry in '+remaining+'s ':'Try again ';
+    if(!remaining&&retryTimer){clearInterval(retryTimer);retryTimer=null;}
+  }
   function showError(message) {
     isFinished = true;
     stopWaitingMessages();
     $('#analysisRunning').hidden = true;
     $('#analysisError').hidden = false;
     $('#analysisErrorMessage').textContent = message;
-    $('#analysisRetry').focus({preventScroll:true});
+    if(retryTimer){clearInterval(retryTimer);retryTimer=null;}
+    updateRetryState();
+    if(retryUntil>Date.now())retryTimer=setInterval(updateRetryState,1000);
+    if(!$('#analysisRetry').disabled)$('#analysisRetry').focus({preventScroll:true});
+    else{
+      $('#analysisErrorTitle').setAttribute('tabindex','-1');
+      $('#analysisErrorTitle').focus({preventScroll:true});
+    }
   }
   function normalizeResults(data) {
     if (!data || !Array.isArray(data.issues) || typeof data.mode !== 'string') throw new Error('The inspection response was incomplete. Please try again.');
@@ -76,6 +92,8 @@
   }
   async function run() {
     if (inspecting) return;
+    if(Date.now()<retryUntil){showError('Another audit was requested recently. Please use the retry countdown.');return;}
+    if(retryTimer){clearInterval(retryTimer);retryTimer=null;}
     inspecting = true; isFinished = false; currentMessage = 0;
     $('#analysisRunning').hidden = false;
     $('#analysisError').hidden = true;
@@ -99,7 +117,14 @@
         }
         let data;
         try {data = await response.json();} catch {throw new Error('The scanner service returned invalid JSON.');}
-        if (!response.ok) throw new Error(data?.error || `Scanner service returned HTTP ${response.status}.`);
+        if (!response.ok) {
+          if(response.status===429){
+            const seconds=Math.max(1,Math.min(120,Number(data?.retryAfter||response.headers.get('retry-after'))||25));
+            retryUntil=Date.now()+seconds*1000;
+            throw new Error(data?.error||'The scanner is temporarily busy. You can retry when the countdown finishes.');
+          }
+          throw new Error(data?.error || `Scanner service returned HTTP ${response.status}.`);
+        }
         result={...data,summary:data.summary||'Multi-page inspection completed.',meta:data.meta||'Public pages',coverageLabel:data.coverageLabel||'Site audit'};
       } else {
         if (!selectedFile) { const transfer = await window.VylensCore.takeFile(); selectedFile = transfer?.file || null; }
