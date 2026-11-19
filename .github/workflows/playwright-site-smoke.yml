@@ -1,0 +1,51 @@
+name: VYLENS Playwright real-site smoke
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify deployed browser-audit endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://vylens-tan.vercel.app"
+          ready=0
+          for attempt in $(seq 1 36); do
+            code=$(curl -sS --max-time 12 -o /tmp/browser-health.json -w '%{http_code}' "$BASE/api/inspect-site" || true)
+            if [ "$code" = "200" ] && jq -e '.engine=="bounded-playwright-crawl" and .pageLimit>=20' /tmp/browser-health.json >/dev/null 2>&1; then
+              ready=1; break
+            fi
+            sleep 6
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "FAIL: live Vercel browser endpoint was not ready."
+            cat /tmp/browser-health.json || true
+            exit 1
+          fi
+          echo "PASS: browser-audit endpoint is live."
+      - name: Audit a real multi-page site and legal pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://vylens-tan.vercel.app"
+          status=$(curl -sS --max-time 155 -o /tmp/browser-scan.json -w '%{http_code}' -X POST "$BASE/api/inspect-site" \
+            -H 'content-type: application/json' \
+            -H 'origin: https://vylens-tan.vercel.app' \
+            -H 'sec-fetch-site: same-origin' \
+            --data '{"url":"https://vylens-tan.vercel.app/"}')
+          echo "Scan response HTTP $status"
+          if [ "$status" != "200" ]; then
+            head -c 1600 /tmp/browser-scan.json
+            exit 1
+          fi
+          jq '{engine,coverage, pages:[.pages[]|{path,status}], findings:(.issues|length),checksRun}' /tmp/browser-scan.json | head -c 8000
+          jq -e '.mode=="website" and .engine=="vylens-playwright-v1" and .coverage.inspected>=3 and .coverage.rendered>=2 and .coverage.legal>=1 and (.issues|type=="array") and (.checksRun>10)' /tmp/browser-scan.json >/dev/null
+          echo "PASS: real Playwright rendered multiple pages including at least one legal page."
