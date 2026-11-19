@@ -218,7 +218,8 @@
       if(occurrenceCount(issue)===1&&issue.location)section.append(node('p','','Location: '+clean(issue.location,600)));
       if(issue.evidence)section.append(node('p','','Evidence: '+clean(issue.evidence,1800)));
       if(Array.isArray(issue.occurrences)&&issue.occurrences.length){
-        section.append(node('p','','Affected locations ('+occurrenceCount(issue)+' pages):'));
+        section.append(node('p','','Affected locations ('+occurrenceCount(issue)+
+          (occurrenceCount(issue)===1?' page':' pages')+'):'));
         issue.occurrences.slice(0,18).forEach(entry=>{
           section.append(node('p','print-line',clean(entry.path||'/',170)+' · '+clean(entry.location||'',260)+
             (entry.evidence&&entry.evidence!==issue.evidence?' · '+clean(entry.evidence,360):'')));
@@ -230,6 +231,10 @@
       root.append(section);
     });
     if(report.mode==='website'&&Array.isArray(report.pages)&&report.pages.length){
+      const c=report.coverage||{};
+      root.append(node('p','print-small','Coverage: '+(Number(c.inspected)||0)+' of '+
+        (Number(c.discovered)||0)+' discovered pages inspected.'+
+        (c.complete?' Within supported public-page coverage.':' Coverage was incomplete or source-only on some pages.')));
       root.append(node('h2','','Page coverage'));
       report.pages.forEach(page=>root.append(node('p','print-line',
         clean(page.path||'/',190)+' — '+clean(page.status,30)+(page.type==='legal'?' (policy)':'')+
