@@ -360,15 +360,30 @@ async function captureCommerceSignals(page){
           path=u.origin===location.origin?u.pathname.slice(0,150):'External destination';
         }catch{}
       }
-      return {label:label(el),path};
+      const rect=el.getBoundingClientRect();
+      return {label:label(el),path,top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
     }).filter(a=>a.label).slice(0,18);
     const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d[\d,.]*(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d[\d,.]*)/gi)]
       .slice(0,6).map(x=>trim(x[0],65));
     const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,220);
-    const hasPurchaseTerms=links.some(a=>/refund|return|terms|cancellation|purchase.policy/i.test(
-      String(a.getAttribute('href')||'')+' '+String(a.innerText||'')))||
+    const termsLinks=links.filter(a=>/refund|return|terms|cancellation|purchase.policy/i.test(
+      String(a.getAttribute('href')||'')+' '+String(a.innerText||'')));
+    const hasPurchaseTerms=termsLinks.length>0||
       /refund policy|refunds? available|all sales final|money.back guarantee/i.test(content);
-    const hasProof=/\b(?:trusted by|used by|customer reviews?|customer stories|case stud(?:y|ies)|testimonials?|rated [45] out of 5|verified reviews?)\b/i.test(content);
+    const buyingActions=rawActions.filter(el=>/\b(?:buy|purchase|checkout|pay now|order|subscribe|add to cart)\b/i.test(label(el)));
+    const termsNearAction=buyingActions.some(action=>{
+      const buttonTop=action.getBoundingClientRect().top;
+      return termsLinks.some(link=>{
+        const distance=Math.abs(link.getBoundingClientRect().top-buttonTop);
+        return distance<=550;
+      });
+    });
+    const proofCandidates=[...main.querySelectorAll(
+      '[class*="testimonial" i],[id*="testimonial" i],[class*="customer-review" i],[class*="case-study" i],blockquote'
+    )].slice(0,45).filter(visible);
+    const proofText=proofCandidates.map(el=>trim(el.innerText||'',220))
+      .find(t=>t.length>=45&&!/\b(?:no testimonials|no reviews|coming soon|placeholder)\b/i.test(t))||'';
+    const hasProof=!!proofText;
     const forms=[...main.querySelectorAll('form')].filter(visible);
     const form=forms.map(f=>{
       const fields=[...f.querySelectorAll('input:not([type="hidden"]),select,textarea')].filter(visible);
@@ -377,7 +392,8 @@ async function captureCommerceSignals(page){
       return {context,fields:fields.length,required:fields.filter(el=>el.required||el.getAttribute('aria-required')==='true').length};
     }).sort((a,b)=>b.required-a.required)[0]||null;
     return {heading:title,intro,visibleText:content,actions,priceSamples:priceMatches,
-      hasPrice:priceMatches.length>0,hasPurchaseTerms,hasProof,form};
+      hasPrice:priceMatches.length>0,hasPurchaseTerms,termsNearAction,hasProof,
+      proofText,firstViewHeight:Math.max(720,window.innerHeight),form};
   });
 }
 function evaluateRenderedSignals(signals,path){
