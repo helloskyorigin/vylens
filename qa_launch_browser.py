@@ -76,6 +76,12 @@ with sync_playwright() as playwright:
     check(page.locator('#reportType').inner_text()=='DIGITAL PRODUCT','Results show correct audit type')
     check(page.locator('#conversionReport').is_visible(),
           'Buyer-facing conversion report is visible')
+    check(page.locator('#navDownload').is_visible() and page.locator('#navRecheck').is_visible(),
+          'Screenshot-matched top navigation provides real report actions')
+    check(page.locator('#uiBlockerCount').inner_text().isdigit() and
+          page.locator('#uiStrengthCount').inner_text().isdigit() and
+          page.locator('#uiImprovementCount').inner_text().isdigit(),
+          'Three lime summary cards show grounded values')
     check(page.locator('#reportHeadline').inner_text().strip()!='',
           'Conversion Results contain a specific outcome headline')
     check(page.locator('#primaryBlocker .buyer-blocker.featured').count()>=1,
@@ -91,7 +97,7 @@ with sync_playwright() as playwright:
     check(page.locator('#technicalAppendix').is_visible() and
           not page.locator('#technicalAppendix').evaluate('(e)=>e.open'),
           'Technical findings do not distract from buying blockers')
-    check('delivered file' in page.locator('#conversionGoal').inner_text().lower(),
+    check('delivered file' in page.locator('#conversionGoal').text_content().lower(),
           'File-only report does not claim knowledge of real sales')
     page.locator('#technicalAppendix > summary').click()
     check(page.locator('#technicalAppendix').evaluate('(e)=>e.open'),
@@ -115,7 +121,7 @@ with sync_playwright() as playwright:
 
     # PDF is browser-print based; test click and print-mode appendix.
     page.evaluate('window.__printClicked=false;window.print=()=>{window.__printClicked=true}')
-    page.locator('#savePdf').click()
+    page.locator('#navDownload').click()
     check(page.evaluate('window.__printClicked'),'Save PDF invokes print')
     page.emulate_media(media='print')
     check(page.locator('#printAppendix').evaluate('(e)=>getComputedStyle(e).display')!='none',
@@ -131,7 +137,7 @@ with sync_playwright() as playwright:
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
 
     # "Scan another file" must return to Product tab, not Website.
-    page.locator('#recheck').click()
+    page.locator('#navRecheck').click()
     page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
     check(page.locator('#productTab').get_attribute('aria-pressed')=='true',
           'Digital Product recheck retains Product mode')
