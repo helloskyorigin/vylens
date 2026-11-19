@@ -78,3 +78,34 @@ assert.equal(dom.get('findingsList').children.length,2);
 const first=dom.get('findingsList').children[0];
 assert.ok(first.children[0].children[1].children[1].textContent.includes('2 pages'));
 console.log('PASS multi-page accuracy: robots, policy, distinct evidence, HTTP headers, affected-page counts');
+
+
+// Real DOM-browser observations: no fabricated issue for clean signals.
+const cleanRendered={
+  unnamed:[],missingAlt:[],fragmentLinks:[],duplicateIds:[],
+  lowContrast:[],ambiguous:[],hasMain:true,textSize:900,
+  interactiveCount:12,imageCount:4,contrastExamined:15
+};
+const cleanResult=multi.evaluateRenderedSignals(cleanRendered,'/');
+assert.equal(cleanResult.issues.length,0,'clean measured DOM must not generate a fake issue');
+assert.ok(cleanResult.checks.length>=6,'rendered checks provide a useful audit trail');
+
+const imperfectRendered={
+  ...cleanRendered,unnamed:['button.icon-only','input[name="email"]'],
+  missingAlt:['img.hero-image'],fragmentLinks:[{from:'a.navigation',target:'#not-found'}],
+  duplicateIds:['cta ×2'],lowContrast:[{target:'p.tagline',text:'Low contrast example',ratio:2.4,required:4.5}],
+  ambiguous:['Click here (a.link)','Learn more (a.link)','Submit (button)'],
+  hasMain:false,textSize:950
+};
+const detected=multi.evaluateRenderedSignals(imperfectRendered,'/demo');
+assert.ok(detected.issues.length>=7,'browser findings cover meaningful missing signals');
+assert.ok(detected.issues.filter(i=>i.severity==='high').length>=3,'confirmed broken controls and anchor targets are high');
+assert.ok(detected.issues.every(i=>i.evidence&&i.location&&i.fix&&i.verify),'every browser issue needs evidence, exact location, fix and verification');
+assert.equal(detected.checks.find(c=>c.name.includes('Rendered control names')).status,'attention');
+assert.equal(detected.checks.find(c=>c.name.includes('Measurable text contrast')).status,'attention');
+assert.ok(!detected.issues.some(i=>i.severity==='critical'),'DOM heuristics never invent critical severity');
+
+const unmeasurable=multi.evaluateRenderedSignals({...cleanRendered,contrastExamined:0},'/');
+assert.equal(unmeasurable.checks.find(c=>c.name.includes('Measurable text contrast')).status,'unverified',
+  'unmeasured contrast must not be marked passed');
+console.log('PASS: real DOM diagnostics provide evidence, distinguish clean pages, and do not inflate severity');

@@ -192,6 +192,170 @@ async function browserStart(root){
   context.on('page',p=>{if(p!==page)p.close().catch(()=>{});});
   return {browser,context,page,state};
 }
+
+/* Rendered browser observations complement source checks.
+ * Only observable DOM/CSS facts are recorded. Visual heuristics are advisory.
+ * We cap samples to keep reports stable and avoid oversized responses.
+ */
+async function captureRenderedSignals(page){
+  return page.evaluate(() => {
+    const items=(selector,limit=250)=>Array.from(document.querySelectorAll(selector)).slice(0,limit);
+    const visible=el=>{
+      if(el.closest('[hidden],[aria-hidden="true"],[inert]'))return false;
+      const style=getComputedStyle(el),rect=el.getBoundingClientRect();
+      return style.visibility!=='hidden'&&style.display!=='none'&&
+        parseFloat(style.opacity)>0&&rect.width>1&&rect.height>1;
+    };
+    const label=el=>{
+      const aria=el.getAttribute('aria-label');
+      if(aria?.trim())return aria.trim();
+      const linked=el.getAttribute('aria-labelledby');
+      if(linked){
+        const value=linked.split(/\s+/).map(x=>document.getElementById(x)?.textContent?.trim()||'').join(' ').trim();
+        if(value)return value;
+      }
+      if(el.labels?.length){
+        const text=[...el.labels].map(x=>x.textContent.trim()).join(' ').trim();if(text)return text;
+      }
+      const inner=(el.innerText||el.textContent||'').trim();
+      if(inner)return inner;
+      const image=el.querySelector('img[alt]');
+      if(image?.alt?.trim())return image.alt.trim();
+      const svgTitle=el.querySelector('svg title')?.textContent?.trim();
+      if(svgTitle)return svgTitle;
+      if(el.getAttribute('title')?.trim())return el.getAttribute('title').trim();
+      if(el.tagName==='INPUT'&&['submit','button','reset'].includes((el.type||'').toLowerCase()))return el.value||'';
+      return '';
+    };
+    const locator=el=>{
+      if(el.id)return '#'+el.id.slice(0,48);
+      let v=el.tagName.toLowerCase();
+      if(el.getAttribute('name'))v+='[name="'+el.getAttribute('name').slice(0,35)+'"]';
+      else if(el.classList.length)v+='.'+String(el.classList[0]).slice(0,35);
+      return v;
+    };
+    const interactive=items('button,a[href],input:not([type="hidden"]),select,textarea,[role="button"]',350)
+      .filter(el=>!el.disabled&&visible(el));
+    const unnamed=interactive.filter(el=>!label(el)).slice(0,8).map(locator);
+    const images=items('img',180).filter(visible);
+    const missingAlt=images.filter(img=>!img.hasAttribute('alt')).slice(0,8).map(locator);
+    const fragmentLinks=[];
+    for(const a of items('a[href*="#"]',150)){
+      if(!visible(a))continue;
+      try{
+        const url=new URL(a.href,location.href);
+        if(url.origin!==location.origin||url.pathname!==location.pathname||!url.hash||url.hash==='#')continue;
+        const key=decodeURIComponent(url.hash.slice(1));
+        if(key.toLowerCase()==='top'||document.getElementById(key)||document.getElementsByName(key).length)continue;
+        fragmentLinks.push({from:locator(a),target:'#'+key.slice(0,60)});
+        if(fragmentLinks.length>=8)break;
+      }catch{}
+    }
+    const counter=new Map();
+    for(const el of items('[id]',1500))counter.set(el.id,(counter.get(el.id)||0)+1);
+    const duplicateIds=[...counter].filter(([,n])=>n>1).slice(0,8).map(([id,n])=>id+' ×'+n);
+    const main=document.querySelector('main,[role="main"]');
+    const hasMain=!!main;
+    const textSize=(main||document.body)?.innerText?.trim().length||0;
+    const ambiguous=interactive.filter(el=>['click here','read more','learn more','submit'].includes(label(el).toLowerCase())).slice(0,6).map(el=>label(el).slice(0,32)+' ('+locator(el)+')');
+
+    const rgb=text=>{
+      const match=String(text).match(/^rgba?\(([^)]+)\)/i);
+      if(!match)return null;
+      const parts=match[1].replace(/\//g,' ').split(/[,\s]+/).filter(Boolean).map(Number);
+      if(parts.length<3||parts.slice(0,3).some(n=>!Number.isFinite(n)))return null;
+      return [parts[0],parts[1],parts[2],parts.length>3?parts[3]:1];
+    };
+    const composite=(top,bottom)=>top.slice(0,3).map((v,i)=>v*top[3]+bottom[i]*(1-top[3]));
+    const lum=c=>c.slice(0,3).map(v=>{
+      const n=Math.min(1,Math.max(0,v/255));
+      return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;
+    }).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);
+    const lowContrast=[];
+    let examined=0;
+    for(const el of items('p,li,label,small,button,a,span,h1,h2,h3',450)){
+      if(lowContrast.length>=6||examined>=220)break;
+      if(!visible(el))continue;
+      if(el.querySelector('p,li,label,small,button,a,span,h1,h2,h3'))continue;
+      const text=(el.innerText||'').trim();
+      if(text.length<7||text.length>190)continue;
+      const st=getComputedStyle(el);
+      if(st.opacity!=='1'||st.mixBlendMode!=='normal'||st.textShadow!=='none')continue;
+      const foreground=rgb(st.color);
+      if(!foreground||foreground[3]!==1)continue;
+      let ancestor=el,background=[255,255,255],valid=true,pile=[];
+      while(ancestor&&ancestor.nodeType===1){
+        const style=getComputedStyle(ancestor);
+        if(style.opacity!=='1'||style.backgroundImage!=='none'||style.mixBlendMode!=='normal'){valid=false;break;}
+        const layer=rgb(style.backgroundColor);
+        if(!layer){valid=false;break;}
+        pile.push(layer);ancestor=ancestor.parentElement;
+      }
+      if(!valid)continue;
+      for(const color of pile.reverse())background=composite(color,background);
+      const a=lum(foreground),b=lum(background),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+      const size=parseFloat(st.fontSize),weight=parseInt(st.fontWeight,10)||400;
+      const large=size>=24||(size>=18.66&&weight>=700);
+      const threshold=large?3:4.5;
+      examined++;
+      // Avoid noisy near-threshold reports; record clear failures only.
+      if(ratio<threshold-.35)lowContrast.push({target:locator(el),text:text.slice(0,36),ratio:Math.round(ratio*10)/10,required:threshold});
+    }
+    return {unnamed,missingAlt,fragmentLinks,duplicateIds,hasMain,textSize,ambiguous,lowContrast,contrastExamined:examined,interactiveCount:interactive.length,imageCount:images.length};
+  });
+}
+function evaluateRenderedSignals(signals,path){
+  const issues=[],checks=[];
+  if(!signals)return {issues,checks};
+  const add=(category,severity,title,evidence,fix,location,verify)=>{
+    issues.push({category,severity,title,evidence,fix,location,verify});
+  };
+  const run=(name,count,detail)=>checks.push({name:path+' · '+name,status:count?'attention':'passed',detail});
+  const unnamed=signals.unnamed||[];
+  run('Rendered control names',unnamed.length,unnamed.length?unnamed.length+' visible interactive controls have no detectable name: '+unnamed.join(', '):signals.interactiveCount+' visible controls checked.');
+  if(unnamed.length)add('Accessibility','high','Visible interactive controls lack accessible names',
+    'Unnamed visible controls: '+unnamed.join(', '),
+    'Give every visible interactive button, link and input a meaningful accessible name or associated label.',
+    path+' · '+unnamed[0],'Inspect the affected elements in the browser accessibility tree.');
+  const missingAlt=signals.missingAlt||[];
+  run('Rendered image alternatives',missingAlt.length,missingAlt.length?'Visible images without alt attributes: '+missingAlt.join(', '):signals.imageCount+' visible images checked.');
+  if(missingAlt.length)add('Accessibility','note','Rendered images are missing alt attributes',
+    'Visible images without alt attributes: '+missingAlt.join(', '),
+    'Use meaningful alt text for informative images; use alt="" for purely decorative images.',
+    path+' · '+missingAlt[0],'Inspect the affected images and confirm their accessible alternatives.');
+  const fragments=signals.fragmentLinks||[];
+  run('Rendered anchor destinations',fragments.length,fragments.length?fragments.map(x=>x.target).join(', '):'Visible same-page anchors resolve in the rendered document.');
+  if(fragments.length)add('Navigation','high','Rendered section links point to missing targets',
+    fragments.map(x=>x.from+' → '+x.target).join('; '),
+    'Add matching section IDs or update the affected internal links.',
+    path+' · '+fragments[0].from,'Click the affected links and verify the target section exists.');
+  const duplicates=signals.duplicateIds||[];
+  run('Rendered unique IDs',duplicates.length,duplicates.length?duplicates.join(', '):'No duplicate IDs found in rendered DOM.');
+  if(duplicates.length)add('Accessibility','high','Duplicate IDs present after rendering',
+    'Repeated IDs: '+duplicates.join(', '),
+    'Assign unique IDs to rendered elements to avoid broken labels and targets.',
+    path+' · DOM IDs','Inspect the duplicate elements in the live DOM.');
+  const contrast=signals.lowContrast||[];
+  checks.push({name:path+' · Measurable text contrast',status:contrast.length?'attention':signals.contrastExamined?'passed':'unverified',
+    detail:contrast.length?contrast.map(x=>x.target+': '+x.ratio+':1').join('; '):
+      signals.contrastExamined?signals.contrastExamined+' solid-background text samples compared.':'Complex backgrounds prevented a reliable color calculation.'});
+  if(contrast.length)add('Accessibility','note','Some text has potentially insufficient contrast',
+    contrast.map(x=>x.target+' "'+x.text+'" '+x.ratio+':1 (recommended '+x.required+':1)').join('; '),
+    'Adjust foreground or solid background colors, then measure against WCAG text contrast criteria.',
+    path+' · rendered text','Use a browser contrast checker on the listed elements; gradients and images were excluded.');
+  const vague=signals.ambiguous||[];
+  if(vague.length>=3)add('Content clarity','note','Several actions use vague labels',
+    vague.join('; '),
+    'Give repeated actions specific descriptive labels so visitors know what happens next.',
+    path+' · buttons/links','Review visible button and link labels in context.');
+  checks.push({name:path+' · Primary content landmark',status:signals.hasMain?'passed':signals.textSize>350?'attention':'unverified',
+    detail:signals.hasMain?'Main landmark exists.':'No <main> or role="main" landmark detected.'});
+  if(!signals.hasMain&&signals.textSize>350)add('Accessibility','note','Page has no main content landmark',
+    'Rendered page contains '+signals.textSize+' characters but no main landmark.',
+    'Wrap the primary content in a <main> element or apply role="main" to the appropriate container.',
+    path+' · page structure','Inspect the page accessibility landmarks.');
+  return {issues,checks};
+}
 async function rendered(session,url){
   const {page,state}=session;state.page=0;
   await page.setViewportSize({width:1280,height:800});
@@ -201,7 +365,8 @@ async function rendered(session,url){
     const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:14500});
     const status=response?.status()||0;
     if(status>=400)return {status,html:'',links:[],browser:true};
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(650);
+    const signals=await captureRenderedSignals(page);
     const html=(await page.content()).slice(0,1400000);
     const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
       .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
@@ -230,7 +395,7 @@ async function rendered(session,url){
       }
       return {width,scrollWidth:document.documentElement.scrollWidth,small};
     });
-    return {status,html,links,mobile,visibleText,headers:await response.allHeaders(),browser:true,errors};
+    return {status,html,links,mobile,visibleText,signals,headers:await response.allHeaders(),browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
 
@@ -260,7 +425,7 @@ function policyContentReview(url,visibleText,html){
     verify:'Read the complete rendered policy page and confirm the relevant information is present.'});
   return {issues,checks};
 }
-function pageReview(html,url,status,browser,mobile,visibleText,errors,headers){
+function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,signals){
   const data=source.review(html,url,{status,headers:headers||{}});
   const path=new URL(url).pathname||'/';
   const checks=data.checks.map(x=>({...x,name:path+' · '+x.name}));
@@ -274,9 +439,9 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers){
       fix:'Inspect fixed-width elements and long text; prevent content extending outside the mobile viewport.',
       verify:'Open this page at 390px width and verify it does not scroll horizontally.'});
     const small=mobile.small||[];
-    checks.push({name:path+' · Mobile interactive target sizing',status:small.length>=3?'attention':'passed',
+    checks.push({name:path+' · Mobile interactive target sizing',status:small.length>=1?'attention':'passed',
       detail:small.length?'Observed '+small.length+' interactive target(s) smaller than 32px in at least one dimension.':'No unusually small navigation/button targets were observed.'});
-    if(small.length>=3)issues.push({category:'Accessibility',severity:'note',title:'Some mobile interactive targets may be too small',
+    if(small.length>=1)issues.push({category:'Accessibility',severity:'note',title:'Some mobile interactive targets may be too small',
       location:path+' · mobile 390px',
       evidence:small.slice(0,4).map(t=>(t.label||'Control')+' '+t.width+'×'+t.height+'px').join('; '),
       fix:'Increase the clickable area and spacing for the affected navigation links and buttons.',
@@ -284,6 +449,23 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers){
     if(errors?.length)checks.push({name:path+' · Uncaught script errors',status:'unverified',
       detail:'Browser observed '+errors.length+' script error(s). Some may depend on the inspection environment.'});
   }else checks.push({name:path+' · Rendered page',status:'unverified',detail:'Browser rendering unavailable. Only HTML source was checked.'});
+  if(browser && signals){
+    const seen=evaluateRenderedSignals(signals,path);
+    checks.push(...seen.checks);
+    // Use the rendered DOM as the authority for accessibility/name/anchor checks:
+    // source-only observations may refer to content hidden or replaced by JavaScript.
+    const superseded=[
+      /^\d+ form controls lack accessible names$/,
+      /^\d+ button elements have no accessible name$/,
+      /^Links with no readable label detected$/,
+      /^Duplicate element IDs found$/,
+      /^In-page links point to missing sections$/,
+      /^Images are missing alt attributes$/
+    ];
+    for(let i=issues.length-1;i>=0;i--)
+      if(superseded.some(test=>test.test(issues[i].title)))issues.splice(i,1);
+    issues.push(...seen.issues);
+  }
   const policy=policyContentReview(url,visibleText,html);
   checks.push(...policy.checks);issues.push(...policy.issues);
   return {issues,checks,title:data.pageTitle};
@@ -352,7 +534,7 @@ async function scanSite(input){
         if(item.via==='start')discoverer.activateSitemap();
         continue;
       }
-      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors,visit.headers||raw?.headers);
+      const evaluated=pageReview(visit.html,item.url,visit.status,visit.browser,visit.mobile,visit.visibleText,visit.errors,visit.headers||raw?.headers,visit.signals);
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
@@ -427,4 +609,4 @@ export async function POST(request){
   }
 }
 export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',pageLimit:LIMIT});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview};
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals};
