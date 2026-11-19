@@ -7,7 +7,7 @@
   const auditData = {
     website: {
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
-      description: "Inspect your public website pages for observable issues, including mobile and policy-page checks. See evidence and practical fixes.",
+      description: "Find potential buying blockers in your public website experience—from offer clarity to trust and the next step. Get evidence and practical fixes.",
       cta: 'Find My Conversion Leaks',
       mobileTitle: 'Example CTA blends in',
       mobileDescription: 'The sample button needs more contrast.',
@@ -20,7 +20,7 @@
     },
     product: {
       title: 'Looks good.<br>But not <span class="swoosh-underline" id="heroEmphasis">selling?</span>',
-      description: "Inspect your product file for real delivery, accessibility and content-structure issues. Add your sales page for extra context.",
+      description: "Find delivery and value-presentation friction in your digital product. Add a sales-page URL for an extra source-level offer review.",
       cta: 'Find My Sales Blockers',
       mobileTitle: 'The buyer outcome is unclear',
       mobileDescription: 'The benefit is too broad to feel convincing.',
