@@ -33,7 +33,9 @@
   const originalMetrics=document.querySelector('.metrics-section');
   if(originalMetrics)appendix.prepend(originalMetrics);
   $('impactSection').hidden=true;
-  write('heroState',product?'DIGITAL PRODUCT · BUYER REVIEW':'CONVERSION BLOCKER REVIEW');
+  write('heroState',sessionStorage.getItem('vylens:imported')==='1'?
+    'IMPORTED REPORT · NOT A NEW SCAN':
+    product?'DIGITAL PRODUCT · BUYER REVIEW':'CONVERSION BLOCKER REVIEW');
   write('reportHeadline',count?
     (count===1?'1 potential buying blocker to review.':count+' potential buying blockers to review.'):
     product?'Your product review is ready.':'No specific buying blocker confirmed.');
@@ -95,7 +97,8 @@
       item.fix?'Fix: '+item.fix:null,
       item.verify?'Verify: '+item.verify:null]
       .filter(Boolean).join('\n');
-    navigator.clipboard?.writeText(lines).then(()=>{
+    if(!navigator.clipboard?.writeText){button.textContent='Copy unavailable';return;}
+    navigator.clipboard.writeText(lines).then(()=>{
       button.textContent='Copied';
     }).catch(()=>{button.textContent='Copy unavailable';});
   };
@@ -154,7 +157,8 @@
         'Evidence-based recommendations, not measured lost sales.',...blockers.slice(0,5).map((item,i)=>
           '\n'+(i+1)+'. '+item.title+'\nEvidence: '+(item.evidence||'Not verified')+
           '\nFix: '+(item.fix||'Review evidence')+'\nVerify: '+(item.verify||'Test manually'))].join('\n');
-      navigator.clipboard?.writeText(lines).then(()=>{button.textContent='Plan copied';})
+      if(!navigator.clipboard?.writeText){button.textContent='Copy unavailable';return;}
+      navigator.clipboard.writeText(lines).then(()=>{button.textContent='Plan copied';})
         .catch(()=>{button.textContent='Copy unavailable';});
     });
   }else{
