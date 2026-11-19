@@ -363,9 +363,11 @@ async function captureCommerceSignals(page){
       }
       const rect=el.getBoundingClientRect();
       const actionLabel=label(el);
+      const href=el.matches('a[href]')?String(el.getAttribute('href')||'').trim():'';
       return {label:actionLabel,path,isPurchaseAction:purchaseAction.test(actionLabel),
+        isPlaceholderDestination:el.matches('a[href]')&&/^(?:#|javascript:.*)$/i.test(href),
         top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
-    }).filter(a=>a.label).slice(0,18);
+    }).filter(a=>a.label).slice(0,40);
     const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d+(?:,\d{3})*(?:\.\d{1,2})?(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d+(?:,\d{3})*(?:\.\d{1,2})?)/gi)]
       .slice(0,6).map(x=>trim(x[0],65));
     const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,220);
@@ -532,10 +534,16 @@ async function rendered(session,url){
       return {width,scrollWidth:documentWidth,small,clipped,offenders};
     });
     const mobile=await measureMobile();
+    const mobileCommerce=await captureCommerceSignals(page).catch(()=>null);
     await page.setViewportSize({width:320,height:780});
     await page.waitForTimeout(100);
     const narrow=await measureMobile();
-    return {status,html,links,mobile,narrow,visibleText,signals,commerce,headers:await response.allHeaders(),browser:true,errors};
+    const combinedCommerce=commerce?{...commerce,
+      mobileActions:mobileCommerce?.actions||[],
+      mobilePriceVisible:mobileCommerce?.hasPrice??null
+    }:null;
+    return {status,html,links,mobile,narrow,visibleText,signals,
+      commerce:combinedCommerce,headers:await response.allHeaders(),browser:true,errors};
   }finally{page.off('pageerror',onError);}
 }
 

@@ -123,4 +123,27 @@ assert.ok(exactCTA.blockers.some(x=>/main buying action may appear late/.test(x.
   'real offscreen Buy now button still causes a cautious review');
 assert.ok(exactCTA.blockers.every(x=>x.buyerQuestion || !['action','trust'].includes(x.stage)),
   'buyer-facing concerns have question-style explanations');
-console.log('PASS conversion engine: commercial heuristics, CTA score false positives, offer evidence and no fake revenue math');
+// Additional supported evidence: viewport mismatch, placeholder destination, missing mobile price.
+const mobileMismatch=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/checkout',top:260,inFirstView:true}],
+  mobileActions:[{label:'Learn more',path:'/more',top:300,inFirstView:true}]
+}))],{coverage:{complete:true}});
+assert.ok(mobileMismatch.blockers.some(x=>x.title.includes('mobile page')&&x.source==='Rendered mobile page'),
+  'a desktop-only buying CTA is reported cautiously');
+const phoneBuried=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/checkout',top:220,inFirstView:true}],
+  mobileActions:[{label:'Buy now',path:'/checkout',top:1200,inFirstView:false}]
+}))],{coverage:{complete:true}});
+assert.ok(phoneBuried.blockers.some(x=>x.title.includes('find on mobile')),
+  'the mobile-only below-fold CTA is a separate buyer concern');
+const placeholderBuy=analyzeWebsiteConversion([page('/',offer({
+  actions:[{label:'Buy now',path:'/',isPlaceholderDestination:true,top:280,inFirstView:true}]
+}))],{coverage:{complete:true}});
+assert.ok(placeholderBuy.blockers.some(x=>x.title.includes('placeholder destination')),
+  'observed placeholder checkout links are reviewed without calling them confirmed failures');
+const missingMobilePrice=analyzeWebsiteConversion([page('/pricing',offer({
+  mobilePriceVisible:false
+}))],{coverage:{complete:true}});
+assert.ok(missingMobilePrice.blockers.some(x=>x.title.includes('mobile page')&&x.stage==='value'),
+  'missing visible mobile price on a pricing page is flagged for review');
+console.log('PASS conversion engine: 4 extra grounded buyer checks, mobile & placeholder regressions');
