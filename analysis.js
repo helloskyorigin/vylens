@@ -173,6 +173,7 @@
       await messageQueue;
       // Do not store source bytes; keep only limited findings in this tab's session.
       sessionStorage.setItem('vylens:result', JSON.stringify(report));
+      sessionStorage.removeItem('vylens:imported');
       // Avoid rerunning a completed (potentially expensive) inspection when this page is refreshed.
       sessionStorage.removeItem('vylens:pending');
       await changeMessage('Your audit is ready.', 'Opening your full results now.');
