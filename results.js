@@ -20,7 +20,7 @@
     return level+weight;
   };
   const occurrenceCount=issue=>Number.isSafeInteger(issue?.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
-  const checkState=check=>['passed','attention','unverified','not_applicable'].includes(check?.status)?check.status:'unverified';
+  const checkState=check=>['passed','attention','observed','unverified','not_applicable'].includes(check?.status)?check.status:'unverified';
   function readReport(){
     try{
       const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
@@ -146,10 +146,11 @@
   }
   function renderChecks(report){
     const checks=Array.isArray(report.checks)?report.checks:[];
-    const counts={passed:0,attention:0,unverified:0,not_applicable:0};
+    const counts={passed:0,attention:0,observed:0,unverified:0,not_applicable:0};
     for(const check of checks)counts[checkState(check)]++;
     const primary=counts.passed+' passed · '+counts.attention+' flagged';
     const secondary=[
+      counts.observed?counts.observed+' observed':null,
       counts.unverified?counts.unverified+' not verified':null,
       counts.not_applicable?counts.not_applicable+' not applicable':null
     ].filter(Boolean).join(' · ');
@@ -157,15 +158,15 @@
     put('checksExtra',secondary);
     put('checkBreakdownSummary',primary+(secondary?' · '+secondary:''));
     const ordered=checks.map((item,i)=>({item,index:i})).sort((a,b)=>
-      ({attention:0,unverified:1,passed:2,not_applicable:3}[checkState(a.item)]-
-       {attention:0,unverified:1,passed:2,not_applicable:3}[checkState(b.item)])||a.index-b.index);
+      ({attention:0,unverified:1,observed:2,passed:3,not_applicable:4}[checkState(a.item)]-
+       {attention:0,unverified:1,observed:2,passed:3,not_applicable:4}[checkState(b.item)])||a.index-b.index);
     function addRow(target,check){
       const status=checkState(check),row=node('div','check-row'),info=node('div','check-row-text');
       info.append(node('strong','',clean(check?.name||'Check',160)));
       if(check?.detail)info.append(node('p','',clean(check.detail,450)));
       row.append(info,node('span','check-status '+status,
         status==='passed'?'Passed':status==='attention'?'Flagged':
-          status==='not_applicable'?'N/A':'Not verified'));
+          status==='not_applicable'?'N/A':status==='observed'?'Observed':'Not verified'));
       target.append(row);
     }
     const root=$('checkBreakdownList'),na=$('notApplicableList');
@@ -292,10 +293,13 @@
       if(issues.length>initial){
         const more=$('moreProblems');
         more.hidden=false;
-        let expanded=false;
+        let expanded=false,fullRendered=false;
         const update=()=>{
-          if(expanded){add(initial,issues.length);list.classList.add('is-expanded');}
-          else{list.replaceChildren();add(0,initial);list.classList.remove('is-expanded');}
+          // Keep the original detail elements in the DOM so open state, focus and copied text persist.
+          if(expanded&&!fullRendered){add(initial,issues.length);fullRendered=true;}
+          Array.from(list.children).slice(initial).forEach(item=>{item.hidden=!expanded;});
+          list.classList.toggle('is-expanded',expanded);
+          if(!expanded)list.scrollTop=0;
           more.setAttribute('aria-expanded',String(expanded));
           put('moreProblemsText',expanded?'Show fewer findings':'View all '+issues.length+' findings');
         };
