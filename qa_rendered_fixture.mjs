@@ -50,6 +50,21 @@ try{
   assert.ok(deeper.issues.some(x=>x.title.includes('privacy-policy link')));
   assert.ok(deeper.issues.some(x=>x.title.includes('placeholder destinations')));
   assert.ok(findings.issues.every(x=>x.evidence&&x.fix&&x.location&&x.verify));
+  const offer='<html><head><title>Offer page</title></head><body><main>'+
+    '<h1>Welcome</h1><p>Pricing starts at $19. Choose a product for your next project.</p>'+
+    '<a href="/pricing">Learn more</a></main></body></html>';
+  await page.setContent(offer,{waitUntil:'load'});
+  const buying=await engine.captureCommerceSignals(page);
+  assert.equal(buying.heading,'Welcome','commercial headline captured from real rendered DOM');
+  assert.ok(buying.hasPrice&&buying.priceSamples.includes('$19'),'public price text captured');
+  assert.ok(buying.actions.some(x=>x.label==='Learn more'),'main-content action captured');
+  const conversion=engine.analyzeWebsiteConversion([
+    {url:'https://example.org/',status:'rendered',commerce:buying}
+  ],{coverage:{complete:true}});
+  assert.ok(conversion.blockers.some(x=>x.stage==='clarity'),'generic offer headline flagged as a possible concern');
+  assert.ok(conversion.blockers.some(x=>x.stage==='action'),'ambiguous CTA flagged as possible friction');
+  assert.ok(conversion.blockers.every(x=>x.evidence&&x.fix&&x.verify&&x.buyerConcern));
+  assert.ok(conversion.unverified.some(x=>x.includes('Actual sales')),'no customer conversion claims');
   await page.close();
-  console.log('PASS: real Chromium fixtures detect accessible-name, anchor, duplicate-ID, contrast, policy-link and quirks problems while preserving clean result.');
+  console.log('PASS: real Chromium fixtures cover rendered offer, public price, CTA and evidence-based buyer concerns alongside DOM/accessibility checks.');
 }finally{await browser.close();}
