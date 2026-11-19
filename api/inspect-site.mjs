@@ -17,7 +17,7 @@ const UA='VYLENS-Inspector/4.0 (+https://vylens-tan.vercel.app/)';
 const rates=new Map();
 const str=s=>String(s??'').replace(/\s+/g,' ').trim();
 const urlOf=s=>source.validateURL(s);
-const respond=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
+const respond=(data,status=200,extraHeaders={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff',...extraHeaders}});
 const sameSite=(u,root)=>u.hostname.replace(/^www\./,'')===root.hostname.replace(/^www\./,'');
 const dangerous=u=>/(?:^|\/)(?:logout|signout|sign-out|delete|remove|unsubscribe|checkout|cart|payment|admin|wp-admin|account|signin|login|register|api)(?:\/|$)/i.test(u.pathname);
 function normalize(target,base,root){
@@ -470,9 +470,9 @@ function policyContentReview(url,visibleText,html){
   const issues=[],checks=[];
   const match=text.match(/\blorem ipsum\b|\bcoming soon\b|\bTODO\b|\[(?:insert|your)\s+(?:company|business|name|email|address|date)[^\]]{0,40}\]/i);
   const shortContent=text.length<180;
-  checks.push({name:path+' · Policy content',status:match||shortContent?'attention':'passed',
+  checks.push({name:path+' · Policy text and placeholders',status:match||shortContent?'attention':'observed',
     detail:match?'Possible placeholder text: "'+match[0]+'".':
-      'Readable policy-page text: '+text.length+' characters.'});
+      'Readable policy text found ('+text.length+' characters); this does not verify legal adequacy.'});
   if(match)issues.push({category:'Policy content',severity:'note',title:'Policy page may contain placeholder copy',
     location:path,evidence:'Possible placeholder visible on the page: "'+match[0]+'".',
     fix:'Review the page and replace any unfinished template text with accurate, site-specific information.',
@@ -525,6 +525,16 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
   }else checks.push({name:path+' · Rendered page',status:'unverified',detail:'Browser rendering unavailable. Only HTML source was checked.'});
   if(browser && signals){
     const seen=evaluateRenderedSignals(signals,path);
+    // Rendered DOM replaces initial HTML estimates for these checks. Don't display
+    // a stale source-only "Flagged" next to a rendered "Passed" for the same signal.
+    const renderedAuthority=new Set([
+      'Image alt attributes','Form control accessible labels','Button accessible names',
+      'Link accessible names','Unique element IDs','In-page anchor targets'
+    ]);
+    for(let i=checks.length-1;i>=0;i--){
+      if(renderedAuthority.has(checks[i].name.slice((path+' · ').length)))
+        checks.splice(i,1);
+    }
     checks.push(...seen.checks);
     // Use the rendered DOM as the authority for accessibility/name/anchor checks:
     // source-only observations may refer to content hidden or replaced by JavaScript.
@@ -558,7 +568,9 @@ function aggregate(analyses){
   const result=new Map();
   for(const page of analyses)for(const item of page.issues){
     // Same evidence on multiple pages is one finding with multiple recorded locations.
-    const key=[item.category,item.title,item.severity,str(item.evidence||'')].join('|');
+    // Group the same issue type across pages while retaining each page's exact evidence.
+    // Otherwise counts split whenever a page-specific number or locator differs.
+    const key=[item.category,item.title,item.severity].join('|');
     const pagePath=new URL(page.url).pathname||'/';
     if(!result.has(key))
       result.set(key,{...item,affectedCount:0,affectedPages:[],occurrences:[]});
@@ -720,7 +732,25 @@ async function scanSite(input){
       verify:'Open the affected pages and compare their document titles.'});
     checks.push({name:'Cross-page title uniqueness',status:'attention',detail:urls.length+' pages use the same document title.'});
   }
-  issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-( {critical:0,high:1,note:2}[b.severity]??2));
+  // Deterministic triage: severity first, then verified broken destinations /
+  // interaction blockers, then prevalence. This is NOT a measured revenue score.
+  const score=entry=>{
+    const title=str(entry.title).toLowerCase();
+    const category=str(entry.category).toLowerCase();
+    const urgency=({critical:0,high:100,note:200})[entry.severity]??250;
+    const impact=/broken|http 404|http 410|server error|unsafe path|unreachable/.test(title)?0:
+      /mobile|accessib|form|button|navigation|link/.test(title+' '+category)?12:
+      /structure|heading|content|policy/.test(title+' '+category)?28:48;
+    const prevalence=Math.min(12,Math.max(0,(entry.affectedCount||1)-1));
+    return urgency+impact-prevalence;
+  };
+  for(const entry of issues){
+    entry.priorityScore=score(entry);
+    entry.priorityReason=(entry.affectedCount||1)>1?
+      'Found on '+entry.affectedCount+' inspected pages.':
+      'Review this finding and its recorded evidence.';
+  }
+  issues.sort((a,b)=>a.priorityScore-b.priorityScore||a.title.localeCompare(b.title));
   const findingsLimited=issues.length>250;
   if(findingsLimited)checks.push({name:'Finding coverage',status:'unverified',detail:'Additional findings exceeded the 250-item report cap.'});
   issues.length=Math.min(issues.length,250);
@@ -738,9 +768,9 @@ async function scanSite(input){
       distinctFindings:issues.length,
       affectedPageOccurrences:issues.reduce((sum,item)=>sum+(item.affectedCount||1),0),
       checksByStatus:checks.reduce((acc,item)=>{
-        const status=['passed','attention','unverified','not_applicable'].includes(item.status)?item.status:'unverified';
+        const status=['passed','attention','observed','unverified','not_applicable'].includes(item.status)?item.status:'unverified';
         acc[status]++;return acc;
-      },{passed:0,attention:0,unverified:0,not_applicable:0})
+      },{passed:0,attention:0,observed:0,unverified:0,not_applicable:0})
     },
     passed:issues.length===0&&complete&&!findingsLimited};
 }
@@ -757,7 +787,10 @@ export async function POST(request){
   }
   const ip=(request.headers.get('x-forwarded-for')||'unknown').split(',')[0].slice(0,90),now=Date.now();
   for(const [key,last] of rates)if(now-last>120000)rates.delete(key);
-  if(rates.get(ip)&&now-rates.get(ip)<25000)return respond({error:'Please wait before running another full-site audit.'},429);
+  if(rates.get(ip)&&now-rates.get(ip)<25000){
+    const seconds=Math.max(1,Math.ceil((25000-(now-rates.get(ip)))/1000));
+    return respond({error:'Another scan was requested recently. Please retry in '+seconds+' seconds.',retryAfter:seconds},429,{'retry-after':String(seconds)});
+  }
   rates.set(ip,now);
   try{
     if(Number(request.headers.get('content-length')||0)>3500)return respond({error:'Request too large.'},413);
