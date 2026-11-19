@@ -266,7 +266,7 @@ function review(html,pageUrl, response={}) {
   if(!ogTitle||!ogDescription)add('Sharing','note','Social preview fields incomplete',
     `Open Graph metadata contains ${ogTitle?'a title':'no usable title'} and ${ogDescription?'a description':'no usable description'}.`,
     'Add specific, non-empty og:title and og:description values for shared links.','HTML → Meta tags','Preview the page in a social-sharing debugger.');
-  const iconTags=tags(initialHead,'link').filter(t=>/\\bicon\\b/i.test(getAttr(t,'rel')));
+  const iconTags=tags(initialHead,'link').filter(t=>/\bicon\b/i.test(getAttr(t,'rel')));
   const icon=iconTags.some(t=>!!getAttr(t,'href'));
   check('Favicon declaration',icon,icon?'Favicon link with a non-empty href is present.':
     iconTags.length?'An icon link is declared, but its href is empty.':

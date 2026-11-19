@@ -57,13 +57,13 @@ with sync_playwright() as p:
             check(page.locator("#findingsList .finding").first.locator(".details-label").is_visible(),
                   f"Details action remains visible at {width}px")
         first=page.locator("#findingsList .finding").first
-        first.locator("summary").click()
+        first.locator(".finding-head").click()
         check(first.evaluate("(e)=>e.open"),f"Problem expands at {width}px")
         check("HTTP 404" in first.inner_text(),f"Evidence shown at {width}px")
         second=page.locator("#findingsList .finding").nth(1)
-        second.locator("summary").click()
+        second.locator(".finding-head").click()
         check(not first.evaluate("(e)=>e.open"),f"Only one issue expands at a time {width}px")
-        second.locator("summary").click()
+        second.locator(".finding-head").click()
         page.locator("#moreProblems").click()
         check(page.locator("#findingsList .finding").count()==6,f"View all exposes 6 at {width}px")
         check(page.locator("#findingsList").evaluate("(e)=>getComputedStyle(e).overflowY")=="auto",

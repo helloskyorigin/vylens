@@ -85,10 +85,10 @@ with sync_playwright() as playwright:
     check(page.locator('#checkBreakdownList .check-row').count()>=1,'Actual checks render')
     page.locator('#checksPanel > summary').click()
     first_finding=page.locator('#findingsList .finding').first
-    first_finding.locator('summary').click()
+    first_finding.locator('.finding-head').click()
     check(first_finding.evaluate('(e)=>e.open'),'Problem details open inline')
     check(first_finding.locator('.finding-field').count()>=1,'Details show location, evidence or fix')
-    first_finding.locator('summary').click()
+    first_finding.locator('.finding-head').click()
 
     # PDF is browser-print based; test click and print-mode appendix.
     page.evaluate('window.__printClicked=false;window.print=()=>{window.__printClicked=true}')
