@@ -66,10 +66,11 @@
     summary.append(node('span','finding-index',String(index).padStart(2,'0')));
     const copy=node('span','finding-copy');
     const pages=occurrenceCount(issue);
-    copy.append(node('strong','',clean(issue.title||'Finding',170)),
-      node('small','',category(issue)+(pages>1?' · '+pages+' affected pages':'')));
     const level=severity(issue);
     const badge=node('span','severity '+level,level==='critical'?'Critical':level==='high'?'High':'Other');
+    const meta=node('small','finding-meta');
+    meta.append(node('span','',category(issue)+(pages>1?' · '+pages+' affected pages':'')),badge);
+    copy.append(node('strong','',clean(issue.title||'Finding',170)),meta);
     const chevron=document.createElementNS('http://www.w3.org/2000/svg','svg');
     chevron.setAttribute('viewBox','0 0 24 24');
     chevron.setAttribute('class','chevron');
@@ -77,7 +78,7 @@
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d','m6 9 6 6 6-6');
     chevron.append(path);
-    summary.append(copy,badge,node('span','details-label','Details'),chevron);
+    summary.append(copy,node('span','details-label','Details'),chevron);
     item.append(summary);
     const body=node('div','finding-body');
     if(issue.location)body.append(field('LOCATION',issue.location));
@@ -206,7 +207,7 @@
         'No problems were flagged by the checks completed. Other issues may still exist.');
     }
     put('findingsCount',issues.length?(issues.length+' issue '+(issues.length===1?'type':'types')):'No issues');
-    const list=$('findingsList'),initial=Math.min(4,issues.length);
+    const list=$('findingsList'),initial=Math.min(3,issues.length);
     const add=(start,end)=>issues.slice(start,end).forEach((issue,i)=>list.append(issueElement(issue,start+i+1)));
     if(issues.length){
       add(0,initial);

@@ -188,3 +188,23 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8c
  .print-finding p,.print-line{font-size:9pt;margin:4px 0;overflow-wrap:anywhere;white-space:pre-wrap}
  .print-small{color:#555;font-size:9pt}
 }
+
+/* Final focus-row polish: keep the title readable instead of squeezing it between two badges. */
+.finding-copy strong{font-size:14px;line-height:1.48}
+.finding-meta{display:flex!important;align-items:center;flex-wrap:wrap;gap:6px 9px;font-size:11px!important;margin-top:5px!important}
+.finding-meta .severity{font-size:9px;padding:4px 7px}
+.finding-head{gap:10px}
+.details-label{display:inline-block;flex:0 0 auto;white-space:nowrap}
+@media(max-width:700px){
+ .finding-copy strong{font-size:13px}
+ .finding-meta{font-size:10.5px!important;gap:5px 7px}
+ .finding-head{gap:8px}
+ .details-label{font-size:10px}
+}
+@media(max-width:370px){
+ .finding-copy strong{font-size:12.5px}
+ .finding-meta{font-size:10px!important}
+ .details-label{display:inline-block;font-size:9px}
+ .finding-head{gap:6px}
+ .metric-foot{font-size:9.5px}
+}

@@ -41,7 +41,7 @@ with sync_playwright() as p:
         check(page.locator(".metrics-section .metric").count()==2,f"Only 2 cards at {width}px")
         check(page.locator("#problemsCount").inner_text()=="7",f"Affected-page counts at {width}px")
         check(page.locator("#checksCount").inner_text()=="36",f"Checks counted at {width}px")
-        check(page.locator("#findingsList .finding").count()==4,f"Four initial priorities at {width}px")
+        check(page.locator("#findingsList .finding").count()==3,f"Three initial priorities at {width}px")
         check(page.locator("#impactText").inner_text().strip()!="",f"Impact explained at {width}px")
         check(not page.locator("#checksPanel").evaluate("(e)=>e.open"),f"Checks initially collapsed at {width}px")
         bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
@@ -51,6 +51,9 @@ with sync_playwright() as p:
             green=page.locator(".metric-checks").evaluate("(e)=>getComputedStyle(e).backgroundColor")
             check(red=="rgb(255, 241, 240)","Problems card red")
             check(green=="rgb(235, 248, 232)","Checks card green")
+        if width in (320,390):
+            check(page.locator("#findingsList .finding").first.locator(".details-label").is_visible(),
+                  f"Details action remains visible at {width}px")
         first=page.locator("#findingsList .finding").first
         first.locator("summary").click()
         check(first.evaluate("(e)=>e.open"),f"Problem expands at {width}px")
@@ -61,7 +64,7 @@ with sync_playwright() as p:
         check(page.locator("#findingsList").evaluate("(e)=>getComputedStyle(e).overflowY")=="auto",
               f"Expanded issues have bounded scroller at {width}px")
         page.locator("#moreProblems").click()
-        check(page.locator("#findingsList .finding").count()==4,f"Collapse restores compact list at {width}px")
+        check(page.locator("#findingsList .finding").count()==3,f"Collapse restores compact list at {width}px")
         page.locator("#checksPanel > summary").click()
         check(page.locator("#checkBreakdownList .check-row").count()==36,f"Checks complete at {width}px")
         check(page.locator("#siteCoverage").is_visible(),f"Page coverage inside checks at {width}px")
