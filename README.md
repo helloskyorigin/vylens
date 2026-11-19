@@ -1,36 +1,59 @@
 # VYLENS — Website & Digital Product Audits
 
-VYLENS currently offers a **free beta** for source-level website checks and supported local digital-product file checks. It has three separate screens:
+A free beta with a three-screen workflow:
 
-1. `index.html` — choose a website URL or a supported product file.
-2. `inspect.html` — simple branded analysis animation with real processing states.
-3. `results.html` — complete available findings, verified evidence, prioritized fixes, manual action plan, passed/attempted checks and printable report.
+1. `index.html` — select a public website URL or a supported digital-product file.
+2. `inspect.html` / `analysis.js` — run the requested audit and show real states, errors and progress messages.
+3. `results.html` / `results.js` — show distinct findings, affected locations, supporting evidence, practical fixes, check statuses, crawl coverage and a printable report.
 
-## What the audit can and cannot assess
+## Website scan — what runs
 
-- Website inspections are handled by `api/inspect.mjs` through a server-side fetch of public HTML with URL/DNS/IP safeguards. They verify HTTP/HTTPS, titles/descriptions, headings, mobile viewport, label/accessible-name presence, duplicate IDs, same-page anchors, meta/header indexability, social metadata, insecure form actions, and up to three same-origin links (HEAD with GET confirmation for broken responses or servers rejecting HEAD). They do **not** render JS, verify that checkout works, run visual contrast tests, measure actual conversion, or certify accessibility.
-- Digital-product inspections use `audit-core.js` in the browser for selected PDF, TXT, Markdown, ZIP and image files (maximum 15 MB). The selected file is not uploaded to a VYLENS server; an optional public sales-page URL is sent separately for source-level checks. PDF text extraction covers all pages up to 120; longer documents sample the first 110 and final 10 and explicitly report that limit. ZIP inspection includes file sizes, names, cross-platform path traversal checks and available local instructions. Archived file contents are not comprehensively checked.
-- Critical is reserved for confirmed severe problems (for example an archive with no regular files), High for material verifiable issues, and non-urgent findings appear without severity inflation as additional observations.
-- The **Checks Run** count is based on actual attempted checks. Passes are counted separately only where a narrow requirement was verified; no AI score is fabricated.
-- The full available result is free. No checkout, payment, blur or locked audit sections exist in this version. Planned prices are not active.
+The main website workflow calls `POST /api/inspect-site` (`api/inspect-site.mjs`).
 
-## Usage
+- Discovers a bounded set of public same-site links and sitemap URLs while respecting supported robots.txt rules. It attempts up to **24 pages per scan** (not necessarily every page on a site).
+- Uses a guarded, browser-assisted Playwright crawl where available. Checks rendered page content and certain mobile layouts, form/control naming, link/media status, available policy-page signals and other supported source/DOM observations.
+- Falls back to source-only checks when browser rendering is not available. The report labels source-only or skipped pages; lack of verification is **not** treated as a confirmed defect.
+- Limits requests, redirects, response sizes, runtime and targets. Browser network requests go through URL/DNS/IP safeguards; this service does not submit forms or inspect authenticated areas.
+- The separate `POST /api/inspect` (`api/inspect.mjs`) performs **source-level HTML checks only** and is currently used for an optional digital-product sales-page URL.
 
-Deploy the repository root to Vercel (Framework Preset: Other). Vercel serves static pages and the `/api/inspect` endpoint from `api/inspect.mjs` as a serverless function. Open `index.html` and run an audit. The file workflow transfers selected data locally in browser storage between landing and analysis pages, then commits deletion of the temporary transfer record before proceeding; a transfer older than 15 minutes is discarded. The report is held in `sessionStorage`; it is not a permanent account record. `Save full report as PDF` opens the browser's print dialog so the user can choose **Save as PDF**.
+Neither endpoint measures actual conversion, reliably verifies a checkout transaction, audits arbitrary private pages, certifies accessibility/security/legal compliance or provides full human-equivalent visual review. Browser rendering and site access are best-effort; sites can block inspection.
 
-## QA
+## Digital product scan — what runs
 
-Run `python qa_tests.py` for source syntax, links, CSS parsing and SSRF safety fixtures. Run `python qa_product_browser.py` and `python qa_results_browser.py` for supported file and report rendering checks. GitHub and live Vercel availability should still be verified separately. Live rendering should be checked at multiple mobile and desktop widths before production release. This repository does not guarantee that any arbitrary site will accept the source fetch.
+`audit-core.js` checks a selected local file in the visitor's browser, up to **15 MB**. The original file is **not uploaded** to VYLENS.
+
+- PDF: selectable text extraction from up to 120 pages, or the first 110 and final 10 pages for longer files; navigation/bookmark checks where available. Scanned/visual-only content is not semantically interpreted.
+- TXT and Markdown: supported readable-text, heading, draft-marker and link-target checks.
+- ZIP: bounded central-directory listing, file sizes, suspicious paths (including directory entries and Windows-style names), duplicate paths and recognizable local instruction files. It does not fully validate or extract every archived file.
+- PNG, JPG, WebP: whether the browser can decode the image, dimensions and file size. It does **not** interpret or grade visual design.
+- An optional public sales-page URL is checked separately using the source-only endpoint. The optional price is reference context only; it does not generate a conversion score.
+
+Reports distinguish **Passed**, **Flagged**, **Observed** (neutral), **Not verified** and **Not applicable**. A low/zero finding count is not a certification. Severity is reserved for verifiable observed issues; the examples on the landing page are clearly illustrative.
+
+## Privacy and report delivery
+
+A selected product file is passed between pages in temporary IndexedDB storage, removed on retrieval, and rejected if its transfer is over 15 minutes old. The audit report itself remains in sessionStorage. A completed audit clears the pending request; reports are not permanent account records. `Save PDF` opens the browser print dialog, where the visitor can choose **Save as PDF**. There is no active checkout, subscription or paid unlock in the beta.
+
+## Run and test
+
+Deploy the repository root as a Vercel project with its existing `vercel.json` configuration, Node 22+ and the dependencies in `package.json`. A plain static server will not provide the website-scan API.
+
+Relevant tests (some require Chromium/Playwright and network access to the deployed site):
+
+```sh
+python qa_tests.py
+python qa_product_browser.py
+python qa_launch_browser.py
+python qa_focus_results.py
+node qa_problem_engine.mjs
+node qa_rendered_fixture.mjs
+node qa_multisite_accuracy.mjs
+```
+
+The GitHub workflows also run targeted browser and scanner checks. After any release, verify current GitHub checks and Vercel deployment status, then manually inspect the UX at phone/tablet/desktop widths, including errors, retries, large reports and print output. Local and CI tests do not replace real-site validation.
+
+## Production limitations
+
+The current per-IP throttle is **in-memory, best-effort only** in a serverless environment. A shared durable rate limiter, abuse monitoring, clear operating limits and additional real-site regression samples are important before sending heavy traffic. Do not treat the scan as a full performance, security or conversion audit.
 
 Business contact: **hello.skyorigin@gmail.com**.
-
-## Scanner v3 accuracy improvements
-
-- Failed HEAD probes (403/404/405/410/501) are verified with a bounded GET; only GET-confirmed 404/410 responses generate a broken-link finding. Probes now run concurrently with a fixed three-link ceiling and examine final response status without downloading whole response bodies.
-- JavaScript app shells are treated as **unverified** for rendered headings/anchors rather than being falsely called broken. `X-Robots-Tag` is checked alongside HTML robots metadata; deliberate `noindex` is a note, not an unconditional High problem.
-- An HTTP form destination is described as an observed source risk, not as a confirmed checkout failure. No critical checkout claim is made from passive HTML.
-- ZIP path traversal checks handle Windows-style separators and drive/UNC paths; filenames normalize separators for duplicate detection. A found but unreadable guide is not marked passed.
-- Temporary file handoff waits for IndexedDB deletion to commit and rejects expired transfers. The API caps JSON request bytes while streaming, rejects cross-origin browser requests, and expects application/json.
-- The in-memory per-IP request limit is **best-effort only in serverless**; it is not a global distributed quota. Production abuse protection needs a shared rate-limit store or platform-level rules.
-
-Neither pass status nor an empty issue list certifies a website, full product quality, accessibility, security or conversion outcomes: the tool evaluates a bounded set of observable source/file signals only.
