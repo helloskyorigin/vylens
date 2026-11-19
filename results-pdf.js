@@ -79,7 +79,7 @@
     const positives=list('.five-positive-row');
     if(positives.length)paragraph('Positive observations',{bold:true,size:10});
     positives.forEach(row=>paragraph('- '+row.textContent,{size:9.5}));
-    section('2. What Is Stopping Buyers?');
+    section('2. '+(text('#five-blockers .five-panel-title')||'Buying Obstacles'));
     // Replay is a public DOM observation, not an actual recorded user path.
     let replay=null;
     try{
@@ -105,7 +105,7 @@
       const details=list('.five-detail-line',item).map(el=>el.textContent);
       entry((i+1)+'. '+text('.five-row-title',item),[text('.five-location',item),...details]);
     });
-    section('3. Why People Hesitate');
+    section('3. '+(text('#five-hesitations .five-panel-title')||'Buyer Questions'));
     const questions=list('#five-hesitations .five-concern');
     if(!questions.length)paragraph(text('#five-hesitations .five-empty'));
     questions.forEach((item,i)=>paragraph((i+1)+'. '+item.textContent,{size:10,gap:9}));

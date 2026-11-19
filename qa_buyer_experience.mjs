@@ -16,6 +16,13 @@ assert.equal(journey.desktop[2].status,'observed');
 assert.equal(journey.mobile[2].status,'review');
 assert.ok(journey.desktop[3].description.includes('/checkout'));
 assert.equal(journey.desktop[3].status,'unknown','href is not proof of successful checkout');
+const confirmedPublic=buildBuyerReplay([page,p('/checkout',{
+  heading:'Payment information',hasPrice:false,actions:[],mobileActions:[]
+})]);
+assert.equal(confirmedPublic.desktop[3].status,'observed',
+  'a public link target can be independently observed as rendered');
+assert.match(confirmedPublic.desktop[3].description,/Payment and form submission were not tested/);
+assert.equal(confirmedPublic.desktop[3].place,'/checkout');
 assert.match(journey.scope,/not a recorded visitor path/);
 assert.equal(buildBuyerReplay([]),null);
 

@@ -278,6 +278,10 @@ with sync_playwright() as pw:
     page.goto(BASE + "/results.html",wait_until="load",timeout=55000)
     check(page.locator(".five-problems-value").inner_text()=="2",
           "product reported count is 2")
+    check("supplied product" in page.locator("#coverageMessage").inner_text(),
+          "product coverage explanation matches file review")
+    check("What Needs Fixing" in page.locator("#five-blockers").inner_text(),
+          "product-specific section title is understandable")
     check(page.locator("#five-blockers .five-finding").count()==2,
           "product file findings are visible in What Needs Fixing")
     check(page.locator("#five-hesitations .five-concern").count()==2,

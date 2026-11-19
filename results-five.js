@@ -186,7 +186,9 @@
   document.body.classList.add('five-report-ui');
   if(byId('reportHeadline'))byId('reportHeadline').textContent='Your Conversion Report';
   if(byId('coverageMessage'))byId('coverageMessage').textContent=
-    'A focused review of what visitors see before deciding to buy.';
+    report.mode==='product'?
+      'A review of the supplied product and any available public offer evidence.':
+      'A focused review of public buying pages, not actual visitor sessions.';
 
   // 1. Score / overview
   const summary=make('section','five-score-card');
@@ -230,8 +232,10 @@
     append(badge,make('span','five-symbol',symbol),make('span','',label));
     return badge;
   }
-  append(metrics,metric('low',strengths.length+' Positive','✓'));
-  scoreCopy.append(metrics);
+  if(strengths.length){
+    append(metrics,metric('low',strengths.length+' Positive','✓'));
+    scoreCopy.append(metrics);
+  }
   if(strengths.length){
     const details=make('details','five-positive-details');
     details.append(make('summary','','See '+strengths.length+' observed positive signal'+(strengths.length===1?'':'s')));
