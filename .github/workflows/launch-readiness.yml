@@ -21,12 +21,14 @@ jobs:
           set -euo pipefail
           ready=0
           for i in $(seq 1 45); do
-            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/' -o /tmp/vylens-site.html && grep -q 'up to 24 pages per scan' /tmp/vylens-site.html; then ready=1; break; fi
+            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/results.html' -o /tmp/vylens-results.html && grep -q 'focus-redgreen-20261119' /tmp/vylens-results.html; then ready=1; break; fi
             sleep 6
           done
           test "$ready" -eq 1
       - name: Run end-to-end production browser QA
         run: python qa_launch_browser.py
+      - name: Test focused red/green Results at desktop and mobile widths
+        run: python qa_focus_results.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

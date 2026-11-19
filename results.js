@@ -1,320 +1,251 @@
 (() => {
   'use strict';
-  const $ = id => document.getElementById(id);
-  const by = (tag, cls, value) => {
-    const node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (value !== undefined) node.textContent = String(value ?? '');
-    return node;
+  const $=id=>document.getElementById(id);
+  const put=(id,value)=>{const el=$(id);if(el)el.textContent=String(value??'');};
+  const node=(tag,cls,text)=>{
+    const el=document.createElement(tag);
+    if(cls)el.className=cls;
+    if(text!==undefined)el.textContent=String(text??'');
+    return el;
   };
-  const put = (id, value) => { const node = $(id); if (node) node.textContent = String(value ?? ''); };
-  const clean = (value, max = 1200) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-  const rank = value => value === 'critical' ? 0 : value === 'high' ? 1 : 2;
-  const severity = issue => {
-    const value = String(issue?.severity ?? '').toLowerCase();
-    return ['critical', 'high'].includes(value) ? value : 'other';
+  const clean=(value,max=1200)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
+  const severity=issue=>['critical','high'].includes(String(issue?.severity||'').toLowerCase())?String(issue.severity).toLowerCase():'other';
+  const priority=issue=>({critical:0,high:1,other:2}[severity(issue)]);
+  const occurrenceCount=issue=>Number.isSafeInteger(issue?.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
+  const checkState=check=>['passed','attention','unverified'].includes(check?.status)?check.status:'unverified';
+  function readReport(){
+    try{
+      const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
+      if(!report||!['website','product'].includes(report.mode)||!Array.isArray(report.issues)||report.issues.length>250)return null;
+      if(report.issues.some(issue=>!issue||typeof issue!=='object'||Array.isArray(issue)))return null;
+      return report;
+    }catch{return null;}
+  }
+  const category=issue=>clean(issue?.category,50)||'Other';
+  const checkCount=report=>Array.isArray(report.checks)?report.checks.length:
+    Number.isSafeInteger(report.checksRun)&&report.checksRun>=0?report.checksRun:0;
+  function dateLabel(report){
+    const date=new Date(report.checkedAt||report.completedAt||Date.now());
+    return Number.isFinite(date.valueOf())?date.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'}):'Recent audit';
+  }
+  const impactLookup=name=>{
+    const c=name.toLowerCase();
+    if(/discover|seo|index|search/.test(c))return {title:'Search visibility',description:'Search engines may receive less clear information about this page.'};
+    if(/access/.test(c))return {title:'Accessibility',description:'Some visitors may find parts of this page harder to use.'};
+    if(/navigation|broken.link|links/.test(c))return {title:'Navigation',description:'Some visitors may struggle to reach linked pages or sections.'};
+    if(/security|transport|https/.test(c))return {title:'Security',description:'Some expected website safeguards may be missing.'};
+    if(/policy|legal/.test(c))return {title:'Policy clarity',description:'Some published policy information may be incomplete or unclear.'};
+    if(/completeness|draft|placeholder/.test(c))return {title:'Product readiness',description:'Parts of the deliverable may need review before sharing.'};
+    if(/mobile|viewport|responsive/.test(c))return {title:'Mobile experience',description:'Some small-screen visitors may experience layout or usability issues.'};
+    if(/sharing|social/.test(c))return {title:'Shared previews',description:'Links shared elsewhere may show incomplete previews.'};
+    if(/brand|favicon/.test(c))return {title:'Brand recognition',description:'Some browser or sharing cues may be harder to recognize.'};
+    if(/form|input/.test(c))return {title:'Form usability',description:'Some visitors may have difficulty understanding form controls.'};
+    if(/page structure|document structure|heading|content|readability|text|quality/.test(c))return {title:'Content clarity',description:'The page or product structure may be harder to follow.'};
+    if(/file|pdf|zip|archive|image|format|metadata/.test(c))return {title:'File usability',description:'Opening or navigating the delivered content may be affected.'};
+    return {title:name,description:'This area may need attention based on the findings.'};
   };
-  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function readReport() {
-    let value;
-    try { value = JSON.parse(sessionStorage.getItem('vylens:result') || 'null'); }
-    catch { return null; }
-    if (!value || !['website', 'product'].includes(value.mode) || !Array.isArray(value.issues) || value.issues.length > 250) return null;
-    if (value.issues.some(issue => !issue || typeof issue !== 'object')) return null;
-    return value;
-  }
-  function issueCategory(issue) {
-    const category = clean(issue.category, 48);
-    return category || 'Other';
-  }
-  function checkCount(report) {
-    if (Array.isArray(report.checks)) return report.checks.length;
-    return Number.isSafeInteger(report.checksRun) && report.checksRun >= 0 ? report.checksRun : 0;
-  }
-  function impactFor(category) {
-    const name = category.toLowerCase();
-    if (/discover|seo|index|search/.test(name)) return 'Search visibility|Search engines may receive less clear information about this page.';
-    if (/access/.test(name)) return 'Accessibility|Some visitors may find the content harder to navigate or understand.';
-    if (/navigation|broken.link|links/.test(name)) return 'Navigation|Visitors may have difficulty reaching linked pages.';
-    if (/security|transport|https/.test(name)) return 'Security|Some expected safeguards may be missing.';
-    if (/policy|legal/.test(name)) return 'Policy clarity|Visitors may find some policy information incomplete or unclear.';
-    if (/completeness|draft|placeholder/.test(name)) return 'Product readiness|Some parts of the deliverable may need finishing or review before sharing.';
-    if (/mobile|viewport|responsive/.test(name)) return 'Mobile experience|Viewing the page on smaller screens may be affected.';
-    if (/sharing|social/.test(name)) return 'Link previews|Links shared elsewhere may show incomplete information.';
-    if (/brand|favicon/.test(name)) return 'Brand recognition|The browser tab or shared identity may be harder to recognize.';
-    if (/form|input/.test(name)) return 'Forms & usability|Visitors may find some controls harder to use.';
-    if (/page structure|document structure|heading|content|readability|text|quality/.test(name)) return 'Content clarity|The page or product structure may be harder to follow.';
-    if (/file|pdf|zip|archive|image|format|metadata/.test(name)) return 'File usability|Opening or navigating the delivered content may be affected.';
-    return category + '|This area has findings that may need attention.';
-  }
-  function areaMap(issues) {
-    const areas = new Map();
-    for (const issue of issues) {
-      const name = issueCategory(issue);
-      const key = name.toLowerCase();
-      const current = areas.get(key) || {name, count:0, most:2};
-      current.count += Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
-      current.most = Math.min(current.most, rank(severity(issue)));
-      areas.set(key, current);
+  function deriveImpact(issues){
+    const list=new Map();
+    for(const issue of issues){
+      const mapped=impactLookup(category(issue));
+      const item=list.get(mapped.title)||{...mapped,count:0,priority:2};
+      item.count+=occurrenceCount(issue);
+      item.priority=Math.min(item.priority,priority(issue));
+      list.set(mapped.title,item);
     }
-    return [...areas.values()].sort((a,b) => a.most-b.most || b.count-a.count || a.name.localeCompare(b.name));
+    return [...list.values()].sort((a,b)=>a.priority-b.priority||b.count-a.count||a.title.localeCompare(b.title));
   }
-  function impactMap(issues) {
-    const impacts = new Map();
-    for (const issue of issues) {
-      const [title, description] = impactFor(issueCategory(issue)).split('|');
-      const current = impacts.get(title) || {title, description, count:0, most:2};
-      current.count += Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
-      current.most = Math.min(current.most, rank(severity(issue)));
-      impacts.set(title, current);
-    }
-    return [...impacts.values()].sort((a,b) => a.most-b.most || b.count-a.count || a.title.localeCompare(b.title));
-  }
-  function dateLabel(report) {
-    const date = new Date(report.checkedAt || report.completedAt || Date.now());
-    if (!Number.isFinite(date.valueOf())) return 'Recent audit';
-    return date.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});
-  }
-
-  function sectionLabel(text, kind) { return by('span', 'detail-label' + (kind ? ' detail-label-' + kind : ''), text); }
-  function detail(title, text, cls) {
-    const wrapper = by('div', 'issue-detail' + (cls ? ' ' + cls : ''));
-    wrapper.append(sectionLabel(title), by('p','',clean(text, 1800)));
+  function field(title,value,extra){
+    const wrapper=node('div','finding-field'+(extra?' '+extra:''));
+    wrapper.append(node('span','field-label',title),node('p','',clean(value,1800)));
     return wrapper;
   }
-  function finding(issue, number, expand) {
-    const node = by('details', 'finding');
-    if (expand) node.open = true;
-    const head = by('summary', 'finding-head');
-    const numberEl = by('span', 'finding-number', String(number));
-    const main = by('span', 'finding-main');
-    const pages=Number.isSafeInteger(issue.affectedCount)&&issue.affectedCount>1?issue.affectedCount:0;
-    main.append(by('strong','',clean(issue.title || 'Finding',160)),
-      by('small','',issueCategory(issue)+(pages?' · '+pages+' pages':'')));
-    const sev = severity(issue);
-    const sevEl = by('span', 'severity ' + sev, sev === 'critical' ? 'Critical' : sev === 'high' ? 'High' : 'Note');
-    const chevron = document.createElementNS('http://www.w3.org/2000/svg','svg');
-    chevron.setAttribute('class','chevron');
+  function issueElement(issue,index){
+    const item=node('details','finding');
+    const summary=node('summary','finding-head');
+    summary.append(node('span','finding-index',String(index).padStart(2,'0')));
+    const copy=node('span','finding-copy');
+    const pages=occurrenceCount(issue);
+    copy.append(node('strong','',clean(issue.title||'Finding',170)),
+      node('small','',category(issue)+(pages>1?' · '+pages+' affected pages':'')));
+    const level=severity(issue);
+    const badge=node('span','severity '+level,level==='critical'?'Critical':level==='high'?'High':'Other');
+    const chevron=document.createElementNS('http://www.w3.org/2000/svg','svg');
     chevron.setAttribute('viewBox','0 0 24 24');
+    chevron.setAttribute('class','chevron');
     chevron.setAttribute('aria-hidden','true');
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d','m6 9 6 6 6-6');
     chevron.append(path);
-    head.append(numberEl, main, sevEl, chevron);
-    node.append(head);
-    const body = by('div', 'finding-body');
-    if (issue.location) body.append(detail('LOCATION', issue.location));
-    if (Array.isArray(issue.affectedPages) && issue.affectedPages.length>1)
-      body.append(detail('AFFECTED PAGES',issue.affectedPages.join(', ')));
-    if (issue.evidence) body.append(detail('EVIDENCE', issue.evidence));
-    if (issue.fix) body.append(detail('HOW TO FIX', issue.fix, 'fix-detail'));
-    if (issue.verify) body.append(detail('VERIFY', issue.verify));
-    if (!body.children.length) body.append(by('p','unverified-detail','No additional details were recorded for this finding.'));
-    if (issue.fix) {
-      const button = by('button','copy-fix','Copy fix');
-      button.type = 'button';
-      button.setAttribute('aria-label','Copy fix for ' + clean(issue.title || 'finding',80));
-      button.addEventListener('click', async () => {
-        const content = [issue.title, issue.location && 'Location: ' + issue.location, issue.evidence && 'Evidence: ' + issue.evidence, issue.fix && 'Fix: ' + issue.fix, issue.verify && 'Verify: ' + issue.verify].filter(Boolean).join('\n');
-        try {
+    summary.append(copy,badge,node('span','details-label','Details'),chevron);
+    item.append(summary);
+    const body=node('div','finding-body');
+    if(issue.location)body.append(field('LOCATION',issue.location));
+    if(Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
+      body.append(field('AFFECTED PAGES',issue.affectedPages.slice(0,40).join(', ')));
+    if(issue.evidence)body.append(field('EVIDENCE',issue.evidence));
+    if(issue.fix)body.append(field('HOW TO FIX',issue.fix,'fix-field'));
+    if(issue.verify)body.append(field('VERIFY',issue.verify));
+    if(!body.children.length)body.append(node('p','panel-empty','No additional details were recorded.'));
+    if(issue.fix){
+      const button=node('button','copy-fix','Copy fix');
+      button.type='button';
+      button.setAttribute('aria-label','Copy fix for '+clean(issue.title||'finding',75));
+      button.addEventListener('click',async()=>{
+        const content=[issue.title,issue.location&&'Location: '+issue.location,issue.evidence&&'Evidence: '+issue.evidence,
+          issue.fix&&'Fix: '+issue.fix,issue.verify&&'Verify: '+issue.verify].filter(Boolean).join('\n');
+        try{
           await navigator.clipboard.writeText(content);
-          button.textContent = 'Copied';
-        } catch { button.textContent = 'Copy unavailable'; }
+          button.textContent='Copied';
+        }catch{button.textContent='Copy unavailable';}
       });
       body.append(button);
     }
-    node.append(body);
-    return node;
+    item.append(body);
+    return item;
   }
-  function printDetails(issues, report) {
-    const root = $('printAppendix');
-    // The impact and affected areas already appear on the printable page.
-    // Keep one complete list of findings rather than repeating each section.
-    if (issues.length) root.append(by('h2','','Full findings'));
-    issues.forEach((issue, index) => {
-      const item = by('section','print-finding');
-      item.append(by('h3','', String(index + 1) + '. ' + clean(issue.title || 'Finding',160) + ' — ' + severity(issue).toUpperCase()));
-      item.append(by('p','', 'Area: ' + issueCategory(issue)));
-      if (issue.location) item.append(by('p','', 'Location: ' + clean(issue.location,500)));
-      if (Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
-        item.append(by('p','', 'Affected pages: ' + issue.affectedPages.join(', ')));
-      if (issue.evidence) item.append(by('p','', 'Evidence: ' + clean(issue.evidence,1800)));
-      if (issue.fix) item.append(by('p','', 'Fix: ' + clean(issue.fix,1800)));
-      if (issue.verify) item.append(by('p','', 'Verify: ' + clean(issue.verify,1200)));
-      root.append(item);
-    });
-    if (report.mode==='website' && Array.isArray(report.pages) && report.pages.length) {
-      root.append(by('h2','','Page coverage'));
-      for(const page of report.pages.slice(0,70))
-        root.append(by('p','print-line',(page.path||'/')+' — '+page.status+(page.type==='legal'?' (policy)':'')));
-    }
-    const scope = by('p','print-small', report.mode === 'website'
-      ? 'Public page source and supported rendered DOM/mobile checks were inspected where available. Actual user behavior, sales and legal compliance were not tested.'
-      : 'Product-file audit. Visual quality, buyer intent and actual sales were not measured.');
-    root.append(scope);
-  }
-
-  function renderCheckBreakdown(report) {
-    if(!Array.isArray(report.checks)||!report.checks.length)return;
+  function renderChecks(report){
+    const checks=Array.isArray(report.checks)?report.checks:[];
     const counts={passed:0,attention:0,unverified:0};
-    for(const check of report.checks)
-      counts[Object.hasOwn(counts,check?.status)?check.status:'unverified']++;
-    const parts=[
-      counts.passed+' passed',
-      counts.attention+' flagged',
-      counts.unverified+' not verified'
-    ];
-    put('checkBreakdownSummary',parts.join(' · '));
+    for(const check of checks)counts[checkState(check)]++;
+    const countParts=[counts.passed+' passed',counts.attention+' flagged'];
+    if(counts.unverified)countParts.push(counts.unverified+' unverified');
+    put('checkBreakdownSummary',checks.length?countParts.join(' · '):'No check details recorded');
+    put('checksSummary',checks.length?countParts.join(' · '):'No check details recorded');
+    const ordered=checks.map((item,i)=>({item,index:i})).sort((a,b)=>
+      ({attention:0,unverified:1,passed:2}[checkState(a.item)]-({attention:0,unverified:1,passed:2}[checkState(b.item)]))||a.index-b.index);
     const root=$('checkBreakdownList');
-    for(const check of report.checks.slice(0,650)){
-      const status=Object.hasOwn(counts,check?.status)?check.status:'unverified';
-      const row=by('div','check-breakdown-row');
-      const text=by('div','check-breakdown-text');
-      text.append(by('strong','',clean(check?.name||'Check',130)));
-      if(check?.detail)text.append(by('p','',clean(check.detail,400)));
-      row.append(text,by('span','check-breakdown-state '+status,status==='passed'?'Passed':status==='attention'?'Flagged':'Not verified'));
+    for(const {item} of ordered.slice(0,650)){
+      const type=checkState(item);
+      const row=node('div','check-row');
+      const info=node('div','check-row-text');
+      info.append(node('strong','',clean(item?.name||'Check',160)));
+      if(item?.detail)info.append(node('p','',clean(item.detail,450)));
+      row.append(info,node('span','check-status '+type,type==='passed'?'Passed':type==='attention'?'Flagged':'Not verified'));
       root.append(row);
     }
-    $('checkBreakdown').hidden=false;
+    if(!checks.length)root.append(node('p','panel-empty','No checks were recorded.'));
+    if(ordered.length>650)root.append(node('p','panel-empty','Showing the first 650 checks.'));
   }
-  function renderCoverage(report) {
-    const c=report.coverage;
-    if(!c || !Array.isArray(report.pages))return;
+  function renderCoverage(report){
+    if(report.mode!=='website'||!report.coverage||!Array.isArray(report.pages))return;
+    const c=report.coverage,inspected=Number(c.inspected)||0,discovered=Number(c.discovered)||0;
     $('siteCoverage').hidden=false;
-    const total=Math.max(1,Number(c.discovered)||0),inspected=Number(c.inspected)||0;
-    put('coverageTitle',inspected+' of '+(Number(c.discovered)||0)+' pages inspected');
+    put('coverageTitle',inspected+' of '+discovered+' pages inspected');
     const pending=(Number(c.remaining)||0)+(Number(c.skipped)||0);
-    put('coverageSubtitle',c.complete?'All discovered pages checked.':
-      pending?pending+' page'+(pending===1?'':'s')+' not fully checked.':
-      c.sourceOnly?c.sourceOnly+' page'+(c.sourceOnly===1?'':'s')+' checked without browser rendering.':
-      'Only discovered public pages are included.');
-    put('legalCount',(Number(c.legal)||0)+' legal / policy');
-    $('coverageFill').style.width=Math.max(0,Math.min(100,Math.round(inspected/total*100)))+'%';
-    for(const p of report.pages.slice(0,70)) {
-      const row=by('div','coverage-page');
-      const path=by('span','coverage-path',clean(p.path||'/',160));
-      path.title=clean(p.url||p.path,300);
-      const meta=by('span','coverage-page-meta');
-      if(p.type==='legal')meta.append(by('small','coverage-policy','Policy'));
-      const text=p.status==='rendered'?'Rendered':p.status==='source'?'Source only':p.status==='skipped'?'Skipped':'Unverified';
-      meta.append(by('small','coverage-status '+(p.status==='rendered'?'is-verified':'is-unverified'),text));
-      row.append(path,meta);
-      if(p.reason)row.title=clean(p.reason,150);
-      $('coveragePages').append(row);
+    put('coverageSubtitle',c.complete?'All discovered public pages checked.':
+      pending?pending+' pages not fully inspected.':
+      c.sourceOnly?c.sourceOnly+' pages checked using source only.':
+      'Coverage includes only discovered public pages.');
+    put('legalCount',(Number(c.legal)||0)+' policy');
+    $('coverageFill').style.width=Math.max(0,Math.min(100,Math.round(inspected/Math.max(discovered,1)*100)))+'%';
+    for(const page of report.pages.slice(0,70)){
+      const line=node('div','coverage-page');
+      const path=node('span','coverage-path',clean(page.path||'/',180));
+      path.title=clean(page.url||page.path,400);
+      const meta=node('span','coverage-page-meta');
+      if(page.type==='legal')meta.append(node('small','coverage-policy','Policy'));
+      const label=page.status==='rendered'?'Rendered':page.status==='source'?'Source only':page.status==='skipped'?'Skipped':'Unverified';
+      meta.append(node('small','coverage-status'+(page.status==='rendered'?' is-verified':''),label));
+      if(page.reason)line.title=clean(page.reason,200);
+      line.append(path,meta);
+      $('coveragePages').append(line);
     }
   }
-  function render(report) {
-    const issues = report.issues.slice().sort((a,b) => rank(severity(a))-rank(severity(b)));
-    const issueWeight = item => Number.isSafeInteger(item.affectedCount)&&item.affectedCount>0?item.affectedCount:1;
-    const count = severityName => issues.filter(item => severity(item) === severityName).reduce((n,item)=>n+issueWeight(item),0);
-    const critical = count('critical'), high = count('high'), other = count('other');
-    put('criticalCount',critical);
-    put('highCount',high);
-    put('otherCount',other);
-    put('checksCount',checkCount(report));
-    $('criticalCard').classList.toggle('is-clear',critical === 0);
-    $('highCard').classList.toggle('is-clear',high === 0);
-    $('otherCard').classList.toggle('is-clear',other === 0);
-    put('reportType',report.mode === 'website' ? 'WEBSITE' : 'DIGITAL PRODUCT');
-    put('reportSubject',clean(report.subject || report.url || 'Your product',180));
+  function printDetails(issues,report){
+    const root=$('printAppendix');
+    root.append(node('h2','','Full findings'));
+    if(!issues.length)root.append(node('p','','No problems flagged by completed supported checks.'));
+    issues.forEach((issue,index)=>{
+      const section=node('section','print-finding');
+      section.append(node('h3','',String(index+1)+'. '+clean(issue.title||'Finding',180)+' — '+severity(issue).toUpperCase()),
+        node('p','','Area: '+category(issue)));
+      if(issue.location)section.append(node('p','','Location: '+clean(issue.location,600)));
+      if(Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
+        section.append(node('p','','Affected pages: '+issue.affectedPages.join(', ')));
+      if(issue.evidence)section.append(node('p','','Evidence: '+clean(issue.evidence,1800)));
+      if(issue.fix)section.append(node('p','','Fix: '+clean(issue.fix,1800)));
+      if(issue.verify)section.append(node('p','','Verify: '+clean(issue.verify,1300)));
+      root.append(section);
+    });
+    if(report.mode==='website'&&Array.isArray(report.pages)&&report.pages.length){
+      root.append(node('h2','','Page coverage'));
+      report.pages.slice(0,70).forEach(page=>root.append(node('p','print-line',(page.path||'/')+' — '+page.status+(page.type==='legal'?' (policy)':''))));
+    }
+    root.append(node('p','print-small',report.mode==='website'?
+      clean(report.scope||'Public HTML and supported rendered-page checks where available; actual user behavior or sales not tested.',800):
+      'Supported product-file checks. Actual buyer behavior and sales were not measured.'));
+  }
+  function render(report){
+    const issues=report.issues.slice().sort((a,b)=>priority(a)-priority(b));
+    const totals={critical:0,high:0,other:0};
+    for(const issue of issues)totals[severity(issue)]+=occurrenceCount(issue);
+    const total=totals.critical+totals.high+totals.other;
+    const checks=checkCount(report);
+    put('problemsCount',total);
+    put('criticalCount',totals.critical);
+    put('highCount',totals.high);
+    put('otherCount',totals.other);
+    put('checksCount',checks);
+    put('reportType',report.mode==='website'?'WEBSITE':'DIGITAL PRODUCT');
+    put('reportSubject',clean(report.subject||report.url||'Your product',180));
     put('reportDate',dateLabel(report));
     put('year',new Date().getFullYear());
-    renderCheckBreakdown(report);
+    renderChecks(report);
     renderCoverage(report);
-
-    const impacts = impactMap(issues);
-    const areas = areaMap(issues);
-    const impactList = $('impactList');
-    if (!issues.length) {
-      const calm = by('div','empty-state');
-      calm.append(by('span','empty-symbol','✓'),by('div','',''));
-      const attempts = checkCount(report);
-      const unavailable = Array.isArray(report.checks) ? report.checks.filter(check => check?.status === 'unverified').length : 0;
-      const cleanResult = attempts > 0 && unavailable === 0;
-      const mainText = attempts === 0 ? 'No checks completed.' : cleanResult ? 'No problems flagged by completed checks.' : 'No confirmed issues found.';
-      const helpText = attempts === 0 ? 'Please run a new audit.' : unavailable > 0 ? 'Some checks could not be verified.' : 'Nothing was flagged by the checks completed.';
-      calm.lastChild.append(by('strong','',mainText),by('p','',helpText));
-      impactList.append(calm);
-      $('areasSection').hidden = true;
-      $('findingsSection').hidden = true;
-    } else {
-      impacts.forEach(impact => {
-        const entry = by('article','impact-row');
-        const left = by('span','impact-symbol','');
-        left.setAttribute('aria-hidden','true');
-        const center = by('div','impact-copy');
-        center.append(by('h3','',impact.title),by('p','',impact.description));
-        entry.append(left,center);
-        impactList.append(entry);
-      });
-      $('areasSection').hidden = false;
-      $('findingsSection').hidden = false;
-      const chips = $('areasList');
-      const list = $('findingsList');
-      let activeArea = null;
-      const showFindings = () => {
-        const filtered = activeArea
-          ? issues.filter(issue => issueCategory(issue).toLowerCase() === activeArea)
-          : issues;
-        list.replaceChildren();
-        filtered.forEach((issue,index) => list.append(finding(issue,index+1,index===0)));
-        const occurrences=filtered.reduce((n,item)=>n+issueWeight(item),0);
-        put('findingsCount',occurrences+(occurrences===1?' issue':' issues'));
-        for (const chip of chips.children) {
-          if (chip.tagName && chip.tagName.toLowerCase() !== 'button') continue;
-          const selected = chip.dataset.area === (activeArea ?? 'all');
-          chip.classList.toggle('is-active',selected);
-          chip.setAttribute('aria-pressed',String(selected));
-        }
-      };
-      // A single area needs no redundant filter. Multiple areas get an explicit reset.
-      if (areas.length > 1) {
-        const allChip = by('button','area-chip');
-        allChip.type='button';
-        allChip.dataset.area='all';
-        allChip.setAttribute('aria-controls','findingsList');
-        allChip.append(by('span','','All areas'),by('strong','',issues.reduce((sum,item)=>sum+issueWeight(item),0)));
-        allChip.addEventListener('click',() => {activeArea=null;showFindings();});
-        chips.append(allChip);
-      }
-      areas.forEach(area => {
-        const interactive=areas.length > 1;
-        const chip = by(interactive?'button':'span','area-chip'+(interactive?'':' is-static'));
-        if (interactive) {
-          chip.type='button';
-          chip.dataset.area=area.name.toLowerCase();
-          chip.setAttribute('aria-controls','findingsList');
-          chip.setAttribute('aria-pressed','false');
-          chip.setAttribute('aria-label','Show findings in '+area.name);
-          chip.addEventListener('click',() => {activeArea=chip.dataset.area;showFindings();});
-        }
-        chip.append(by('span','',area.name),by('strong','',area.count));
-        chips.append(chip);
-      });
-      showFindings();
+    const impacts=deriveImpact(issues);
+    if(issues.length){
+      const top=impacts.slice(0,2);
+      const descriptions=top.map(i=>i.description);
+      put('impactText',descriptions.join(' '));
+      impacts.slice(0,3).forEach(i=>$('impactTags').append(node('span','impact-chip',i.title)));
+    }else{
+      const unverified=Array.isArray(report.checks)?report.checks.filter(x=>checkState(x)==='unverified').length:0;
+      put('impactText',checks===0?'No checks were completed. Run another audit to inspect the site.':
+        unverified?'No confirmed problems in the completed checks. Some checks could not be verified.':
+        'No problems were flagged by the checks completed. Other issues may still exist.');
     }
-    put('scopeNote',report.mode === 'website'
-      ? clean(report.scope || 'Only supported public checks were performed; real conversions were not measured.',650)
-      : 'Based on the supplied file and supported checks. Actual buyer behavior was not measured.');
-    printDetails(issues, report);
-
-    $('savePdf').addEventListener('click', () => window.print());
-    if (report.mode === 'product') $('recheck').lastChild.textContent = 'Scan another file';
-    $('recheck').addEventListener('click', () => {
-      if (report.mode === 'website' && report.url) {
-        try {
+    put('findingsCount',issues.length?(issues.length+' issue '+(issues.length===1?'type':'types')):'No issues');
+    const list=$('findingsList'),initial=Math.min(4,issues.length);
+    const add=(start,end)=>issues.slice(start,end).forEach((issue,i)=>list.append(issueElement(issue,start+i+1)));
+    if(issues.length){
+      add(0,initial);
+      if(issues.length>initial){
+        const more=$('moreProblems');
+        more.hidden=false;
+        let expanded=false;
+        const update=()=>{
+          if(expanded){add(initial,issues.length);list.classList.add('is-expanded');}
+          else{list.replaceChildren();add(0,initial);list.classList.remove('is-expanded');}
+          more.setAttribute('aria-expanded',String(expanded));
+          put('moreProblemsText',expanded?'Show fewer problems':'View all '+issues.length+' issue types');
+        };
+        put('moreProblemsText','View all '+issues.length+' issue types');
+        more.addEventListener('click',()=>{expanded=!expanded;update();});
+      }
+    }else{
+      list.append(node('p','panel-empty',checks?'No detected problems to fix.':'No findings available.'));
+    }
+    put('scopeNote',report.mode==='website'?
+      clean(report.scope||'Only supported public pages and checks were inspected; actual conversions were not measured.',900):
+      'Based on supplied supported files. Actual buyer behavior was not measured.');
+    printDetails(issues,report);
+    $('savePdf').addEventListener('click',()=>window.print());
+    if(report.mode==='product')$('recheck').lastChild.textContent=' New file';
+    $('recheck').addEventListener('click',()=>{
+      if(report.mode==='website'&&report.url){
+        try{
           sessionStorage.setItem('vylens:pending',JSON.stringify({mode:'website',url:report.url}));
           window.location.assign('./inspect.html');
-        } catch { window.location.assign('./index.html#audit-tool'); }
-      } else {
-        try { sessionStorage.setItem('vylens:prefill-mode','product'); } catch {}
+        }catch{window.location.assign('./index.html#audit-tool');}
+      }else{
+        try{sessionStorage.setItem('vylens:prefill-mode','product');}catch{}
         window.location.assign('./index.html#audit-tool');
       }
     });
   }
-  const report = readReport();
-  if (!report) { $('missingReport').hidden = false; return; }
-  $('main').hidden = false;
+  const report=readReport();
+  if(!report){$('missingReport').hidden=false;return;}
+  $('main').hidden=false;
   render(report);
 })();

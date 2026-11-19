@@ -74,10 +74,21 @@ with sync_playwright() as playwright:
     check('launch-check.md' in page.locator('#reportSubject').inner_text(),'Results identify uploaded product')
     check(page.locator('#reportType').inner_text()=='DIGITAL PRODUCT','Results show correct audit type')
     check(page.locator('#findingsList .finding').count()>=1,'Real file findings are present')
+    check(page.locator('.metrics-section .metric').count()==2,'Only two summary cards')
+    check(page.locator('#problemsCount').inner_text().strip().isdigit(),'Problem count reflects report')
     check(page.locator('#checksCount').inner_text().strip().isdigit(),'Checks count is numeric')
-    check(page.locator('#checkBreakdown').is_visible(),'Verified checks summary is shown')
-    page.locator('#checkBreakdown summary').click()
-    check(page.locator('#checkBreakdownList .check-breakdown-row').count()>=1,'Measured checks can be inspected')
+    check(page.locator('#impactText').inner_text().strip()!='','Impact has an explanation')
+    check(page.locator('#checksPanel').is_visible() and not page.locator('#checksPanel').evaluate('(e)=>e.open'),
+          'Completed checks are collapsed by default')
+    page.locator('#checksPanel > summary').click()
+    check(page.locator('#checksPanel').evaluate('(e)=>e.open'),'Checks expand inline')
+    check(page.locator('#checkBreakdownList .check-row').count()>=1,'Actual checks render')
+    page.locator('#checksPanel > summary').click()
+    first_finding=page.locator('#findingsList .finding').first
+    first_finding.locator('summary').click()
+    check(first_finding.evaluate('(e)=>e.open'),'Problem details open inline')
+    check(first_finding.locator('.finding-field').count()>=1,'Details show location, evidence or fix')
+    first_finding.locator('summary').click()
 
     # PDF is browser-print based; test click and print-mode appendix.
     page.evaluate('window.__printClicked=false;window.print=()=>{window.__printClicked=true}')
