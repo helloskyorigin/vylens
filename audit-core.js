@@ -133,7 +133,8 @@
     const words=extracted.reduce((n,p)=>n+p.words,0);
     await doc.destroy();
     return {issues,checks,summary:`${total} PDF pages. Extracted text from ${pages.length} page(s), with ${words.toLocaleString()} words.`,
-      meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation'};
+      meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation',
+      textSample:all.slice(0,4200)};
   }
   function unsafeZipPath(name){
     const normalized=String(name).replace(/\\/g,'/');
@@ -266,8 +267,9 @@
         'New buyers may spend extra time discovering how to use the product.'],
       'Possible template or draft placeholders detected':['trust','review','Some content looks like unfinished draft text',
         'If these markers are not intentional editable placeholders, they could weaken buyer confidence.'],
-      'Long PDF has no bookmark outline':['action','review','A long guide may be harder to navigate',
-        'Buyers of longer guides may benefit from faster navigation to relevant sections.']
+      // Navigation/bookmark metadata is a technical document check, not
+      // evidence of why shoppers hesitate. Keep it out of the conversion UI.
+      'Long PDF has no bookmark outline':null
     };
     for(const finding of issues){
       const mapping=categories[finding.title];
@@ -297,6 +299,26 @@
     ];
     if(!payload.salesPage)unverified.unshift('No sales page was supplied. Pre-purchase price presentation, offer clarity and trust cues could not be assessed.');
     if(price)unverified.push('A listed price ('+price+') was supplied, but its suitability or buyer willingness to pay was not verified.');
+    const excerpt=String(payload.textSample||'').replace(/\s+/g,' ').trim().slice(0,3500);
+    // A locally extracted deliverable may contain evidence of its intended
+    // audience or an instructional promise. These are observations only;
+    // the public sales pitch and purchaser reactions cannot be inferred.
+    const audience=excerpt.match(/\b(?:designed|built|written|made|created)\s+for\s+([^.!?\n]{8,90})/i)||
+      excerpt.match(/\bfor\s+(?:freelancers|creators|students|beginners|founders|designers|developers|marketers|teachers|small businesses|entrepreneurs)\b[^.!?\n]{0,45}/i);
+    if(audience){
+      const phrase=String(audience[0]).slice(0,105);
+      strengths.push({stage:'clarity',title:'Audience positioning appears in the product',
+        evidence:'The supplied content includes “'+phrase+'”. This does not establish that the sales page explains the audience.',location:'Product text excerpt'});
+    }
+    const outcome=excerpt.match(/\b(?:you will learn|you can learn|by the end(?: of this[^,.]{0,35})? you will|this guide (?:shows|teaches)|step.by.step guide to)\b[^.!?\n]{8,105}/i);
+    if(outcome){
+      strengths.push({stage:'value',title:'An intended outcome appears in the product',
+        evidence:'Extracted product text: “'+String(outcome[0]).slice(0,130)+'”. The commercial promise was not independently verified.',location:'Product text excerpt'});
+    }
+    if(!payload.salesPage)unverified.push(
+      'To evaluate pre-purchase hesitation, include a public sales page. File contents mainly support post-purchase deliverable observations.');
+    if(excerpt&&!audience&&!outcome)unverified.push(
+      'The sampled product text did not establish a clear target audience or outcome. This is an evidence gap, not proof that the offer lacks them.');
     if(['png','jpg','jpeg','webp'].includes(ext))unverified.push(
       'Image review covered file properties only, not the visual persuasiveness of the offer or design.');
     const stageLabels=[
@@ -324,13 +346,14 @@
       progress('Reading your content…','Checking the real text and structure.');
       const raw=await file.text(); const r=inspectText(raw,ext==='md'?'markdown':'text',file.name);
       result={issues:r.issues,checks:r.checks,summary:`Read ${r.words.toLocaleString()} words in ${file.name}.`,
-        meta:`${r.words.toLocaleString()} words · ${ext.toUpperCase()}`,coverageLabel:'Readable text + structure'};
+        meta:`${r.words.toLocaleString()} words · ${ext.toUpperCase()}`,coverageLabel:'Readable text + structure',
+        textSample:raw.slice(0,4200)};
     }else result=await imageReview(file);
     const issues=result.issues,checks=result.checks;
     check(checks,'Original file accessible','passed',`Read the selected ${ext.toUpperCase()} file locally (${(file.size/1048576).toFixed(2)} MB).`);
     const rank={critical:0,high:1,note:2};issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
     issues.forEach((item,i)=>item.id=i+1);
-    const conversion=productConversion(issues,checks,ext,payload);
+    const conversion=productConversion(issues,checks,ext,{...payload,textSample:result.textSample||''});
     return {mode:'product',conversion,subject:file.name,pageTitle:file.name,summary:result.summary,
       meta:result.meta+(payload.price?` · Listed price: ${String(payload.price).slice(0,30)}`:''),coverageLabel:result.coverageLabel,checkedAt:new Date().toISOString(),
       checked:checks.map(x=>x.name),checks,checksRun:checks.length,issues,totalDetected:issues.length,

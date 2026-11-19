@@ -122,7 +122,7 @@
       detail:blockers.some(x=>x.stage===id)?'A possible blocker was identified':
         strengths.some(x=>x.stage===id)?'Evidence was observed, not buyer behavior':'Not verified from supported evidence'
     }));
-    return {...fileReview,blockers,strengths,journey,inspectedOfferPages:1,
+    return {...fileReview,blockers,strengths,journey,inspectedOfferPages:1,renderedPages:0,
       unverified:[...(fileReview.unverified||[]),...(salesReview.unverified||[])],
       scope:'Local delivered-file assessment and initial public sales-page HTML. No rendered checkout or real buyer behavior tested.'};
   }

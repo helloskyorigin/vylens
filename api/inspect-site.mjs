@@ -363,7 +363,7 @@ async function captureCommerceSignals(page){
       const rect=el.getBoundingClientRect();
       return {label:label(el),path,top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
     }).filter(a=>a.label).slice(0,18);
-    const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d[\d,.]*(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d[\d,.]*)/gi)]
+    const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d+(?:,\d{3})*(?:\.\d{1,2})?(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d+(?:,\d{3})*(?:\.\d{1,2})?)/gi)]
       .slice(0,6).map(x=>trim(x[0],65));
     const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,220);
     const termsLinks=links.filter(a=>/refund|return|terms|cancellation|purchase.policy/i.test(
