@@ -28,6 +28,7 @@ jobs:
           node --check results-lime.js
           node --check lib/conversion-engine.mjs
           node --check lib/buyer-experience.mjs
+          node --check lib/action-intent.mjs
           node --check results-five.js
           node --check results-pdf.js
           node --check analysis.js
@@ -41,6 +42,8 @@ jobs:
         run: node qa_conversion_engine.mjs
       - name: Test Buyer Journey Replay and Conversion Fix Kit
         run: node qa_buyer_experience.mjs
+      - name: Test shared action intent classification
+        run: node qa_action_intent.mjs
       - name: Test evidence-first problem engine and metadata accuracy
         run: node qa_problem_engine.mjs
       - name: Test actual rendered DOM fixtures in Chromium
