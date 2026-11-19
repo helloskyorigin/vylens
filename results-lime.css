@@ -161,7 +161,7 @@ body.conversion-mode .ui-feature-source{
 }
 body.conversion-mode .ui-verify{margin-top:12px;border-top:1px solid #EBEFE7;padding-top:11px}
 body.conversion-mode .ui-verify summary{
-  display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:7px;min-height:44px;cursor:pointer;list-style:none;
   color:#71806C;font-size:11px;font-weight:750
 }
 body.conversion-mode .ui-verify summary::-webkit-details-marker{display:none}
@@ -209,7 +209,7 @@ body.conversion-mode .conversion-plan{
   border:0;border-radius:0;background:transparent
 }
 body.conversion-mode .ui-plan-row{
-  min-height:40px;width:100%;display:flex;align-items:center;gap:12px;
+  min-height:44px;width:100%;display:flex;align-items:center;gap:12px;
   padding:8px 0;border:0;background:transparent;text-align:left;cursor:pointer;border-radius:10px
 }
 body.conversion-mode .ui-plan-row:hover{background:#F7FAF4}
@@ -228,7 +228,7 @@ body.conversion-mode .ui-plan-row>.lime-ui-icon svg{
   width:16px;height:16px;transform:rotate(-90deg)
 }
 body.conversion-mode .copy-plan{
-  display:inline-flex;min-height:30px;margin:12px 0 0;padding:6px 0;
+  display:inline-flex;min-height:44px;margin:12px 0 0;padding:6px 0;
   border:0;background:transparent;color:#668B39;font-size:11px;font-weight:750
 }
 body.conversion-mode .copy-plan:hover{background:transparent;color:#436C16;text-decoration:underline}
@@ -330,9 +330,9 @@ body.conversion-mode .report-hero #heroState{color:#718655}
  body.conversion-mode .nav-current{font-size:12px}
  body.conversion-mode .nav-actions{gap:7px}
  body.conversion-mode .nav-action{
-   min-height:38px;min-width:38px;width:38px;padding:8px;border-radius:14px
+   min-height:44px;min-width:44px;width:44px;padding:10px;border-radius:14px
  }
- body.conversion-mode .nav-download{min-width:39px;width:39px}
+ body.conversion-mode .nav-download{min-width:44px;width:44px}
  body.conversion-mode .nav-action span{display:none}
  body.conversion-mode .nav-action svg{width:18px;height:18px}
  body.conversion-mode .report-wrap{padding:0 16px}
@@ -412,7 +412,7 @@ body.conversion-mode .report-hero #heroState{color:#718655}
  body.conversion-mode .nav-identity{gap:7px}
  body.conversion-mode .nav-divider{margin-left:2px}
  body.conversion-mode .nav-actions{gap:5px}
- body.conversion-mode .nav-action{width:35px;min-width:35px;min-height:36px}
+ body.conversion-mode .nav-action{width:44px;min-width:44px;min-height:44px}
  body.conversion-mode .overview-stat{padding:11px 9px;min-height:106px}
  body.conversion-mode .overview-stat div span{font-size:9.3px}
  body.conversion-mode .ui-featured .blocker-heading{font-size:19px}
