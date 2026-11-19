@@ -83,6 +83,14 @@ with sync_playwright() as pw:
                   f"{kind}: focused CSS mode active {width}")
             check(page.locator("#fiveReport > .five-score-card").count() == 1,
                   f"{kind}: score summary {width}")
+            check(page.locator(".five-score-visual .five-problems-card").is_visible(),
+                  f"{kind}: problems card next to score ring at {width}")
+            check(page.locator(".five-problems-value").inner_text() ==
+                  str(len(sample["conversion"]["blockers"])),
+                  f"{kind}: problem count comes from findings at {width}")
+            check(page.locator("#fiveBottomDownload").is_visible() and
+                  page.locator("#fiveBottomNew").is_visible(),
+                  f"{kind}: final download/new-check actions at {width}")
             for section in ["five-blockers", "five-hesitations", "five-changes", "five-action-plan"]:
                 check(page.locator("#" + section).is_visible(), f"{kind}: {section} visible {width}")
             check(page.locator("#fiveReport .five-panel").count() == 4,
@@ -118,9 +126,10 @@ with sync_playwright() as pw:
             ring = page.locator(".five-score-number").inner_text()
             check(ring.isdigit() if kind == "website" else ring == "—",
                   f"{kind}: score withheld unless multiple rendered stages are assessed {width}")
-            check(page.locator(".five-counter.high").inner_text().strip().endswith(
-                "1 High" if kind in ("website", "product") else "0 High"),
-                  f"{kind}: real high-priority count {width}")
+            check(page.locator(".five-problems-card").inner_text().find(
+                "1 High" if kind in ("website", "product") else
+                "No reported issues") >= 0,
+                  f"{kind}: severity correctly displayed at {width}")
             check(not errors, f"{kind}: browser console without JS errors at {width}: {errors}")
             bounds = page.evaluate(
                 "() => ({viewport: innerWidth, body: document.body.scrollWidth,"
@@ -147,6 +156,18 @@ with sync_playwright() as pw:
                       f"{kind}: full evidence available on request {width}")
             if kind == "website" and width in (390, 1280):
                 page.screenshot(path=str(OUT / f"five-report-{width}.png"), full_page=True)
+                with page.expect_download(timeout=15000) as started:
+                    page.locator("#fiveBottomDownload").click()
+                download=started.value
+                pdf_bytes=Path(download.path()).read_bytes()
+                check(download.suggested_filename.endswith(".pdf") and
+                      pdf_bytes.startswith(b"%PDF-1.4") and b"%%EOF" in pdf_bytes[-40:]
+                      and len(pdf_bytes)>2200 and b"/Type /Page" in pdf_bytes,
+                      f"{kind}: real PDF file downloaded, not print dialog at {width}")
+                with page.expect_download(timeout=15000) as top_started:
+                    page.locator("#navDownload").click()
+                check(top_started.value.suggested_filename.endswith(".pdf"),
+                      f"{kind}: top download also saves PDF at {width}")
                 page.emulate_media(media="print")
                 check(page.locator("#fiveReport").is_visible(),
                       f"{kind}: same five sections visible in PDF {width}")
@@ -173,6 +194,17 @@ with sync_playwright() as pw:
     page.locator("#five-blockers .five-more").click()
     check(page.locator(".five-finding:not([hidden])").count() == 7,
           "show all expands additional findings")
+    page.close()
+    # New Check navigates to a fresh audit rather than repeating the current URL.
+    page=browser.new_page(viewport={"width":390,"height":850})
+    sample=fixture()
+    page.add_init_script(
+        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
+    )
+    page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
+    page.locator("#fiveBottomNew").click()
+    page.wait_for_url("**/index.html#audit-tool", timeout=15000)
+    check("#audit-tool" in page.url, "New Check opens fresh audit")
     page.close()
     # Legacy / imported technical-only reports are still readable.
     page = browser.new_page(viewport={"width": 390, "height": 850})
