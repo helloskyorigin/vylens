@@ -15,7 +15,7 @@ with zipfile.ZipFile(zip_long,'w',zipfile.ZIP_DEFLATED) as z:
  z.writestr('nested/'+'a'*310+'/../escape.txt','Unsafe entry name after 300 characters')
 LONG_NAME=base64.b64encode(zip_long.getvalue()).decode()
 with sync_playwright() as pw:
- b=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+ b=pw.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  page=b.new_page()
  page.set_content('<html><body>Product engine testing</body></html>')
  page.add_script_tag(content=(ROOT/'audit-core.js').read_text())
