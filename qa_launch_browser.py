@@ -4,6 +4,7 @@ Exercises real UI, product file handoff, PDF print layout, legal pages and mobil
 from pathlib import Path
 import os
 import re
+import json
 from playwright.sync_api import sync_playwright
 
 BASE=os.environ.get('VYLENS_BASE','https://vylens-tan.vercel.app').rstrip('/')
@@ -163,6 +164,22 @@ with sync_playwright() as playwright:
     resp=goto(empty,BASE+'/results.html')
     check(resp.status==200,'Direct Results route HTTP 200')
     check(empty.locator('#missingReport').is_visible(),'Direct Results route explains missing audit')
+    check(empty.locator('#importReport').is_visible(),'Missing-state can restore a saved JSON report')
+    empty.locator('#reportFile').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{}'})
+    check(empty.locator('#reportImportError').is_visible(),'Invalid report JSON is safely rejected')
+    saved={'mode':'website','subject':'restored.example','url':'https://example.org/',
+      'issues':[{'category':'Navigation','severity':'high','title':'Restored report issue',
+        'evidence':'A recorded observation.','fix':'Verify the link target.'}],
+      'checks':[{'name':'Recorded check','status':'observed','detail':'Local saved report fixture.'}]}
+    empty.locator('#reportFile').set_input_files({
+      'name':'vylens-saved.json','mimeType':'application/json','buffer':json.dumps(saved).encode('utf-8')})
+    empty.wait_for_function("""() => document.querySelector('#main') &&
+      !document.querySelector('#main').hidden &&
+      document.querySelector('#heroState').textContent.includes('IMPORTED')""",timeout=15000)
+    check('restored.example' in empty.locator('#reportSubject').inner_text(),
+          'Locally restored report renders its own saved data')
+    check(empty.locator('#problemsCount').inner_text()=='1',
+          'Restored report retains recorded issue count')
     empty.close()
     check(len(errors)==0,'Desktop end-to-end browser has no uncaught JavaScript errors: '+str(errors[:3]))
     browser.close()
