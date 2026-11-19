@@ -364,9 +364,20 @@ async function captureCommerceSignals(page){
       const rect=el.getBoundingClientRect();
       const actionLabel=label(el);
       const href=el.matches('a[href]')?String(el.getAttribute('href')||'').trim():'';
+      const onScreen=rect.top>=0&&rect.bottom<=window.innerHeight&&
+        rect.left>=0&&rect.right<=window.innerWidth;
+      const hit=onScreen?document.elementFromPoint(
+        Math.min(window.innerWidth-1,Math.max(1,rect.left+rect.width/2)),
+        Math.min(window.innerHeight-1,Math.max(1,rect.top+rect.height/2))
+      ):null;
+      const centerReachable=onScreen?!!hit&&(hit===el||el.contains(hit)):null;
+      const clippedHorizontally=rect.left< -3||rect.right>window.innerWidth+3;
       return {label:actionLabel,path,isPurchaseAction:purchaseAction.test(actionLabel),
         isPlaceholderDestination:el.matches('a[href]')&&/^(?:#|javascript:.*)$/i.test(href),
-        top:Math.round(rect.top),inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
+        top:Math.round(rect.top),
+        width:Math.round(rect.width),height:Math.round(rect.height),
+        centerReachable,clippedHorizontally,
+        inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
     }).filter(a=>a.label).slice(0,40);
     const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d+(?:,\d{3})*(?:\.\d{1,2})?(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d+(?:,\d{3})*(?:\.\d{1,2})?)/gi)]
       .slice(0,6).map(x=>trim(x[0],65));
@@ -388,8 +399,15 @@ async function captureCommerceSignals(page){
         action.parentElement;
       // Do not climb into <body> and accidentally treat a distant footer
       // refund link as adjacent to a purchase CTA.
-      const localText=trim(nearby?.innerText||'',1300);
-      const writtenNearby=/\b(?:refunds?|returns?|cancellations?|all sales final|money.back guarantee|purchase terms)\b/i.test(localText);
+      // Count only text actually near the button. A huge pricing section can
+      // contain a policy at the bottom, which is NOT adjacent disclosure.
+      const notices=[...(nearby?.querySelectorAll('p,small,li,a')||[])].slice(0,200);
+      const writtenNearby=notices.some(el=>{
+        if(!visible(el))return false;
+        if(Math.abs(el.getBoundingClientRect().top-buttonTop)>520)return false;
+        const statement=trim(el.innerText||el.textContent||'',420);
+        return /\b(?:refunds?|returns?|cancellations?|all sales final|money.back guarantee|purchase terms)\b/i.test(statement);
+      });
       return linkedNearby||writtenNearby;
     });
     const proofCandidates=[...main.querySelectorAll(
@@ -495,7 +513,7 @@ async function rendered(session,url){
       return String(container.innerText||'').slice(0,14000);
     });
     await page.setViewportSize({width:390,height:844});
-    await page.waitForTimeout(90);
+    await page.waitForTimeout(220);
     const measureMobile=()=>page.evaluate(()=>{
       const width=document.documentElement.clientWidth||window.innerWidth,small=[],clipped=[],offenders=[];
       const locator=el=>el.id?'#'+el.id.slice(0,40):el.tagName.toLowerCase()+
@@ -540,7 +558,8 @@ async function rendered(session,url){
     const narrow=await measureMobile();
     const combinedCommerce=commerce?{...commerce,
       mobileActions:mobileCommerce?.actions||[],
-      mobilePriceVisible:mobileCommerce?.hasPrice??null
+      mobilePriceVisible:mobileCommerce?.hasPrice??null,
+      mobilePriceSamples:mobileCommerce?.priceSamples||[]
     }:null;
     return {status,html,links,mobile,narrow,visibleText,signals,
       commerce:combinedCommerce,headers:await response.allHeaders(),browser:true,errors};

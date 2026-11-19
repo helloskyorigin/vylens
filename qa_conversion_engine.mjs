@@ -146,4 +146,26 @@ const missingMobilePrice=analyzeWebsiteConversion([page('/pricing',offer({
 }))],{coverage:{complete:true}});
 assert.ok(missingMobilePrice.blockers.some(x=>x.title.includes('mobile page')&&x.stage==='value'),
   'missing visible mobile price on a pricing page is flagged for review');
-console.log('PASS conversion engine: 4 extra grounded buyer checks, mobile & placeholder regressions');
+const blockedButton=analyzeWebsiteConversion([page('/',offer({
+  mobileActions:[{label:'Buy now',path:'/checkout',top:200,inFirstView:true,
+    centerReachable:false,clippedHorizontally:false}]
+}))],{coverage:{complete:true}});
+assert.ok(blockedButton.blockers.some(x=>x.title.includes('covered by another element')),
+  'a hit-test-obscured buying action is flagged for manual review');
+const mobileOverflow=analyzeWebsiteConversion([page('/',offer({
+  mobileActions:[{label:'Buy now',path:'/checkout',top:180,inFirstView:true,
+    clippedHorizontally:true}]
+}))],{coverage:{complete:true}});
+assert.ok(mobileOverflow.blockers.some(x=>x.title.includes('extends beyond')),
+  'actual horizontal clipping of the mobile buying button is reported');
+const priceChange=analyzeWebsiteConversion([page('/pricing',offer({
+  priceSamples:['$19'],mobilePriceSamples:['$29'],mobilePriceVisible:true
+}))],{coverage:{complete:true}});
+assert.ok(priceChange.blockers.some(x=>x.title.includes('price text differs')),
+  'a single clear price difference across devices is flagged');
+const tierPrices=analyzeWebsiteConversion([page('/pricing',offer({
+  priceSamples:['$19','$29'],mobilePriceSamples:['$29'],mobilePriceVisible:true
+}))],{coverage:{complete:true}});
+assert.ok(!tierPrices.blockers.some(x=>x.title.includes('price text differs')),
+  'multiple pricing tiers must not produce a false discrepancy');
+console.log('PASS conversion engine: mobile occlusion, clipping, price parity and supported buyer issues');

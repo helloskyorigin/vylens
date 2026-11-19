@@ -105,6 +105,23 @@ try{
     {url:'https://example.org/',status:'rendered',commerce:scoreSignals}
   ],{coverage:{complete:true}}).blockers.some(x=>/main buying action may appear late|purchase terms/i.test(x.title)),
   'score link must not create purchase CTA or missing-terms blocker');
+  // Geometrically distant terms inside the same giant section must NOT count as nearby.
+  const farWithin='<html><body><main><section>'+
+    '<h1>Buy the kit</h1><p>$29</p><button>Buy now</button>'+
+    '<div style="height:1500px"></div><p>All sales final</p>'+
+    '</section></main></body></html>';
+  await page.setContent(farWithin,{waitUntil:'load'});
+  const farWithinSignals=await engine.captureCommerceSignals(page);
+  assert.equal(farWithinSignals.termsNearAction,false,
+    'text in an enormous section is not near the checkout button');
+  const blocked='<html><body><main><h1>Audit your offer</h1><p>$19</p>'+
+    '<button id="buy" style="width:160px;height:56px">Buy now</button>'+
+    '<div style="position:fixed;z-index:10;top:68px;left:0;width:390px;height:56px;background:#eee"></div>'+
+    '</main></body></html>';
+  await page.setContent(blocked,{waitUntil:'load'});
+  const covered=await engine.captureCommerceSignals(page);
+  assert.equal(covered.actions.find(x=>x.label==='Buy now')?.centerReachable,false,
+    'browser hit testing detects a covered mobile purchase control');
   await page.close();
-  console.log('PASS: Chromium checks true buying CTAs separately from informational purchase-readiness scores.');
+  console.log('PASS: Chromium measures real CTA geometry, overlay, and terms proximity.');
 }finally{await browser.close();}
