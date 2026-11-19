@@ -51,7 +51,7 @@ try{
   assert.ok(deeper.issues.some(x=>x.title.includes('placeholder destinations')));
   assert.ok(findings.issues.every(x=>x.evidence&&x.fix&&x.location&&x.verify));
   const offer='<html><head><title>Offer page</title></head><body><main>'+
-    '<h1>Welcome</h1><p>Pricing starts at $19. Choose a product for your next project.</p>'+
+    '<h1>Welcome</h1><p>Pricing starts at $19.</p>'+
     '<a href="/pricing">Learn more</a></main></body></html>';
   await page.setContent(offer,{waitUntil:'load'});
   const buying=await engine.captureCommerceSignals(page);
