@@ -23,12 +23,18 @@
   };
   const occurrenceCount=issue=>Number.isSafeInteger(issue?.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
   const checkState=check=>['passed','attention','observed','unverified','not_applicable'].includes(check?.status)?check.status:'unverified';
+  function validReport(report){
+    if(!report||typeof report!=='object'||!['website','product'].includes(report.mode)||
+      !Array.isArray(report.issues)||report.issues.length>250)return false;
+    if(report.issues.some(issue=>!issue||typeof issue!=='object'||Array.isArray(issue)))return false;
+    if(report.checks!==undefined&&(!Array.isArray(report.checks)||report.checks.length>5000))return false;
+    if(report.pages!==undefined&&(!Array.isArray(report.pages)||report.pages.length>200))return false;
+    return true;
+  }
   function readReport(){
     try{
       const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
-      if(!report||!['website','product'].includes(report.mode)||!Array.isArray(report.issues)||report.issues.length>250)return null;
-      if(report.issues.some(issue=>!issue||typeof issue!=='object'||Array.isArray(issue)))return null;
-      return report;
+      return validReport(report)?report:null;
     }catch{return null;}
   }
   const category=issue=>clean(issue?.category,50)||'Other';
@@ -423,7 +429,37 @@
     });
   }
   const report=readReport();
-  if(!report){$('missingReport').hidden=false;return;}
+  if(!report){
+    $('missingReport').hidden=false;
+    const file=$('reportFile'),error=$('reportImportError');
+    $('importReport').addEventListener('click',()=>file.click());
+    file.addEventListener('change',async()=>{
+      const selected=file.files?.[0];
+      if(!selected)return;
+      try{
+        if(selected.size>3*1024*1024)throw new Error('This report file is too large (3 MB limit).');
+        const parsed=JSON.parse(await selected.text());
+        if(!validReport(parsed))throw new Error('This is not a supported VYLENS report JSON file.');
+        sessionStorage.setItem('vylens:result',JSON.stringify(parsed));
+        sessionStorage.setItem('vylens:imported','1');
+        window.location.reload();
+      }catch(reason){
+        error.hidden=false;
+        error.textContent=reason instanceof Error?reason.message:'Could not open this report.';
+        file.value='';
+      }
+    });
+    return;
+  }
   $('main').hidden=false;
+  if(sessionStorage.getItem('vylens:imported')==='1'){
+    put('heroState','IMPORTED REPORT · NOT A NEW SCAN');
+    $('coverageMessage').insertAdjacentText('beforeend',' · Opened from a local JSON export.');
+    $('priorityDetails').setAttribute('aria-label','Review this saved finding and its evidence');
+  }
   render(report);
+  if(sessionStorage.getItem('vylens:imported')==='1'){
+    put('heroState','IMPORTED REPORT · NOT A NEW SCAN');
+    $('coverageMessage').insertAdjacentText('beforeend',' · Opened from a local JSON export.');
+  }
 })();
