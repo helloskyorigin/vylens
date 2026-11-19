@@ -11,6 +11,8 @@
   const clean=(value,max=1200)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
   const severity=issue=>['critical','high'].includes(String(issue?.severity||'').toLowerCase())?String(issue.severity).toLowerCase():'other';
   const priority=issue=>{
+    if(Number.isFinite(issue?.priorityScore)&&issue.priorityScore>=0&&issue.priorityScore<500)
+      return issue.priorityScore;
     const level={critical:0,high:100,other:200}[severity(issue)];
     const name=String(issue?.title||'').toLowerCase();
     const weight=/broken|server error|404|410|insecure|unsafe|unreachable/.test(name)?0:
@@ -235,8 +237,21 @@
     });
     if(report.mode==='website'&&Array.isArray(report.pages)&&report.pages.length){
       root.append(node('h2','','Page coverage'));
-      report.pages.slice(0,70).forEach(page=>root.append(node('p','print-line',(page.path||'/')+' — '+page.status+(page.type==='legal'?' (policy)':''))));
+      report.pages.forEach(page=>root.append(node('p','print-line',
+        clean(page.path||'/',190)+' — '+clean(page.status,30)+(page.type==='legal'?' (policy)':'')+
+        (page.reason?' · '+clean(page.reason,260):''))));
     }
+    root.append(node('h2','','All completed and attempted checks'));
+    const allChecks=Array.isArray(report.checks)?report.checks:[];
+    if(!allChecks.length)root.append(node('p','','No check-by-check details were recorded.'));
+    const names={passed:'Passed',attention:'Flagged',observed:'Observed',unverified:'Not verified',not_applicable:'Not applicable'};
+    for(const item of allChecks){
+      const section=node('div','print-check');
+      section.append(node('strong','',names[checkState(item)]+' · '+clean(item?.name||'Check',260)));
+      if(item?.detail)section.append(node('p','print-line',clean(item.detail,650)));
+      root.append(section);
+    }
+    root.append(node('p','print-small','Total recorded checks: '+allChecks.length+'. This report distinguishes observations from confirmed problems; unsupported tests are not a pass.'));
     root.append(node('p','print-small',report.mode==='website'?
       clean(report.scope||'Public HTML and supported rendered-page checks where available; actual user behavior or sales not tested.',800):
       'Supported product-file checks. Actual buyer behavior and sales were not measured.'));
