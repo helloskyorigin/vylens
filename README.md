@@ -57,6 +57,10 @@ Vercel production updates are built from the connected GitHub `main` branch. If 
 
 The GitHub workflows also run targeted browser and scanner checks. After any release, verify current GitHub checks and Vercel deployment status, then manually inspect the UX at phone/tablet/desktop widths, including errors, retries, large reports and print output. Local and CI tests do not replace real-site validation.
 
+## Results UI release
+
+The Results interface uses the dedicated `results-lime.js` and `results-lime.css` layers. The design has a screenshot-matched desktop hierarchy and separate narrow-phone, tablet, and print layouts. Live release still requires a successful Vercel build and confirmation that the production deployment serves the current commit.
+
 ## Production limitations
 
 The current per-IP throttle is **in-memory, best-effort only** in a serverless environment. A shared durable rate limiter, abuse monitoring, clear operating limits and additional real-site regression samples are important before sending heavy traffic. Do not treat the scan as a full performance, security or conversion audit.
