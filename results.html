@@ -4,31 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <meta name="vylens-results-revision" content="focus-clarity-v4">
+  <meta name="vylens-results-revision" content="lime-results-v5">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="description" content="Your VYLENS audit: detected problems, impact, evidence and recommended fixes.">
-  <title>Your audit — VYLENS</title>
+  <meta name="description" content="VYLENS conversion diagnosis with supported evidence, potential buying blockers, practical fixes, and a clear action plan.">
+  <title>Conversion Diagnosis — VYLENS</title>
   <link rel="icon" type="image/webp" href="./assets/vylens-mark.webp">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./report.css">
   <link rel="stylesheet" href="./conversion-report.css">
+  <link rel="stylesheet" href="./results-lime.css">
   <script src="./results.js" defer></script>
   <script src="./conversion-results.js" defer></script>
+  <script src="./results-lime.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to results</a>
 <header class="page-header">
   <nav class="floating-nav" aria-label="Results navigation">
-    <a class="brand" href="./index.html" aria-label="VYLENS home">
-      <img src="./assets/vylens-mark.webp" alt="" width="37" height="37">
-      <strong>VYLENS<span>.</span></strong>
-    </a>
-    <a class="nav-back" href="./index.html">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      New audit
-    </a>
+    <div class="nav-identity">
+      <a class="brand" href="./index.html" aria-label="VYLENS home">
+        <img src="./assets/vylens-mark.webp" alt="" width="37" height="37">
+        <strong>VYLENS</strong>
+      </a>
+      <span class="nav-divider" aria-hidden="true"></span>
+      <span class="nav-current">Results</span>
+    </div>
+    <div class="nav-actions" id="navActions" hidden>
+      <button type="button" id="navRecheck" class="nav-action nav-recheck" aria-label="Recheck this audit">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 10A7 7 0 0 1 18 6.5L20 12M4 12l2 5.5A7 7 0 0 0 18.5 14"/></svg>
+        <span>Recheck</span>
+      </button>
+      <button type="button" id="navDownload" class="nav-action nav-download" aria-label="Print or save report as PDF">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 18v3h16v-3"/></svg>
+        <span>Download</span>
+      </button>
+    </div>
   </nav>
 </header>
 
@@ -42,8 +54,8 @@
 
   <!-- Conversion diagnosis owns the customer-facing results. The technical
        audit remains accessible as an evidence appendix below. -->
-  <section id="conversionReport" class="conversion-report" aria-labelledby="conversionTitle" hidden>
-    <div class="conversion-intro">
+  <section id="conversionReport" class="conversion-report" aria-labelledby="reportHeadline" hidden>
+      <div class="conversion-intro">
       <div class="conversion-intro-top">
         <span class="conversion-kicker" id="conversionKicker">BUYER-JOURNEY REVIEW</span>
         <span class="conversion-count" id="conversionCount">Evidence-led observations</span>
@@ -52,7 +64,29 @@
       <p id="conversionIntro">The analysis separates observable evidence from possible buyer concerns.</p>
       <p class="conversion-goal" id="conversionGoal"></p>
     </div>
+  <section class="conversion-overview" aria-label="Conversion review at a glance">
+    <div class="overview-stat">
+      <span class="overview-symbol" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3.5 2.9 19.5a1.2 1.2 0 0 0 1.1 1.8h16a1.2 1.2 0 0 0 1-1.8L12 3.5Z"/><path d="M12 9v5m0 3.5h.01"/></svg>
+      </span>
+      <div><strong id="uiBlockerCount" aria-live="polite">—</strong><span>Potential Blockers</span></div>
+    </div>
+    <div class="overview-stat">
+      <span class="overview-symbol" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m4.5 12 5 5L19.5 7"/></svg>
+      </span>
+      <div><strong id="uiStrengthCount" aria-live="polite">—</strong><span>What’s Working</span></div>
+    </div>
+    <div class="overview-stat">
+      <span class="overview-symbol" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m13.8 2-9 11h6.4L9.6 22l9.6-11h-6.4L13.8 2Z"/></svg>
+      </span>
+      <div><strong id="uiImprovementCount" aria-live="polite">—</strong><span>Action Steps</span></div>
+    </div>
+  </section>
 
+  <div class="conversion-body-grid">
+    <div class="conversion-findings-column">
     <section class="blocker-section" aria-labelledby="blockerTitle">
       <div class="conversion-section-head">
         <div><span class="conversion-kicker">PRIORITIZED FINDINGS</span><h3 id="blockerTitle">Potential buying blockers</h3></div>
@@ -61,15 +95,8 @@
       <div id="primaryBlocker"></div>
       <div id="secondaryBlockers" class="secondary-blockers"></div>
     </section>
-
-    <section class="journey-section" aria-label="Buyer journey review">
-      <div class="conversion-section-head">
-        <div><span class="conversion-kicker">THE BUYER JOURNEY</span><h3>Where to look first</h3></div>
-        <span class="conversion-aside">Not a measured funnel</span>
-      </div>
-      <div class="journey-grid" id="buyerJourney"></div>
-    </section>
-
+    </div>
+    <aside class="conversion-side-column" aria-label="Recommended improvements and positive signals">
     <section class="action-plan" aria-labelledby="actionPlanTitle">
       <div class="conversion-section-head">
         <div><span class="conversion-kicker">TAKE ACTION</span><h3 id="actionPlanTitle">Your improvement plan</h3></div>
@@ -77,7 +104,16 @@
       <div id="conversionPlan" class="conversion-plan"></div>
       <button id="copyPlan" class="copy-plan" type="button" hidden>Copy improvement plan</button>
     </section>
+    <section id="strengthsSection" class="strengths-section" aria-labelledby="strengthsTitle" hidden>
+      <div class="conversion-section-head">
+        <div><span class="conversion-kicker">OBSERVED POSITIVES</span><h3 id="strengthsTitle">What's already visible</h3></div>
+      </div>
+      <div id="conversionStrengths" class="strengths-grid"></div>
+    </section>
+    </aside>
+  </div>
 
+    <p class="conversion-disclaimer">Potential blockers are hypotheses based on recorded evidence, not proof of lost sales. VYLENS never submits a purchase.</p>
     <section id="scanComparison" class="scan-comparison" aria-labelledby="scanComparisonTitle" hidden>
       <div class="conversion-section-head">
         <div><span class="conversion-kicker">RECHECK COMPARISON</span><h3 id="scanComparisonTitle">What changed since your last review?</h3></div>
@@ -86,20 +122,21 @@
       <div id="scanComparisonDetails" class="comparison-details"></div>
       <p class="comparison-caveat">A missing finding is not proof it was fixed. Scan coverage, rendering and site content may differ. This does not measure actual purchases or revenue.</p>
     </section>
-
-    <section id="strengthsSection" class="strengths-section" aria-labelledby="strengthsTitle" hidden>
+  <details class="buyer-journey-more">
+    <summary>Buyer journey observations <span>Optional detail</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+    <section class="journey-section" aria-label="Buyer journey review">
       <div class="conversion-section-head">
-        <div><span class="conversion-kicker">OBSERVED POSITIVES</span><h3 id="strengthsTitle">What's already visible</h3></div>
+        <div><span class="conversion-kicker">THE BUYER JOURNEY</span><h3>Where to look first</h3></div>
+        <span class="conversion-aside">Not a measured funnel</span>
       </div>
-      <div id="conversionStrengths" class="strengths-grid"></div>
+      <div class="journey-grid" id="buyerJourney"></div>
     </section>
-
+  </details>
     <details id="limitationsPanel" class="limitations-panel">
       <summary>What this review couldn't verify <span id="limitationsCount"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
       <div id="conversionUnverified" class="limitations-content"></div>
     </details>
-    <p class="conversion-disclaimer">Potential blockers are hypotheses based on recorded evidence, not proof of lost sales. VYLENS never submits a purchase.</p>
-  </section>
+</section>
 
   <section class="metrics-section" aria-label="Audit overview">
     <div class="metric metric-problems">
