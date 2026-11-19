@@ -32,9 +32,10 @@
 
 <main id="main" class="report-wrap" hidden>
   <header class="report-hero">
-    <div class="hero-eyebrow"><span class="live-dot"></span>AUDIT COMPLETE<span class="eyebrow-divider">/</span><span id="reportType">WEBSITE</span></div>
-    <h1>Your audit<span>.</span></h1>
+    <div class="hero-eyebrow"><span class="live-dot"></span><span id="heroState">AUDIT COMPLETE</span><span class="eyebrow-divider">/</span><span id="reportType">WEBSITE</span></div>
+    <h1 id="reportHeadline">Your audit<span>.</span></h1>
     <div class="source-line"><span id="reportSubject">Your website</span><span aria-hidden="true">·</span><time id="reportDate">Today</time></div>
+    <p id="coverageMessage" class="hero-coverage">Results depend on the pages and checks available to the scanner.</p>
   </header>
 
   <section class="metrics-section" aria-label="Audit overview">
@@ -63,12 +64,20 @@
   </section>
 
   <section id="impactSection" class="impact-section" aria-labelledby="impactTitle">
-    <div class="impact-title-row">
-      <div class="impact-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></div>
-      <h2 id="impactTitle">What needs attention?</h2>
+    <div class="priority-overline">
+      <span id="priorityStep">YOUR FIRST STEP</span><span id="prioritySeverity" class="priority-severity"></span>
     </div>
+    <h2 id="impactTitle">Start with this fix.</h2>
+    <h3 id="priorityFindingTitle" class="priority-finding-title"></h3>
     <p id="impactText" class="impact-text"></p>
-    <div id="impactTags" class="impact-tags" aria-label="Potentially affected areas"></div>
+    <div id="priorityLocation" class="priority-location" hidden></div>
+    <div id="priorityFixBox" class="priority-fix-box" hidden>
+      <span class="priority-fix-kicker">RECOMMENDED ACTION</span>
+      <p id="priorityFix"></p>
+    </div>
+    <button id="priorityDetails" type="button" class="priority-details" aria-controls="findingsList">
+      See evidence &amp; full fix <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
   </section>
 
   <section id="findingsSection" class="findings-section" aria-labelledby="findingsTitle">
@@ -103,13 +112,15 @@
         <div class="coverage-track" aria-hidden="true"><span id="coverageFill"></span></div>
         <div id="coveragePages" class="coverage-pages"></div>
       </details>
+      <button id="exportData" class="export-data" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Download report data (JSON)</button>
     </div>
   </details>
 
   <section class="report-actions" aria-label="Report actions">
-    <button id="savePdf" class="primary-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Save PDF</button>
+    <button id="savePdf" class="primary-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Print / Save PDF</button>
     <button id="recheck" class="secondary-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-6h6"/></svg> Recheck</button>
   </section>
+  <p class="save-explainer">Choose “Save as PDF” in the print dialog. Your original product file stays on your device.</p>
   <details class="audit-note"><summary>About this audit <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p id="scopeNote"></p></details>
 
   <div id="printAppendix" class="print-only" aria-label="Full printable report"></div>
