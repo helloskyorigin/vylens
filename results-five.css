@@ -517,3 +517,5 @@ body.five-report-ui .report-hero{padding-bottom:18px}
  .five-report .five-kit-item[hidden]{display:block!important}
  .five-report .five-replay-step{break-inside:avoid}
 }
+
+.five-report .five-kit-summary-note{margin:8px 0 0;color:#667762;font:500 12px/1.6 var(--body)}

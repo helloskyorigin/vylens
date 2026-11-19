@@ -62,6 +62,9 @@
     if(t.includes('not detected in the mobile'))return 'mobile-no-cta';
     if(t.includes('difficult to find on mobile'))return 'mobile-late-cta';
     if(t.includes('visible desktop price')||t.includes('mobile page')&&t.includes('price'))return 'mobile-price';
+    if(t.includes('price text differs'))return 'price-mismatch';
+    if(t.includes('covered by another element'))return 'mobile-covered';
+    if(t.includes('extends beyond the screen'))return 'mobile-clipped';
     if(t.includes('delivered bundle contains no product files'))return 'empty-bundle';
     if(t.includes('delivered files are empty'))return 'empty-files';
     if(t.includes('links in the product do not have destinations'))return 'missing-links';
@@ -133,6 +136,21 @@
       question:'How much does this cost on my phone?',
       action:'Make the price easy to find on phones',
       fix:'Check the phone layout and show the accurate offer price near the buying decision if it is currently hidden.'},
+    'price-mismatch':{
+      issue:'The same price may appear differently across devices',
+      question:'Why do the desktop and phone prices look different?',
+      action:'Verify desktop and mobile pricing',
+      fix:'Open the same plan in the same currency on both devices. Make the intended current price clear and consistent.'},
+    'mobile-covered':{
+      issue:'Something may be covering the mobile buying button',
+      question:'Why can’t I tap this buying button on my phone?',
+      action:'Make the mobile buying button unobstructed',
+      fix:'Check the buying button with menus and overlays visible. Move any overlapping sticky element so the button can be tapped.'},
+    'mobile-clipped':{
+      issue:'The buying button may be cut off on mobile',
+      question:'Why does the buying button extend off my screen?',
+      action:'Fit the entire purchase button inside mobile width',
+      fix:'Adjust the mobile layout so the complete button and label fit at 390px and 320px widths.'},
     'empty-bundle':{action:'Include the promised product files in the download'},
     'empty-files':{action:'Replace empty delivered files with real content'},
     'missing-links':{action:'Repair missing links inside the product'},
@@ -307,10 +325,13 @@
     const kit=make('div','five-fix-kit');kit.id='fiveConversionFixKit';
     const header=make('div','five-kit-heading');
     const title=make('div','five-kit-title');
-    const copyCount=safeKit.filter(item=>item.kind==='copy').length;
+    const copyItems=safeKit.filter(item=>item.kind==='copy');
+    const copyCount=copyItems.length;
     append(title,make('strong','','Conversion Fix Kit'),
-      make('small','',copyCount?copyCount+' source-backed copy item'+(copyCount===1?'':'s')+
-        ' · '+safeKit.length+' total fixes':'Action-ready fixes backed by inspected details'));
+      make('small','',copyCount?
+        copyCount+' source-backed wording option'+(copyCount===1?'':'s')+
+          ' · all '+safeKit.length+' fixes in Copy kit':
+        'All '+safeKit.length+' actions ready to copy together'));
     const copyAll=make('button','five-kit-copy-all','Copy kit');
     copyAll.type='button';
     copyAll.setAttribute('aria-label','Copy complete conversion fix kit');
@@ -323,7 +344,8 @@
     });
     append(header,title,copyAll);kit.append(header);
     const list=make('div','five-kit-list');
-    safeKit.forEach((asset,i)=>{
+    // Do not duplicate checklists already shown in the detailed action rows.
+    copyItems.forEach((asset,i)=>{
       const item=make('article','five-kit-item');
       if(i>=3)item.hidden=true;
       const meta=make('div','five-kit-meta');
@@ -343,19 +365,21 @@
       append(foot,source,copy);
       append(item,meta,content,foot);list.append(item);
     });
-    kit.append(list);
-    if(safeKit.length>3){
-      const show=make('button','five-kit-more','Show all '+safeKit.length+' fixes');
+    if(copyCount)kit.append(list);
+    if(copyItems.length>3){
+      const show=make('button','five-kit-more','Show all '+copyItems.length+' wording options');
       show.type='button';show.setAttribute('aria-expanded','false');
       let expanded=false;
       show.addEventListener('click',()=>{
         expanded=!expanded;
         Array.from(list.children).slice(3).forEach(el=>{el.hidden=!expanded;});
-        show.textContent=expanded?'Show fewer fixes':'Show all '+safeKit.length+' fixes';
+        show.textContent=expanded?'Show fewer options':'Show all '+copyItems.length+' wording options';
         show.setAttribute('aria-expanded',String(expanded));
       });
       kit.append(show);
     }
+    if(!copyCount)kit.append(make('p','five-kit-summary-note',
+      'Copy the full fix checklist with one tap, or open the detailed actions above.'));
     changesPanel.append(kit);
   }
 
@@ -430,12 +454,9 @@
     const head=make('summary','five-change-head');
     const copy=make('span','five-change-content');
     const action=make('span','five-action-note');
-    if(clean(item.copyFrom)&&clean(item.copyTo)){
-      const before=make('span','five-actual-copy');
-      append(before,make('strong','','Current'),make('span','',clean(item.copyFrom,220)));
-      const after=make('span','five-proposed-copy');
-      append(after,make('strong','','Suggested'),make('span','',clean(item.copyTo,220)));
-      append(action,before,after);
+    if(clean(item.copyTo)){
+      append(action,make('strong','','Suggested button wording'),
+        make('span','',clean(item.copyTo,220)));
     }else{
       append(action,make('strong','','Do this'),make('span','',readableFix(item)));
     }
