@@ -28,11 +28,23 @@
     blocker.priority==='low'?'low':'medium';
   const count={high:0,medium:0,low:0};
   blockers.forEach(b=>count[level(b)]++);
-  const hasOfferEvidence=Number(data.inspectedOfferPages)>0||Number(data.renderedPages)>0;
-  const hasSupport=hasOfferEvidence;
-  // Deterministic editorial heuristic; not a measured conversion rate.
-  const score=hasSupport?Math.max(16,Math.min(94,
-    87-count.high*17-count.medium*8-count.low*3+Math.min(4,strengths.length)*2)):null;
+  // Transparent editorial scoring rubric: only assess stages supported by rendered
+  // public buyer-facing evidence. Never equate this with real conversion analytics.
+  // Source-only sales pages, local product files and unverified stages are not graded.
+  const renderedEvidence=Number(data.renderedPages)>0 && report.mode==='website';
+  const stages=['clarity','value','trust','action'];
+  const scoredStages=stages.map(stage=>{
+    const items=blockers.filter(item=>item.stage===stage);
+    const positives=strengths.filter(item=>item.stage===stage);
+    if(!renderedEvidence||(!items.length&&!positives.length))return null;
+    // 20 = observed high-priority blocker, 55 = review issue,
+    // 85 = positive observation without detected blockers. Scores are
+    // coarse, rounded indicators of inspected offer signals, not buyer intent.
+    return items.some(item=>level(item)==='high')?20:
+      items.length?55:85;
+  }).filter(value=>value!==null);
+  const score=scoredStages.length>=2?
+    Math.round((scoredStages.reduce((sum,value)=>sum+value,0)/scoredStages.length)/5)*5:null;
   const tone=score===null?'medium':score>=75?'low':score>=50?'medium':'high';
   const stageNames={clarity:'Messaging',value:'Offer & value',trust:'Trust',action:'Next step'};
   document.body.classList.add('five-report-ui');
@@ -48,12 +60,18 @@
   summary.setAttribute('aria-label','Overall conversion score');
   const visual=node('div','five-score-visual');
   const ring=node('div','five-score-ring');
-  ring.style.setProperty('--score',String(score===null?0:score));
-  ring.style.setProperty('--score-color',score===null?'#aab4a8':
-    tone==='high'?'#e84354':tone==='medium'?'#f5bf37':'#8cdf29');
+  // Ring colors represent the mix of recorded signals, *not* percentages of buyers.
+  const signalTotal=count.high+count.medium+count.low+strengths.length;
+  const redCut=signalTotal?100*count.high/signalTotal:0;
+  const yellowCut=signalTotal?100*(count.high+count.medium)/signalTotal:0;
+  const greenCut=signalTotal?100*(count.high+count.medium+count.low+strengths.length)/signalTotal:0;
+  ring.style.setProperty('--red-cut',redCut.toFixed(2)+'%');
+  ring.style.setProperty('--yellow-cut',yellowCut.toFixed(2)+'%');
+  ring.style.setProperty('--green-cut',(score===null?'0':greenCut.toFixed(2))+'%');
   ring.setAttribute('role','img');
   ring.setAttribute('aria-label',score===null?
-    'Indicative score unavailable: limited offer evidence':'Indicative score '+score+' out of 100');
+    'Offer score unavailable: insufficient buyer-facing evidence':
+    'Offer evidence score '+score+' out of 100, based on '+scoredStages.length+' assessed stages');
   const number=node('strong','five-score-number',score===null?'—':score);
   const inner=add(node('span','five-score-inner'),number,
     node('span','five-score-denominator',score===null?'No score':'/ 100'));
@@ -63,10 +81,12 @@
     tone==='low'?'Stronger Signals':tone==='high'?'Needs Attention':'Needs Improvement';
   const verdict=node('span','five-verdict '+tone,(tone==='high'?'! ':tone==='medium'?'△ ':'✓ ')+status);
   const description=score===null?
-    'There is not enough public offer evidence to make a useful conversion assessment.':
+    (report.mode==='product'?
+      'A product file alone cannot reveal why shoppers hesitate. A public sales page helps evaluate the buying offer.':
+      'Not enough buyer-facing evidence was observed for a defensible score.'):
     blockers.length?
-      'These potential buying blockers are worth reviewing before changing your offer.':
-      'No specific buying blockers were identified in the material reviewed. This is not proof that visitors convert.';
+      'Review the most important observed offer signals before changing your messaging.':
+      'No specific blocker was detected in the assessed stages; actual customer behavior remains unknown.';
   add(summaryText,node('h2','five-score-title','Overall Conversion Score'),
       verdict,node('p','five-score-description',description));
   const counters=node('div','five-score-meta');
@@ -78,7 +98,9 @@
     counter('medium','! ',count.medium+' Review'),
     counter('low','✓',strengths.length+' Positive'));
   add(summaryText,counters,
-    node('p','five-caption','Indicative score from inspected content, not actual conversions or customer behavior.'));
+    node('p','five-caption',score===null?
+      'Score withheld when evidence is limited; no sales or buyer behavior was measured.':
+      'Coarse offer-evidence score: '+scoredStages.length+' of 4 stages assessed (20 high concern · 55 review · 85 observed). Not a conversion rate.'));
   add(summary,visual,summaryText);
   root.append(summary);
 
@@ -123,7 +145,11 @@
     add(details,head,body);
     return details;
   };
-  blockers.slice(0,3).forEach((item,i)=>blockersPanel.append(renderIssue(item,i)));
+  blockers.forEach((item,i)=>{
+    const issue=renderIssue(item,i);
+    if(i>=3)issue.hidden=true;
+    blockersPanel.append(issue);
+  });
   if(!blockers.length)blockersPanel.append(node('p','five-empty',
     'No specific blocker was verified. More offer evidence or real buyer feedback may be needed.'));
   if(blockers.length>3){
@@ -132,9 +158,8 @@
     let expanded=false;
     more.addEventListener('click',()=>{
       expanded=!expanded;
-      if(expanded){
-        blockers.slice(3).forEach((item,i)=>blockersPanel.insertBefore(renderIssue(item,i+3),more));
-      }else Array.from(blockersPanel.querySelectorAll('.five-finding')).slice(3).forEach(el=>el.remove());
+      Array.from(blockersPanel.querySelectorAll('.five-finding')).slice(3)
+        .forEach(el=>{el.hidden=!expanded;});
       more.textContent=expanded?'Show fewer':'Show all '+blockers.length+' findings';
       more.setAttribute('aria-expanded',String(expanded));
     });blockersPanel.append(more);
@@ -158,12 +183,15 @@
     details.id='five-change-'+i;
     const head=node('summary','');
     const copy=node('div','five-change-content');
-    copy.append(node('strong','five-change-title',item.title));
+    copy.append(node('strong','five-change-title',
+      item.copyFrom&&item.copyTo?'Suggested messaging update':item.title));
     const beforeAfter=node('div','five-before-after');
     const before=node('div','five-before');
-    add(before,node('strong','','Observed'),node('span','',clean(item.evidence,170)||'Evidence not verified'));
+    add(before,node('strong','',item.copyFrom?'Current':'Evidence'),
+      node('span','',clean(item.copyFrom||item.evidence,170)||'Evidence not verified'));
     const after=node('div','five-after');
-    add(after,node('strong','','Suggested'),node('span','',clean(item.fix,215)));
+    add(after,node('strong','',item.copyTo?'Rewrite':'Action'),
+      node('span','',clean(item.copyTo||item.fix,215)));
     add(beforeAfter,before,after);add(copy,beforeAfter);
     add(head,node('span','five-index '+cls,String(i+1)),copy,
       node('span','five-chevron','›'));
@@ -194,8 +222,8 @@
     row.type='button';
     row.setAttribute('aria-label','Open recommended fix '+(i+1));
     const copy=node('span','five-plan-text');
-    add(copy,node('strong','',clean(item.fix,140)),
-      node('small','',(stageNames[item.stage]||'Offer review')+' · '+labelFor(cls)+' priority'));
+    add(copy,node('strong','',clean(item.title,120)),
+      node('small','',(stageNames[item.stage]||'Offer review')+' · '+labelFor(cls)+' priority · Tap to view fix'));
     add(row,node('span','five-index '+cls,String(i+1)),copy,
       node('span','five-level '+cls,labelFor(cls)));
     row.addEventListener('click',()=>{
@@ -231,6 +259,7 @@
     const report=document.getElementById('fiveReport');
     if(!report)return;
     report.querySelectorAll('details').forEach(d=>{
+      if(d.hidden){d.dataset.fivePrintUnhidden='true';d.hidden=false;}
       if(!d.open){d.dataset.fivePrintOpened='true';d.open=true;}
     });
   });
@@ -239,6 +268,9 @@
     if(!report)return;
     report.querySelectorAll('details[data-five-print-opened]').forEach(d=>{
       d.open=false;delete d.dataset.fivePrintOpened;
+    });
+    report.querySelectorAll('details[data-five-print-unhidden]').forEach(d=>{
+      d.hidden=true;delete d.dataset.fivePrintUnhidden;
     });
   });
 })();
