@@ -55,6 +55,8 @@ node qa_multisite_accuracy.mjs
 
 Vercel production updates are built from the connected GitHub `main` branch. If a previous build was rate-limited, a new authorized commit can request a fresh build after the quota allows it; the deploy status must still be checked before treating that commit as live.
 
+Deployment retry requested on 19 November 2026 via this README-only GitHub commit to re-run the existing Vercel production build. No application files were changed by this retry; publication must be verified from Vercel and the live site.
+
 The GitHub workflows also run targeted browser and scanner checks. After any release, verify current GitHub checks and Vercel deployment status, then manually inspect the UX at phone/tablet/desktop widths, including errors, retries, large reports and print output. Local and CI tests do not replace real-site validation.
 
 ## Results UI release
