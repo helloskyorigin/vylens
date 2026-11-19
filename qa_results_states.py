@@ -31,10 +31,10 @@ with sync_playwright() as p:
                                  ('zero-partial',report(0,False,3,8)),
                                  ('large',report(53,False,5,125))]:
             page=browser.new_page(viewport={'width':width,'height':844},reduced_motion='reduce')
-            page.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(fixture))+')')
-            page.goto(BASE+'/results.html',wait_until='load',timeout=60000)
             pageErrors=[]
             page.on('pageerror',lambda e: pageErrors.append(str(e)))
+            page.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(fixture))+')')
+            page.goto(BASE+'/results.html',wait_until='load',timeout=60000)
             check(page.locator('#problemsCount').inner_text()==str(len(fixture['issues'])),
                   scenario+f' distinct count at {width}px')
             if scenario.startswith('zero'):
