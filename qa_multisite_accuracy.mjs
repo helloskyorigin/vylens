@@ -28,6 +28,8 @@ const grouped=multi.aggregate([
 assert.equal(grouped.length,3,'do not merge different evidence');
 assert.equal(grouped.find(i=>i.title==='Document language not declared').affectedCount,3);
 assert.deepEqual(grouped.find(i=>i.title==='Document language not declared').affectedPages,['/','/pricing','/privacy']);
+assert.equal(grouped.find(i=>i.title==='Document language not declared').occurrences.length,3);
+assert.equal(grouped.find(i=>i.title==='Document language not declared').occurrences[1].location,'html');
 
 assert.ok(multi.policyContentReview('https://example.org/privacy','Short text','').issues.some(i=>i.title.includes('very little readable')));
 assert.ok(multi.policyContentReview('https://example.org/terms','[insert company name] '.repeat(14),'').issues.some(i=>i.title.includes('placeholder')));
@@ -71,10 +73,11 @@ const window={matchMedia:()=>({matches:false}),location:{assign:()=>{}},print(){
 const navigator={clipboard:{writeText:async()=>{}}};
 new Function('document','window','sessionStorage','navigator',script)(document,window,sessionStorage,navigator);
 assert.equal(dom.get('criticalCount').textContent,'0');
-assert.equal(dom.get('highCount').textContent,'2');
-assert.equal(dom.get('otherCount').textContent,'3');
-assert.equal(dom.get('findingsCount').textContent,'2 issue types');
-assert.equal(dom.get('problemsCount').textContent,'5','top card counts affected-page occurrences');
+assert.equal(dom.get('highCount').textContent,'1');
+assert.equal(dom.get('otherCount').textContent,'1');
+assert.equal(dom.get('findingsCount').textContent,'2 distinct findings');
+assert.equal(dom.get('problemsCount').textContent,'2','top card shows distinct findings');
+assert.equal(dom.get('affectedOccurrences').textContent,'5 affected-page occurrences','secondary label keeps page coverage');
 assert.equal(dom.get('findingsList').children.length,2);
 const first=dom.get('findingsList').children[0];
 assert.ok(first.children[0].children[1].children[1].children[0].textContent.includes('2 affected pages'));

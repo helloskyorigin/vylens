@@ -181,8 +181,8 @@ function review(html,pageUrl, response={}) {
   function add(category,severity,title,evidence,fix,location='',verify=''){
     issues.push({category,severity,title,evidence:squash(evidence).slice(0,320),fix,location,verify});
   }
-  function check(name,ok,detail,{unverified=false}={}){
-    checks.push({name,status:unverified?'unverified':ok?'passed':'attention',detail:squash(detail).slice(0,360)});
+  function check(name,ok,detail,{unverified=false,notApplicable=false}={}){
+    checks.push({name,status:notApplicable?'not_applicable':unverified?'unverified':ok?'passed':'attention',detail:squash(detail).slice(0,360)});
   }
   check('Public webpage fetched',true,`HTTP ${response.status||200}; inspected ${Math.round(Buffer.byteLength(html,'utf8')/1024)} KB of initial HTML.`);
   check('HTTPS transport',url.protocol==='https:',url.protocol==='https:'?'The inspected URL uses HTTPS.':'The inspected URL uses plaintext HTTP.');
@@ -196,21 +196,31 @@ function review(html,pageUrl, response={}) {
   if(!headings.length)add('Page structure',jsShell?'note':'high','No primary H1 heading in page source','No non-empty H1 element was found in the returned HTML.','Add a real H1 that describes the page purpose; for JS-rendered pages, verify the rendered DOM separately.','Page content','Open the rendered page and inspect the heading hierarchy.');
   else if(headings.length>1)add('Page structure','note','Multiple H1 headings found',`Found ${headings.length} non-empty H1 elements. This may be intentional.`, 'Confirm the heading structure reads sensibly for assistive technology.','Page content','Inspect the rendered page headings in DOM order.');
   if(allHeadings.length>1){
-    const skips=[]; for(let i=1;i<allHeadings.length;i++)if(allHeadings[i].level>allHeadings[i-1].level+1)skips.push(`${allHeadings[i-1].level} → ${allHeadings[i].level}`);
-    check('Heading hierarchy',!skips.length,skips.length?`Detected jumps: ${skips.slice(0,4).join(', ')}.`:'No skipped heading levels among parsed headings.');
-    if(skips.length)add('Accessibility','note','Heading levels skip ahead',`Heading sequence includes: ${skips.slice(0,4).join(', ')}.`, 'Use a logical heading hierarchy where possible.','Document headings','Navigate headings with a screen reader or browser accessibility tree.');
-  } else check('Heading hierarchy',false,'Too few headings to evaluate hierarchy.',{unverified:true});
+    const skips=[];
+    for(let i=1;i<allHeadings.length;i++)
+      if(allHeadings[i].level>allHeadings[i-1].level+1)
+        skips.push({before:allHeadings[i-1],after:allHeadings[i]});
+    const observed=skips.slice(0,4).map(s=>
+      `H${s.before.level} "${s.before.text.slice(0,60)}" → H${s.after.level} "${s.after.text.slice(0,60)}"`).join('; ');
+    check('Heading hierarchy',!skips.length,skips.length?'Detected heading jumps: '+observed:
+      'No skipped heading levels among parsed headings.');
+    if(skips.length)add('Accessibility','note','Heading levels skip ahead',
+      'Observed: '+observed+'.',
+      'Review the named heading and its parent. If it belongs immediately under H1, use H2; otherwise add the missing logical section heading. Do not change heading levels purely for visual styling.',
+      'Document heading → '+skips[0].after.text.slice(0,85),
+      'Inspect rendered heading order and confirm the described jump is resolved.');
+  } else check('Heading hierarchy',false,'Too few headings to evaluate hierarchy.',{notApplicable:true});
   check('Mobile viewport configuration',/width\s*=\s*device-width/i.test(viewport),viewport||'No width=device-width viewport found.');
   if(!/width\s*=\s*device-width/i.test(viewport))add('Mobile setup','high','Mobile viewport not configured',`Viewport meta content: ${viewport||'(missing)'}.`,'Add <meta name="viewport" content="width=device-width, initial-scale=1">.','HTML → <head>','Inspect on an actual small viewport.');
   const lang=getAttr(root,'lang');check('Document language',!!lang,lang?`Declared language: ${lang}.`:'Root <html> tag does not declare lang.');
   if(!lang)add('Accessibility','note','Document language not declared','The root HTML tag has no lang attribute.','Set the correct document language, for example lang="en".','HTML → <html>','Verify document language in the rendered DOM.');
-  check('Image alt attributes',images.length>0&&imgsMissingAlt.length===0,images.length?`${images.length-imgsMissingAlt.length}/${images.length} <img> elements specify alt (including decorative alt="").`:'No <img> elements in the initial HTML.',{unverified:images.length===0});
+  check('Image alt attributes',images.length>0&&imgsMissingAlt.length===0,images.length?`${images.length-imgsMissingAlt.length}/${images.length} <img> elements specify alt (including decorative alt="").`:'No <img> elements in the initial HTML.',{notApplicable:images.length===0});
   if(imgsMissingAlt.length)add('Accessibility','note','Images are missing alt attributes',`${imgsMissingAlt.length} of ${images.length} <img> elements have no alt attribute. Decorative images should use alt="".`, 'Add meaningful alt text for informative images, and alt="" for decorative ones.','HTML → Images','Review every image for appropriate accessible text.');
-  check('Form control accessible labels',controls.length>0&&missingControlNames.length===0,controls.length?`${controls.length-missingControlNames.length}/${controls.length} control(s) have an explicit label or accessible name.`:'No input controls found.',{unverified:controls.length===0});
+  check('Form control accessible labels',controls.length>0&&missingControlNames.length===0,controls.length?`${controls.length-missingControlNames.length}/${controls.length} control(s) have an explicit label or accessible name.`:'No input controls found.',{notApplicable:controls.length===0});
   if(missingControlNames.length)add('Accessibility','high',`${missingControlNames.length} form controls lack accessible names`,`${missingControlNames.length} of ${controls.length} detected controls have no associated <label for>, aria-label or title.`, 'Give every meaningful input an explicit associated label or accessible name.','HTML → Forms','Tab through the actual form and inspect names in accessibility tools.');
-  check('Button accessible names',buttons.length>0&&unnamedButtons.length===0,buttons.length?`${buttons.length-unnamedButtons.length}/${buttons.length} buttons have text or an accessible name.`:'No button elements found.',{unverified:buttons.length===0});
+  check('Button accessible names',buttons.length>0&&unnamedButtons.length===0,buttons.length?`${buttons.length-unnamedButtons.length}/${buttons.length} buttons have text or an accessible name.`:'No button elements found.',{notApplicable:buttons.length===0});
   if(unnamedButtons.length)add('Accessibility','high',`${unnamedButtons.length} button elements have no accessible name`,`${unnamedButtons.length} rendered-source button(s) have neither text nor a label attribute.`, 'Give icon-only buttons an aria-label or visible text.','HTML → Buttons','Inspect each button with the accessibility tree.');
-  check('Link accessible names',anchors.length>0&&emptyLinks.length===0,anchors.length?`${anchors.length-emptyLinks.length}/${anchors.length} anchor elements have text or a detectable accessible name.`:'No anchors found.',{unverified:anchors.length===0});
+  check('Link accessible names',anchors.length>0&&emptyLinks.length===0,anchors.length?`${anchors.length-emptyLinks.length}/${anchors.length} anchor elements have text or a detectable accessible name.`:'No anchors found.',{notApplicable:anchors.length===0});
   if(emptyLinks.length)add('Accessibility','note','Links with no readable label detected',`${emptyLinks.length} anchors have no text or detected accessible name.`, 'Ensure icon-only and image-only links have an accessible name.','HTML → Links','Inspect the affected links in the accessibility tree.');
   check('Unique element IDs',duplicateIDs.length===0,duplicateIDs.length?`Repeated IDs: ${duplicateIDs.map(([id,count])=>id+' ×'+count).join(', ')}.`:`${ids.size} unique IDs found.`);
   if(duplicateIDs.length)add('Document structure','high','Duplicate element IDs found',`IDs reused in the initial HTML: ${duplicateIDs.map(([id,count])=>id+' (${count})').join(', ')}.`, 'Give elements unique IDs; this prevents label/anchor conflicts.','HTML → id attributes','Search the DOM for each repeated ID and confirm only one occurrence.');
@@ -232,11 +242,17 @@ function review(html,pageUrl, response={}) {
     }
   }catch{}
   const canonical=!!canonicalURL;
-  check('Canonical URL',canonical,'Canonical link '+(canonical?`found: ${squash(canonicalURL.toString())}.`:
-    canonicalTag?'exists but has an empty or invalid target.':'not declared.'));
-  if(!canonical)add('Discoverability','note',canonicalTag?'Canonical URL target is empty or invalid':'Canonical URL not declared',
-    canonicalTag?'A canonical link exists but does not identify a valid HTTP(S) page.':'No rel="canonical" was found in initial HTML.',
-    'Set a meaningful canonical URL when needed; ensure the href is valid.','HTML → <head>','Review the canonical URL in the rendered head.');
+  check('Canonical URL',canonical,canonical?
+    `Canonical target: ${squash(canonicalURL.toString())}.`:
+    canonicalTag?'Declared canonical link has an empty or invalid destination.':
+    'No canonical specified. This is optional unless a preferred URL needs to be declared.',
+    {notApplicable:!canonicalTag});
+  // Missing canonical tags are not automatically SEO problems. Invalid declarations are.
+  if(canonicalTag&&!canonical)
+    add('Discoverability','note','Canonical URL target is empty or invalid',
+      'A canonical link is present but its href does not identify a valid HTTP(S) URL.',
+      'Correct the href or remove the invalid canonical declaration if one is not needed.',
+      'HTML → rel="canonical"','Open page source and verify the final canonical URL.');
   if(canonicalURL&&canonicalURL.hostname.replace(/^www\./,'')!==url.hostname.replace(/^www\./,'')){
     check('Canonical domain consistency',false,`Canonical target uses a different domain: ${canonicalURL.hostname}.`);
     add('Discoverability','note','Canonical URL points to another domain',
@@ -250,11 +266,18 @@ function review(html,pageUrl, response={}) {
   if(!ogTitle||!ogDescription)add('Sharing','note','Social preview fields incomplete',
     `Open Graph metadata contains ${ogTitle?'a title':'no usable title'} and ${ogDescription?'a description':'no usable description'}.`,
     'Add specific, non-empty og:title and og:description values for shared links.','HTML → Meta tags','Preview the page in a social-sharing debugger.');
-  const icon=tags(initialHead,'link').some(t=>/\bicon\b/i.test(getAttr(t,'rel'))&&!!getAttr(t,'href'));
-  check('Favicon declared',icon,icon?'Favicon link with a non-empty href is present.':'No favicon with a usable href declared.');
-  if(!icon)add('Branding','note','Favicon not declared','No <link rel="icon"> with a non-empty href appeared in the head.','Declare a favicon that points to a real icon file.','HTML → <head>','Open the page in a browser tab.');
+  const iconTags=tags(initialHead,'link').filter(t=>/\\bicon\\b/i.test(getAttr(t,'rel')));
+  const icon=iconTags.some(t=>!!getAttr(t,'href'));
+  check('Favicon declaration',icon,icon?'Favicon link with a non-empty href is present.':
+    iconTags.length?'An icon link is declared, but its href is empty.':
+    'No explicit favicon link. The browser may use /favicon.ico; availability needs a separate request.',
+    {notApplicable:iconTags.length===0});
+  if(iconTags.length&&!icon)add('Branding','note','Favicon link has no destination',
+    'The HTML declares a favicon link without an href target.',
+    'Set a valid icon URL, or remove the empty favicon declaration.',
+    'HTML → <head>','Open the declared icon URL and confirm it loads.');
   const insecureActions=forms.filter(f=>{try{return new URL(getAttr(f,'action')||pageUrl,pageUrl).protocol==='http:' && url.protocol==='https:'}catch{return false}});
-  check('Secure form actions',insecureActions.length===0,forms.length?`${insecureActions.length} of ${forms.length} form actions point from HTTPS to HTTP.`:'No forms in source.',{unverified:!forms.length});
+  check('Secure form actions',insecureActions.length===0,forms.length?`${insecureActions.length} of ${forms.length} form actions point from HTTPS to HTTP.`:'No forms in source.',{notApplicable:!forms.length});
   if(insecureActions.length){
     const insecurePost=insecureActions.filter(f=>(getAttr(f,'method')||'get').toLowerCase()==='post');
     add('Security',insecurePost.length?'high':'note','Form uses an insecure HTTP destination',

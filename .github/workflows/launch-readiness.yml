@@ -21,7 +21,7 @@ jobs:
           set -euo pipefail
           ready=0
           for i in $(seq 1 45); do
-            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/results.html' -o /tmp/vylens-results.html && grep -q 'focus-redgreen-20261119' /tmp/vylens-results.html; then ready=1; break; fi
+            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/results.html' -o /tmp/vylens-results.html && grep -q 'focus-clarity-v4' /tmp/vylens-results.html; then ready=1; break; fi
             sleep 6
           done
           test "$ready" -eq 1

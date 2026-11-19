@@ -208,3 +208,46 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #8c
  .finding-head{gap:6px}
  .metric-foot{font-size:9.5px}
 }
+
+/* Focus clarity v4: keep just two colored summary cards and make technical details usable. */
+.metric-caption{margin:4px 0 0;font-size:10px;line-height:1.35;font-weight:600;overflow-wrap:anywhere}
+.metric-problems .metric-caption{color:#956c67}
+.metric-checks .metric-caption{color:#5f8562}
+.metric-checks .metric-foot{font-size:10px}
+.metric{min-height:165px}
+.occurrences-panel{grid-column:1/-1;border:1px solid #e6ede3;border-radius:12px;overflow:hidden;background:#fbfdfa}
+.occurrences-panel>summary{padding:12px 13px;font-size:11px;line-height:1.5;font-weight:800;color:#4e763c;cursor:pointer;list-style:none;min-height:44px}
+.occurrences-panel>summary::-webkit-details-marker{display:none}
+.occurrences-panel[open]>summary{border-bottom:1px solid #e4ecdf}
+.occurrences-list{max-height:245px;overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain;padding:1px 13px}
+.occurrence-row{padding:10px 0;border-bottom:1px solid #e9efe6;min-width:0}
+.occurrence-row:last-child{border:0}
+.occurrence-link,.occurrence-path{display:inline-block;font-size:11px;font-weight:800;overflow-wrap:anywhere}
+.occurrence-link{color:#517d33;text-decoration:underline;text-underline-offset:2px}
+.occurrence-row small{display:block;font-size:10.5px;line-height:1.5;color:#748170;overflow-wrap:anywhere;margin-top:3px}
+.occurrence-row p,.occurrence-capped{font-size:10.5px;line-height:1.5;color:#788b76;overflow-wrap:anywhere;margin:4px 0 0}
+.check-status.not_applicable{background:#f0f2ee;color:#788275}
+.not-applicable-group{border-top:1px solid #e5ede1;margin-top:11px}
+.not-applicable-group>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none;cursor:pointer;min-height:45px;font-size:10.5px;font-weight:800;color:#73816e}
+.not-applicable-group>summary::-webkit-details-marker{display:none}
+.not-applicable-group>summary svg{width:15px;height:15px;flex-shrink:0}
+.not-applicable-group[open]>summary svg{transform:rotate(180deg)}
+.not-applicable-group>.check-breakdown-list{max-height:180px}
+@media(max-width:700px){
+ .metric{min-height:154px;padding:13px 12px}
+ .metric strong{font-size:39px}
+ .metric-caption{font-size:9px}
+ .metric-checks .metric-foot{font-size:9.5px}
+ .occurrences-list{max-height:220px}
+ .finding-body{gap:10px}
+}
+@media(max-width:355px){
+ .metric{min-height:162px;padding:12px 10px}
+ .metric strong{font-size:35px}
+ .metric-caption{font-size:8.5px}
+ .metric-checks .metric-foot{font-size:9px}
+}
+@media print{
+ .metric{min-height:97px}
+ .metric-caption{color:#555!important}
+}

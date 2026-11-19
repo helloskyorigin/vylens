@@ -21,17 +21,25 @@ const brokenMeta=valid.replace('href="https://target.com/"','href=""')
 const bad=source.review(brokenMeta,'https://target.com/',{status:200});
 assert.ok(bad.issues.some(x=>x.title==='Canonical URL target is empty or invalid'),'detect empty canonical');
 assert.ok(bad.issues.some(x=>x.title==='Social preview fields incomplete'),'detect empty Open Graph values');
-assert.ok(bad.issues.some(x=>x.title==='Favicon not declared'),'detect empty favicon target');
+assert.ok(bad.issues.some(x=>x.title==='Favicon link has no destination'),'detect declared empty favicon target');
 const cross=source.review(valid.replace('https://target.com/','https://othersite.com/'),'https://target.com/',{status:200});
 assert.ok(cross.issues.some(x=>x.title==='Canonical URL points to another domain'),'detect cross-domain canonical');
 assert.ok(cross.issues.find(x=>x.title==='Canonical URL points to another domain').severity==='note');
+const noCanonical=source.review(valid.replace('<link rel="canonical" href="https://target.com/">',''),
+  'https://target.com/',{status:200});
+assert.ok(!noCanonical.issues.some(x=>x.title==='Canonical URL not declared'),
+  'missing optional canonical must not count as a problem');
+assert.equal(noCanonical.checks.find(x=>x.name==='Canonical URL').status,'not_applicable');
+const noImages=source.review(valid.replace('<img src="/logo.webp" alt="logo">',''),
+  'https://target.com/',{status:200});
+assert.equal(noImages.checks.find(x=>x.name==='Image alt attributes').status,'not_applicable');
 
 const clean={quirksMode:false,textSize:930,mainTextMeasured:true,hasVisualApp:false,
   placeholderLinks:[],mobileClipped:[],collectsEmail:false,hasPrivacyLink:false};
 const clear=analyzeDeepSignals(clean,'/');
 assert.equal(clear.issues.length,0,'clean measured page gets zero issues');
 assert.ok(clear.checks.length>=5,'audit trail remains available');
-assert.equal(clear.checks.find(x=>x.name.includes('Privacy link')).status,'unverified',
+assert.equal(clear.checks.find(x=>x.name.includes('Privacy link')).status,'not_applicable',
   'privacy link is not a failed check when there is no email form');
 
 const imperfect={...clean,quirksMode:true,textSize:14,placeholderLinks:['Join us (a.join)','See details (a.more)'],

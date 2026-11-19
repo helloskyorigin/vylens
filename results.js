@@ -10,9 +10,17 @@
   };
   const clean=(value,max=1200)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
   const severity=issue=>['critical','high'].includes(String(issue?.severity||'').toLowerCase())?String(issue.severity).toLowerCase():'other';
-  const priority=issue=>({critical:0,high:1,other:2}[severity(issue)]);
+  const priority=issue=>{
+    const level={critical:0,high:100,other:200}[severity(issue)];
+    const name=String(issue?.title||'').toLowerCase();
+    const weight=/broken|server error|404|410|insecure|unsafe|unreachable/.test(name)?0:
+      /form|button|unlabeled|inaccessible|mobile overflow|viewport|clipp/.test(name)?9:
+      /heading|contrast|accessibility|duplicate|navigation/.test(name)?18:
+      /meta|canonical|favicon|social preview|title length/.test(name)?70:35;
+    return level+weight;
+  };
   const occurrenceCount=issue=>Number.isSafeInteger(issue?.affectedCount)&&issue.affectedCount>0?issue.affectedCount:1;
-  const checkState=check=>['passed','attention','unverified'].includes(check?.status)?check.status:'unverified';
+  const checkState=check=>['passed','attention','unverified','not_applicable'].includes(check?.status)?check.status:'unverified';
   function readReport(){
     try{
       const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
@@ -60,7 +68,37 @@
     wrapper.append(node('span','field-label',title),node('p','',clean(value,1800)));
     return wrapper;
   }
-  function issueElement(issue,index){
+  function safePageLink(raw,site){
+    try{
+      const root=new URL(site),target=new URL(String(raw),root);
+      if(['https:','http:'].includes(target.protocol)&&target.hostname===root.hostname)return target.toString();
+    }catch{}
+    return null;
+  }
+  function occurrencesPanel(issue,site){
+    const entries=Array.isArray(issue.occurrences)?issue.occurrences:
+      Array.isArray(issue.affectedPages)?issue.affectedPages.map(path=>({path,url:null,location:null,evidence:null})):[];
+    if(!entries.length)return null;
+    const count=occurrenceCount(issue),wrapper=node('details','occurrences-panel');
+    wrapper.append(node('summary','occurrences-summary',count+' affected '+(count===1?'page':'pages')+' · view exact locations'));
+    const list=node('div','occurrences-list');
+    for(const entry of entries.slice(0,18)){
+      const row=node('div','occurrence-row');
+      const path=clean(entry.path||'/',150),url=safePageLink(entry.url||path,site);
+      const heading=url?node('a','occurrence-link',path):node('span','occurrence-path',path);
+      if(url){heading.href=url;heading.target='_blank';heading.rel='noopener noreferrer';}
+      row.append(heading);
+      const where=clean(entry.location||'',220);
+      if(where&&!where.startsWith('pages affected'))row.append(node('small','',where));
+      const proof=clean(entry.evidence||'',400);
+      if(proof&&proof!==clean(issue.evidence,400))row.append(node('p','',proof));
+      list.append(row);
+    }
+    if(count>entries.length)list.append(node('p','occurrence-capped','Showing '+entries.length+' of '+count+' affected pages.'));
+    wrapper.append(list);
+    return wrapper;
+  }
+  function issueElement(issue,index,site){
     const item=node('details','finding');
     const summary=node('summary','finding-head');
     summary.append(node('span','finding-index',String(index).padStart(2,'0')));
@@ -81,51 +119,65 @@
     summary.append(copy,node('span','details-label','Details'),chevron);
     item.append(summary);
     const body=node('div','finding-body');
-    if(issue.location)body.append(field('LOCATION',issue.location));
-    if(Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
-      body.append(field('AFFECTED PAGES',issue.affectedPages.slice(0,40).join(', ')));
+    if(occurrenceCount(issue)===1&&issue.location)body.append(field('LOCATION',issue.location));
     if(issue.evidence)body.append(field('EVIDENCE',issue.evidence));
     if(issue.fix)body.append(field('HOW TO FIX',issue.fix,'fix-field'));
     if(issue.verify)body.append(field('VERIFY',issue.verify));
+    const pageGroup=occurrencesPanel(issue,site);
+    if(pageGroup)body.append(pageGroup);
     if(!body.children.length)body.append(node('p','panel-empty','No additional details were recorded.'));
     if(issue.fix){
-      const button=node('button','copy-fix','Copy fix');
+      const button=node('button','copy-fix','Copy instructions');
       button.type='button';
-      button.setAttribute('aria-label','Copy fix for '+clean(issue.title||'finding',75));
+      button.setAttribute('aria-label','Copy instructions for '+clean(issue.title||'finding',75));
       button.addEventListener('click',async()=>{
         const content=[issue.title,issue.location&&'Location: '+issue.location,issue.evidence&&'Evidence: '+issue.evidence,
           issue.fix&&'Fix: '+issue.fix,issue.verify&&'Verify: '+issue.verify].filter(Boolean).join('\n');
         try{
           await navigator.clipboard.writeText(content);
-          button.textContent='Copied';
+          button.textContent='Copied instructions';
         }catch{button.textContent='Copy unavailable';}
       });
       body.append(button);
+      item.addEventListener('toggle',()=>{if(!item.open)button.textContent='Copy instructions';});
     }
     item.append(body);
     return item;
   }
   function renderChecks(report){
     const checks=Array.isArray(report.checks)?report.checks:[];
-    const counts={passed:0,attention:0,unverified:0};
+    const counts={passed:0,attention:0,unverified:0,not_applicable:0};
     for(const check of checks)counts[checkState(check)]++;
-    const countParts=[counts.passed+' passed',counts.attention+' flagged'];
-    if(counts.unverified)countParts.push(counts.unverified+' unverified');
-    put('checkBreakdownSummary',checks.length?countParts.join(' · '):'No check details recorded');
-    put('checksSummary',checks.length?countParts.join(' · '):'No check details recorded');
+    const primary=counts.passed+' passed · '+counts.attention+' flagged';
+    const secondary=[
+      counts.unverified?counts.unverified+' not verified':null,
+      counts.not_applicable?counts.not_applicable+' not applicable':null
+    ].filter(Boolean).join(' · ');
+    put('checksSummary',primary);
+    put('checksExtra',secondary);
+    put('checkBreakdownSummary',primary+(secondary?' · '+secondary:''));
     const ordered=checks.map((item,i)=>({item,index:i})).sort((a,b)=>
-      ({attention:0,unverified:1,passed:2}[checkState(a.item)]-({attention:0,unverified:1,passed:2}[checkState(b.item)]))||a.index-b.index);
-    const root=$('checkBreakdownList');
+      ({attention:0,unverified:1,passed:2,not_applicable:3}[checkState(a.item)]-
+       {attention:0,unverified:1,passed:2,not_applicable:3}[checkState(b.item)])||a.index-b.index);
+    function addRow(target,check){
+      const status=checkState(check),row=node('div','check-row'),info=node('div','check-row-text');
+      info.append(node('strong','',clean(check?.name||'Check',160)));
+      if(check?.detail)info.append(node('p','',clean(check.detail,450)));
+      row.append(info,node('span','check-status '+status,
+        status==='passed'?'Passed':status==='attention'?'Flagged':
+          status==='not_applicable'?'N/A':'Not verified'));
+      target.append(row);
+    }
+    const root=$('checkBreakdownList'),na=$('notApplicableList');
     for(const {item} of ordered.slice(0,650)){
-      const type=checkState(item);
-      const row=node('div','check-row');
-      const info=node('div','check-row-text');
-      info.append(node('strong','',clean(item?.name||'Check',160)));
-      if(item?.detail)info.append(node('p','',clean(item.detail,450)));
-      row.append(info,node('span','check-status '+type,type==='passed'?'Passed':type==='attention'?'Flagged':'Not verified'));
-      root.append(row);
+      if(checkState(item)==='not_applicable')addRow(na,item);
+      else addRow(root,item);
     }
     if(!checks.length)root.append(node('p','panel-empty','No checks were recorded.'));
+    if(counts.not_applicable){
+      $('notApplicableGroup').hidden=false;
+      put('notApplicableSummary',counts.not_applicable+' checks not applicable to these pages');
+    }
     if(ordered.length>650)root.append(node('p','panel-empty','Showing the first 650 checks.'));
   }
   function renderCoverage(report){
@@ -161,10 +213,16 @@
       const section=node('section','print-finding');
       section.append(node('h3','',String(index+1)+'. '+clean(issue.title||'Finding',180)+' — '+severity(issue).toUpperCase()),
         node('p','','Area: '+category(issue)));
-      if(issue.location)section.append(node('p','','Location: '+clean(issue.location,600)));
-      if(Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
-        section.append(node('p','','Affected pages: '+issue.affectedPages.join(', ')));
+      if(occurrenceCount(issue)===1&&issue.location)section.append(node('p','','Location: '+clean(issue.location,600)));
       if(issue.evidence)section.append(node('p','','Evidence: '+clean(issue.evidence,1800)));
+      if(Array.isArray(issue.occurrences)&&issue.occurrences.length){
+        section.append(node('p','','Affected locations ('+occurrenceCount(issue)+' pages):'));
+        issue.occurrences.slice(0,18).forEach(entry=>{
+          section.append(node('p','print-line',clean(entry.path||'/',170)+' · '+clean(entry.location||'',260)+
+            (entry.evidence&&entry.evidence!==issue.evidence?' · '+clean(entry.evidence,360):'')));
+        });
+      }else if(Array.isArray(issue.affectedPages)&&issue.affectedPages.length>1)
+        section.append(node('p','','Affected pages: '+issue.affectedPages.join(', ')));
       if(issue.fix)section.append(node('p','','Fix: '+clean(issue.fix,1800)));
       if(issue.verify)section.append(node('p','','Verify: '+clean(issue.verify,1300)));
       root.append(section);
@@ -180,13 +238,17 @@
   function render(report){
     const issues=report.issues.slice().sort((a,b)=>priority(a)-priority(b));
     const totals={critical:0,high:0,other:0};
-    for(const issue of issues)totals[severity(issue)]+=occurrenceCount(issue);
-    const total=totals.critical+totals.high+totals.other;
+    for(const issue of issues)totals[severity(issue)]++;
+    const total=issues.length;
+    const occurrences=issues.reduce((sum,item)=>sum+occurrenceCount(item),0);
     const checks=checkCount(report);
     put('problemsCount',total);
     put('criticalCount',totals.critical);
     put('highCount',totals.high);
     put('otherCount',totals.other);
+    put('affectedOccurrences',report.mode==='website'?
+      occurrences+' affected-page '+(occurrences===1?'occurrence':'occurrences'):
+      'Findings from the supplied product');
     put('checksCount',checks);
     put('reportType',report.mode==='website'?'WEBSITE':'DIGITAL PRODUCT');
     put('reportSubject',clean(report.subject||report.url||'Your product',180));
@@ -196,9 +258,13 @@
     renderCoverage(report);
     const impacts=deriveImpact(issues);
     if(issues.length){
-      const top=impacts.slice(0,2);
-      const descriptions=top.map(i=>i.description);
-      put('impactText',descriptions.join(' '));
+      const top=impacts.slice(0,3).map(x=>x.title.toLowerCase());
+      const areas=top.length===1?top[0]:top.length===2?top.join(' and '):
+        top.slice(0,-1).join(', ')+' and '+top.at(-1);
+      const urgent=totals.critical+totals.high;
+      put('impactText',urgent?
+        urgent+' high-priority finding'+(urgent===1?'':'s')+' need review. The detected issues relate to '+areas+'. Actual traffic or sales impact was not measured.':
+        'The scan found review items related to '+areas+'. No Critical or High findings were confirmed by the supported checks.');
       impacts.slice(0,3).forEach(i=>$('impactTags').append(node('span','impact-chip',i.title)));
     }else{
       const unverified=Array.isArray(report.checks)?report.checks.filter(x=>checkState(x)==='unverified').length:0;
@@ -206,9 +272,17 @@
         unverified?'No confirmed problems in the completed checks. Some checks could not be verified.':
         'No problems were flagged by the checks completed. Other issues may still exist.');
     }
-    put('findingsCount',issues.length?(issues.length+' issue '+(issues.length===1?'type':'types')):'No issues');
+    put('findingsTitle',totals.critical+totals.high?'Fix these first':'Findings to review');
+    put('findingsCount',issues.length?(issues.length+' distinct '+(issues.length===1?'finding':'findings')):'No findings');
     const list=$('findingsList'),initial=Math.min(3,issues.length);
-    const add=(start,end)=>issues.slice(start,end).forEach((issue,i)=>list.append(issueElement(issue,start+i+1)));
+    // A single open issue keeps the page compact on narrow screens.
+    list.addEventListener('toggle',event=>{
+      if(!event.target.matches?.('.finding')||!event.target.open)return;
+      list.querySelectorAll('.finding[open]').forEach(item=>{
+        if(item!==event.target)item.open=false;
+      });
+    },true);
+    const add=(start,end)=>issues.slice(start,end).forEach((issue,i)=>list.append(issueElement(issue,start+i+1,report.url)));
     if(issues.length){
       add(0,initial);
       if(issues.length>initial){
@@ -219,13 +293,13 @@
           if(expanded){add(initial,issues.length);list.classList.add('is-expanded');}
           else{list.replaceChildren();add(0,initial);list.classList.remove('is-expanded');}
           more.setAttribute('aria-expanded',String(expanded));
-          put('moreProblemsText',expanded?'Show fewer problems':'View all '+issues.length+' issue types');
+          put('moreProblemsText',expanded?'Show fewer findings':'View all '+issues.length+' findings');
         };
-        put('moreProblemsText','View all '+issues.length+' issue types');
+        put('moreProblemsText','View all '+issues.length+' findings');
         more.addEventListener('click',()=>{expanded=!expanded;update();});
       }
     }else{
-      list.append(node('p','panel-empty',checks?'No detected problems to fix.':'No findings available.'));
+      list.append(node('p','panel-empty',checks?'No findings were confirmed by the supported checks.':'No findings available.'));
     }
     put('scopeNote',report.mode==='website'?
       clean(report.scope||'Only supported public pages and checks were inspected; actual conversions were not measured.',900):

@@ -556,16 +556,27 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
 }
 function aggregate(analyses){
   const result=new Map();
-  for(const page of analyses)for(const issue of page.issues){
-    // Do not merge findings whose underlying evidence is different.
-    const key=[issue.category,issue.title,issue.severity,str(issue.evidence||'')].join('|');
-    if(!result.has(key))result.set(key,{...issue,affectedCount:0,affectedPages:[]});
-    const r=result.get(key);r.affectedCount++;
-    if(r.affectedPages.length<18)r.affectedPages.push(new URL(page.url).pathname||'/');
+  for(const page of analyses)for(const item of page.issues){
+    // Same evidence on multiple pages is one finding with multiple recorded locations.
+    const key=[item.category,item.title,item.severity,str(item.evidence||'')].join('|');
+    const pagePath=new URL(page.url).pathname||'/';
+    if(!result.has(key))
+      result.set(key,{...item,affectedCount:0,affectedPages:[],occurrences:[]});
+    const finding=result.get(key);
+    if(!finding.affectedPages.includes(pagePath)){
+      finding.affectedCount++;
+      if(finding.affectedPages.length<18)finding.affectedPages.push(pagePath);
+    }
+    if(finding.occurrences.length<18)finding.occurrences.push({
+      path:pagePath,url:page.url,
+      location:str(item.location||pagePath).slice(0,260),
+      evidence:str(item.evidence||'').slice(0,600)
+    });
   }
   const out=[...result.values()];
-  for(const i of out)if(i.affectedCount>1)i.location=i.affectedCount+' pages: '+i.affectedPages.slice(0,5).join(', ')+(i.affectedCount>5?'…':'');
-  out.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-( {critical:0,high:1,note:2}[b.severity]??2));
+  for(const item of out)if(item.affectedCount>1)
+    item.location=item.affectedCount+' pages affected; see individual page locations below.';
+  out.sort((a,b)=>({critical:0,high:1,note:2}[a.severity]??2)-({critical:0,high:1,note:2}[b.severity]??2));
   return out.map((x,i)=>({...x,id:i+1}));
 }
 async function scanSite(input){
@@ -723,6 +734,14 @@ async function scanSite(input){
     scope:renderedCount?'Rendered pages and mobile layout were checked in Playwright where possible. These checks do not establish legal compliance or the cause of sales changes.'
       :'Playwright was unavailable; only available HTML source was inspected, without visual validation.',
     issues,checks,checksRun:checks.length,totalDetected:issues.length,
+    reportCounts:{
+      distinctFindings:issues.length,
+      affectedPageOccurrences:issues.reduce((sum,item)=>sum+(item.affectedCount||1),0),
+      checksByStatus:checks.reduce((acc,item)=>{
+        const status=['passed','attention','unverified','not_applicable'].includes(item.status)?item.status:'unverified';
+        acc[status]++;return acc;
+      },{passed:0,attention:0,unverified:0,not_applicable:0})
+    },
     passed:issues.length===0&&complete&&!findingsLimited};
 }
 export async function POST(request){
@@ -752,5 +771,5 @@ export async function POST(request){
     return respond({error:safe?msg:'Could not inspect this website. It may block automated scans or be temporarily unavailable.'},422);
   }
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'problem-engine-v3',pageLimit:LIMIT});}
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'problem-engine-v4',pageLimit:LIMIT});}
 export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals};
