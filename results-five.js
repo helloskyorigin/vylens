@@ -56,6 +56,10 @@
     if(t.includes('pricing is visible'))return 'pricing-next';
     if(t.includes('signup form'))return 'signup-fields';
     if(t.includes('may be unreachable'))return 'broken-buy-link';
+    if(t.includes('placeholder destination'))return 'placeholder-checkout';
+    if(t.includes('not detected in the mobile'))return 'mobile-no-cta';
+    if(t.includes('difficult to find on mobile'))return 'mobile-late-cta';
+    if(t.includes('visible desktop price')||t.includes('mobile page')&&t.includes('price'))return 'mobile-price';
     if(t.includes('delivered bundle contains no product files'))return 'empty-bundle';
     if(t.includes('delivered files are empty'))return 'empty-files';
     if(t.includes('links in the product do not have destinations'))return 'missing-links';
@@ -107,6 +111,26 @@
       question:'Will the buying page actually open?',
       action:'Repair or update the buying link',
       fix:'Open the reported link. If it is broken, correct its destination or restore the purchase page, then verify it opens normally.'},
+    'placeholder-checkout':{
+      issue:'Buy button may not open checkout',
+      question:'Does the buy button actually work?',
+      action:'Check the purchase button destination',
+      fix:'Tap the button. If it only scrolls to the top or does nothing, replace its placeholder link with the real purchase destination.'},
+    'mobile-no-cta':{
+      issue:'A buying action may be missing on phones',
+      question:'Where do I buy on my phone?',
+      action:'Make the buying button reachable on mobile',
+      fix:'Compare the desktop and phone versions. If the purchase action is missing on phones, show a working button near the offer.'},
+    'mobile-late-cta':{
+      issue:'Buy button may be hard to find on phones',
+      question:'Where is the buying button on my phone?',
+      action:'Move the mobile purchase action closer to the offer',
+      fix:'Open the site on a phone. If the main purchase button is buried below the first screen, bring it closer to the offer without obscuring essential details.'},
+    'mobile-price':{
+      issue:'Price may be missing on mobile',
+      question:'How much does this cost on my phone?',
+      action:'Make the price easy to find on phones',
+      fix:'Check the phone layout and show the accurate offer price near the buying decision if it is currently hidden.'},
     'empty-bundle':{action:'Include the promised product files in the download'},
     'empty-files':{action:'Replace empty delivered files with real content'},
     'missing-links':{action:'Repair missing links inside the product'},
