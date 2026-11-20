@@ -27,7 +27,20 @@ with sync_playwright() as p:
   check(response.status==200,f"Results loads {width}px")
   check(page.locator("#rvReport").is_visible(),f"Reference design visible {width}px")
   check(page.locator(".rv-card").count()==5,f"Exactly five cards {width}px")
-  check(page.locator(".rv-risk").count()==4,f"Four top ranked entries {width}px")
+  check(page.locator(".rv-risk").count()==6,f"All six recorded findings available {width}px")
+  check(page.locator(".rv-risk:visible").count()==4,f"Four concise top findings initially {width}px")
+  check(page.locator(".rv-show-all").is_visible(),
+        f"Visible Show all findings control {width}px")
+  page.locator(".rv-show-all").click()
+  check(page.locator(".rv-risk:visible").count()==6 and
+        page.locator(".rv-show-all").get_attribute("aria-expanded")=="true",
+        f"Show all exposes the remaining reported issues {width}px")
+  page.locator(".rv-risk").nth(5).locator("summary").click()
+  check(page.locator(".rv-risk").nth(5).evaluate("(node)=>node.open"),
+        f"Sixth finding has accessible evidence {width}px")
+  page.locator(".rv-show-all").click()
+  check(page.locator(".rv-risk:visible").count()==4,
+        f"Show fewer restores concise view {width}px")
   check(page.locator(".rv-reason").count()==3,f"Three buyer concerns {width}px")
   check(1<=page.locator(".rv-change-col").count()<=3,
         f"Only actionable Change Remove Improve groups at {width}px")

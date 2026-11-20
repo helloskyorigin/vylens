@@ -35,7 +35,26 @@ def fixture(n=3,mode='website',limited=False):
                     'journey':[{'id':stage,'status':'attention' if any(x['stage']==stage for x in blockers) else 'unverified',
                      'detail':'Only observed page evidence was checked.'}
                     for stage in ['clarity','value','trust','action']],
-                    'unverified':['Real buyer purchases were not measured.']}
+                    'unverified':['Real buyer purchases were not measured.'],
+                    'buyerReplay':{
+                       'version':1,
+                       'desktop':[
+                         {'title':'1. See the offer','description':'Public heading was visible.','status':'observed','place':'/'},
+                         {'title':'2. Check price','description':'Offer price was visible.','status':'observed','place':'/pricing'},
+                         {'title':'3. Find the next step','description':'Buy button was visible.','status':'observed','place':'/'},
+                         {'title':'4. Check destination','description':'Payment completion not tested.','status':'unknown','place':'/checkout'}
+                       ],
+                       'mobile':[
+                         {'title':'1. See the offer','description':'Offer was visible on phone.','status':'observed','place':'/'},
+                         {'title':'2. Check price','description':'Phone price was detected.','status':'observed','place':'/pricing'},
+                         {'title':'3. Find the next step','description':'Mobile CTA needs review.','status':'review','place':'/'},
+                         {'title':'4. Check destination','description':'Checkout not verified on phone.','status':'unknown','place':'/'}
+                       ]
+                    } if n and mode=='website' else None,
+                    'fixKit':[
+                       {'kind':'copy','title':'Source-backed CTA label','content':'View pricing','source':'Observed pricing link','verify':'Open pricing'},
+                       {'kind':'checklist','title':'Check offer clarity','content':'Clarify the benefits of the actual product.','verify':'Ask a new visitor'}
+                    ] if n else []}
     }
 
 def check(value,label):
@@ -84,6 +103,26 @@ with sync_playwright() as p:
               f'{label} {w}: summary uses real count')
         check(page.locator('.rv-reason-head').count()==min(n,3),
               f'{label} {w}: buyer-facing explanations distinct from findings')
+        if mode=='website':
+          replay=page.locator('#rvJourneyReplay')
+          check(replay.count()==1 and replay.is_visible(),
+                f'{label} {w}: buyer replay discoverable within obstacles card')
+          replay.locator('summary').first.click()
+          check(page.locator('.rv-journey-item').count()==4 and
+                'Mobile CTA needs review' in replay.inner_text(),
+                f'{label} {w}: phone journey observed facts visible')
+          replay.locator('.rv-view-switch button').filter(has_text='Desktop').click()
+          check('Buy button was visible' in replay.inner_text() and
+                replay.locator('.rv-view-switch button').filter(has_text='Desktop')
+                  .get_attribute('aria-pressed')=='true',
+                f'{label} {w}: desktop switch presents correct evidence')
+        kit=page.locator('#rvConversionFixKit')
+        check(kit.count()==1 and kit.is_visible(),
+              f'{label} {w}: fix kit discoverable within change card')
+        kit.locator('summary').first.click()
+        check(kit.locator('.rv-copy-all').is_visible() and
+              'View pricing' in kit.inner_text(),
+              f'{label} {w}: source-backed copy and Copy all action accessible')
         check(page.locator('.rv-reason-head strong').first.inner_text()!=
               page.locator('.rv-risk-name').first.inner_text(),
               f'{label} {w}: buyer consequence is not duplicate technical finding')
