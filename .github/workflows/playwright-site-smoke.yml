@@ -42,6 +42,7 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion-blocker analysis, evidence and false positives
         run: node qa_conversion_engine.mjs
+      - name: Test five-card buyer intelligence and evidence controls
         run: node qa_buyer_intelligence.mjs
       - name: Test Buyer Journey Replay and Conversion Fix Kit
         run: node qa_buyer_experience.mjs

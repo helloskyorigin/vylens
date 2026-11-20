@@ -39,6 +39,7 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion issue detection and false-positive controls
         run: node qa_conversion_engine.mjs
+      - name: Test five-card buyer intelligence and evidence controls
         run: node qa_buyer_intelligence.mjs
       - name: Test contextual CTA action classifier
         run: node qa_action_intent.mjs
