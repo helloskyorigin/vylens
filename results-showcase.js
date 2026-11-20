@@ -222,7 +222,7 @@
   }
   score.append(scoreText,signalGrid);
   score.append(make('p','rv-evidence-note',
-    'Found means visible, not proven effective. Missing means not verified; no sales data measured.'));
+    'Found means visible, not proven effective. Missing means unverified. This is not a measured conversion rate.'));
   add(feature,overviewLeft,score);
   result.append(feature);
 
