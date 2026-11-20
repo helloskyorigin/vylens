@@ -165,7 +165,7 @@ with sync_playwright() as pw:
                 check(first.evaluate("(node)=>node.open"),
                       f"{kind} at {width}px: improvement tap reaches matching blocker")
                 detail=page.locator("#five-action-plan .seven-support-details")
-                detail.locator("summary").click()
+                detail.locator("summary").first.click()
                 check(page.locator("#five-changes .five-change").count()==len(sample["conversion"]["blockers"]),
                       f"{kind} at {width}px: detailed fix list preserved")
             else:

@@ -666,3 +666,13 @@ body.five-report-ui .ten-results #seven-actions .seven-import-message:not(:empty
  body.five-report-ui .ten-results .ten-data-tools,
  body.five-report-ui .ten-results .seven-copy-fix{display:none!important}
 }
+
+
+/* v10 follow-up: priority is a warning, not a green success state. */
+body.five-report-ui .ten-results #five-blockers .five-level.high{
+ background:#fff0e1;color:#965020
+}
+body.five-report-ui .ten-results #five-blockers .five-index.high,
+body.five-report-ui .ten-results #five-action-plan .five-index.high{
+ background:#fff0dc;color:#995c27
+}
