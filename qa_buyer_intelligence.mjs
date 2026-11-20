@@ -47,7 +47,7 @@ assert.ok(navResult.buyerIntelligence.whatToChangeRemoveImprove.change.length+
  'action groups are backed by actual fixes');
 
 const jsButton=page('/pricing',{
- ...normal,actions:[{label:'Buy now',path:'',destination:'',region:'main',top:230}],
+ ...normal,actions:[{label:'Buy now',path:'',destination:'',region:'main',tag:'button',top:230}],
  mobileActions:[{label:'Buy now',path:'',region:'main',inFirstView:true}]
 });
 const buttonResult=analyzeWebsiteConversion([jsButton],{coverage:{complete:true}});
