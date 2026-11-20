@@ -49,7 +49,9 @@
     if(!rendered||(!flagged.length&&!positive))return null;
     return flagged.some(item=>level(item)==='high')?20:flagged.length?55:85;
   }).filter(x=>x!==null);
-  const score=scored.length>=2?
+  // Two observed stages cannot justify a confident-looking 85/100.
+  // This is a heuristic review score, never a real conversion rate.
+  const score=scored.length===4?
     Math.round(scored.reduce((sum,n)=>sum+n,0)/scored.length/5)*5:null;
   const tone=score===null?'medium':score<50?'high':score<75?'medium':'low';
 

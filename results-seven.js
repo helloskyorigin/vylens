@@ -30,7 +30,7 @@
   const blockers=$('five-blockers'),plan=$('five-action-plan'),questions=$('five-hesitations'),
     detailedChanges=$('five-changes'),bottom=root.querySelector('.five-bottom-actions');
   if(!grid1||!grid2||!blockers||!plan||!questions||!detailedChanges||!bottom)return;
-  root.classList.add('seven-results');
+  root.classList.add('seven-results','ten-results');
   root.setAttribute('aria-label','VYLENS conversion report: findings, plan, strengths, recheck, buyer journey, limitations and actions');
 
   // 1 — Most important evidence first. The original renderer already sorts by priority.
@@ -73,6 +73,15 @@
     }
   });
   if(rows.length){rows[0].hidden=false;rows[0].open=true;}
+  else{
+    blockers.querySelector('.five-empty')?.remove();
+    const state=make('div','ten-empty ten-empty-blockers');
+    append(state,make('span','ten-empty-icon','✓'),
+      append(make('div','ten-empty-content'),
+        make('strong','','No specific buying blockers detected'),
+        make('p','','No blocker was identified in the areas assessed. This does not verify checkout success or buyer behavior.')));
+    blockers.append(state);
+  }
 
   // 2 — A five-step action list that navigates to the EXACT matching blocker.
   plan.querySelector('.five-panel-title').textContent='Your Improvement Plan';
@@ -109,12 +118,20 @@
     });
     plan.append(button);
   });
-  if(!changes.length)plan.append(make('p','seven-empty','No evidence-supported changes were recommended.'));
+  if(!changes.length){
+    plan.querySelector('.five-empty')?.remove();
+    const state=make('div','ten-empty ten-empty-plan');
+    append(state,make('span','ten-empty-icon','✓'),
+      append(make('div','ten-empty-content'),
+        make('strong','','No priority fixes supported by this scan'),
+        make('p','','No change is recommended without stronger evidence. Review the unverified areas before making edits.')));
+    plan.append(state);
+  }
   if(changes.length>5)plan.append(make('p','seven-micro-note',
     'Showing the five highest-priority actions. More recorded findings remain available above.'));
   const advanced=make('details','seven-support-details');
   append(advanced,make('summary','','Detailed fixes & copy-ready wording'),detailedChanges);
-  plan.append(advanced);
+  if(changes.length)plan.append(advanced);
 
   // 3 — All six available positive signals, each with its actual supporting evidence.
   root.querySelector('.five-positive-details')?.remove();
@@ -126,8 +143,10 @@
     strengths.forEach(item=>{
       const row=make('article','seven-strength five-positive-row');
       append(row,make('span','seven-check','✓'),make('strong','',item.title));
+      row.append(make('span','ten-observed-label','Observed signal'));
       if(clean(item.evidence))row.append(make('p','',item.evidence));
-      if(clean(item.location))row.append(make('small','',item.location));
+      const where=clean(item.location);
+      if(where)row.append(make('small','ten-location',where==='/'?'Homepage':where));
       list.append(row);
     });
     positives.append(list);
@@ -174,9 +193,19 @@
     if(details.children.length)comparison.append(details);
     notice.textContent='Not detected now does not mean fixed: different scan coverage, page content or rendering can change results.';
   }else{
-    comparison.append(make('p','seven-empty',imported?
-      'Imported reports are not fresh scans. Run two live scans of the same input to compare.':
-      'No comparable earlier scan found. Recheck the same input to compare findings.'));
+    const placeholders=make('div','seven-comparison-grid ten-awaiting-comparison');
+    for(const label of ['Newly detected','Still detected','Not detected now'])
+      placeholders.append(append(make('div','seven-compare-stat'),
+        make('strong','','—'),make('span','',label)));
+    comparison.append(placeholders);
+    const state=make('div','ten-empty ten-empty-comparison');
+    append(state,make('span','ten-empty-icon','↻'),
+      append(make('div','ten-empty-content'),
+        make('strong','',imported?'Imported report':'No previous scan to compare'),
+        make('p','',imported?
+          'This saved report is not a fresh scan. Run two scans of the same input to compare changes.':
+          'Recheck this same input after changes to see what is new, still detected or no longer detected.')));
+    comparison.append(state);
     notice.textContent='Comparison uses this tab’s previous scan only. It does not measure real sales or confirmed fixes.';
   }
   comparison.append(notice);
@@ -222,8 +251,11 @@
     notes.push('Product-file checks cannot establish how visitors experience a sales page or checkout.');
   notes.push('Real visitor behavior, purchases and conversion rates were not measured.');
   const unique=[...new Set(notes)];
+  const limitTitle=make('span','ten-limit-label');
+  append(limitTitle,make('strong','',"What Couldn't Be Verified"),
+    make('span','ten-limit-preview',unique[0]||'See the scan limitations and evidence gaps.'));
   append(limitations,append(make('summary','seven-limit-heading'),
-    make('span','',"What Couldn't Be Verified"),make('small','',unique.length+' notes'),
+    limitTitle,make('small','',unique.length+' notes'),
     make('span','seven-chevron','⌄')));
   const limitBody=make('div','seven-limit-body');
   unique.forEach(x=>limitBody.append(make('p','',x)));
@@ -260,10 +292,14 @@
     }catch(error){message.textContent=error?.message||'Could not open saved report.';}
     finally{file.value='';}
   });
-  append(tools,recheckButton,exportButton,importButton,file);
-  const actions=panel('seven-actions','Report Actions','Download or start a fresh audit.');
+  const dataOptions=make('details','ten-data-tools');
+  const dataHeading=make('summary','ten-data-tools-summary','Report data & saved files');
+  const toolHelp=make('p','ten-tools-note','JSON files are for saving or reopening an audit. No file is uploaded when you open one here.');
+  append(tools,exportButton,importButton,file,toolHelp);
+  append(dataOptions,dataHeading,tools);
+  const actions=panel('seven-actions','Report Actions','Save the report or start your next check.');
   actions.id='seven-actions';
-  append(actions,bottom,tools,message);
+  append(actions,bottom,recheckButton,dataOptions,message);
   const caveat=root.querySelector('.five-disclaimer');
   if(caveat)caveat.remove();
   grid1.replaceChildren(blockers,plan);
@@ -271,4 +307,56 @@
   grid2.remove();
   append(root,positives,comparison,journey,limitations,actions);
   if(caveat)root.append(caveat);
+
+  // Visible hierarchy for quick scanning: header markers and signal-first summary.
+  const scoreCard=root.querySelector('.five-score-card');
+  const scoreVisual=scoreCard?.querySelector('.five-score-visual');
+  const problemCard=scoreVisual?.querySelector('.five-problems-card');
+  if(scoreCard&&scoreVisual&&problemCard){
+    scoreCard.classList.add('ten-score-summary');
+    const side=make('div','ten-summary-side');
+    const positiveCard=make('div','ten-strengths-card');
+    append(positiveCard,make('span','ten-strengths-label','Verified positives'),
+      make('strong','ten-strengths-count',String(strengths.length)));
+    problemCard.querySelector('.five-problems-label').textContent='Potential blockers';
+    side.append(problemCard,positiveCard);
+    scoreVisual.append(side);
+    const chip=scoreCard.querySelector('.five-score-meta');
+    if(chip)chip.hidden=true;
+    const scoreTitle=scoreCard.querySelector('.five-score-title');
+    if(scoreTitle)scoreTitle.textContent='Offer Evidence Review';
+    const scored=scoreCard.querySelector('.five-score-number');
+    if(scored?.textContent==='—'){
+      const footer=scoreCard.querySelector('.five-score-footnote');
+      if(footer)footer.textContent='Not enough verified stages for a meaningful evidence score.';
+    }
+  }
+  limitations.querySelector('.seven-limit-heading')?.prepend(make('span','ten-limit-index','06'));
+  const sectionInfo=[
+    [blockers,'01','alert-circle'],[plan,'02','list-checks'],
+    [positives,'03','check-circle'],[comparison,'04','repeat'],
+    [journey,'05','route'],[limitations,'06','shield-alert'],[actions,'07','download']
+  ];
+  sectionInfo.forEach(([section,number,name])=>{
+    const heading=section.querySelector('.five-panel-title');
+    if(!heading)return;
+    const subtitle=section.querySelector('.five-panel-subtitle');
+    const top=make('div','ten-section-heading');
+    const badge=make('span','ten-section-index',number);
+    const text=make('div','ten-section-heading-text');
+    text.append(heading);
+    if(subtitle)text.append(subtitle);
+    top.append(badge,text);
+    section.prepend(top);
+    section.dataset.section=name;
+  });
+  rows.forEach(row=>{
+    const body=row.querySelector('.five-reveal');
+    if(!body)return;
+    body.classList.add('ten-evidence-grid');
+    body.querySelectorAll('.seven-evidence-line').forEach((item,index)=>{
+      item.classList.add(['ten-evidence-observed','ten-evidence-concern',
+        'ten-evidence-change','ten-evidence-verify'][index]||'');
+    });
+  });
 })();

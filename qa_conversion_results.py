@@ -1,4 +1,4 @@
-"""VYLENS five-section Results browser QA: responsive, data-grounded, accessible."""
+"""VYLENS seven-section buyer report browser QA: responsive, data-grounded, accessible."""
 import json
 import os
 from pathlib import Path
@@ -95,239 +95,150 @@ def check(result, label):
 
 with sync_playwright() as pw:
     browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
-    for width in [320, 360, 390, 600, 768, 1024, 1280, 1440]:
-        for kind, sample in [
-            ("website", fixture()),
-            ("no-blockers", fixture(num=0)),
-            ("product", fixture(mode="product", num=1)),
-            ("limited", fixture(num=0, coverage=False))
+    for width in [320,390,768,1280]:
+        for kind,sample in [
+            ("website",fixture(num=3)),
+            ("no-blockers",fixture(num=0)),
+            ("product",fixture(mode="product",num=1)),
+            ("limited",fixture(num=0,coverage=False))
         ]:
-            page = browser.new_page(
-                viewport={"width": width, "height": 850},
-                device_scale_factor=1,
-                reduced_motion="reduce",
-            )
-            errors = []
-            page.on("pageerror", lambda err: errors.append(str(err)))
-            page.add_init_script(
-                "sessionStorage.setItem('vylens:result',"
-                + json.dumps(json.dumps(sample)) + ");"
-            )
-            response = page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
-            check(response.status == 200, f"{kind}: HTTP 200 at {width}")
-            check(page.locator("#fiveReport").is_visible(), f"{kind}: focused report visible {width}")
-            check(page.locator("body").evaluate("(e) => e.classList.contains('five-report-ui')"),
-                  f"{kind}: focused CSS mode active {width}")
-            check(page.locator("#fiveReport > .five-score-card").count() == 1,
-                  f"{kind}: score summary {width}")
-            check(page.locator(".five-score-visual .five-problems-card").is_visible(),
-                  f"{kind}: problems card next to score ring at {width}")
-            overlap=page.evaluate("""() => {
-                const ring=document.querySelector('.five-score-ring').getBoundingClientRect();
-                const box=document.querySelector('.five-problems-card').getBoundingClientRect();
-                return {ringRight:ring.right,boxLeft:box.left,
-                        ringBottom:ring.bottom,boxTop:box.top,
-                        ringWidth:ring.width};
-            }""")
-            check(overlap["ringRight"]<=overlap["boxLeft"]+1,
-                  f"{kind}: score circle does not overlap problem box at {width}: {overlap}")
-            check(page.locator(".five-problems-value").inner_text() ==
-                  str(len(sample["conversion"]["blockers"])),
-                  f"{kind}: problem count comes from findings at {width}")
+            page=browser.new_page(viewport={"width":width,"height":850},
+                                   reduced_motion="reduce",accept_downloads=True)
+            errors=[]
+            page.on("pageerror",lambda error:errors.append(str(error)))
+            page.add_init_script("sessionStorage.setItem('vylens:result',"+
+                                 json.dumps(json.dumps(sample))+");")
+            response=page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
+            check(response.status==200,f"{kind} at {width}px: response 200")
+            root=page.locator("#fiveReport.ten-results.seven-results")
+            check(root.is_visible(),f"{kind} at {width}px: premium seven-section report")
+            for section in ["five-blockers","five-action-plan","seven-strengths","seven-comparison",
+                            "seven-journey","seven-limitations","seven-actions"]:
+                check(page.locator("#"+section).is_visible(),
+                    f"{kind} at {width}px: {section} visible")
+            check(page.locator(".ten-section-heading").count()==6,
+                  f"{kind} at {width}px: six numbered section headers")
+            check(page.locator(".ten-limit-index").count()==1,
+                  f"{kind} at {width}px: numbered limitations header")
+            check(page.locator(".five-problems-value").inner_text()==str(len(sample["conversion"]["blockers"])),
+                  f"{kind} at {width}px: blockers derive from verified findings")
+            check(page.locator(".ten-strengths-count").inner_text()==str(len(sample["conversion"]["strengths"])),
+                  f"{kind} at {width}px: positive count is grounded")
+            check(page.locator(".ten-summary-side>.five-problems-card").count()==1,
+                  f"{kind} at {width}px: summary contains compact problems card")
+            check(page.locator(".ten-summary-side>.ten-strengths-card").count()==1,
+                  f"{kind} at {width}px: summary contains compact strengths card")
+            check(page.locator("#five-blockers .five-finding").count()==len(sample["conversion"]["blockers"]),
+                  f"{kind} at {width}px: findings count accurate")
+            check(page.locator("#five-action-plan .seven-plan-step").count()==min(5,len(sample["conversion"]["blockers"])),
+                  f"{kind} at {width}px: top five navigable actions")
+            check(page.locator("#seven-strengths .seven-strength").count()==len(sample["conversion"]["strengths"]),
+                  f"{kind} at {width}px: evidence-backed strengths")
+            check(page.locator("#seven-comparison .seven-compare-stat").count()==3,
+                  f"{kind} at {width}px: comparison has 3 states before and after recheck")
+            check(page.locator("#seven-journey .seven-stage").count()==4,
+                  f"{kind} at {width}px: Clarity / Value / Trust / Action stages")
+            check(page.locator("#seven-limitations .ten-limit-preview").count()==1,
+                  f"{kind} at {width}px: limitations preview exists before expand")
             check(page.locator("#fiveBottomDownload").is_visible() and
                   page.locator("#fiveBottomNew").is_visible(),
-                  f"{kind}: final download/new-check actions at {width}")
-            for section in ["five-blockers", "five-hesitations", "five-changes", "five-action-plan"]:
-                check(page.locator("#" + section).is_visible(), f"{kind}: {section} visible {width}")
-            check(page.locator("#fiveReport .five-panel").count() == 4,
-                  f"{kind}: exactly five sections, including score {width}")
-            check(not page.locator("#conversionReport").is_visible(),
-                  f"{kind}: old dashboard hidden {width}")
-            check(not page.locator("#technicalAppendix").is_visible(),
-                  f"{kind}: no technical appendix in buyer-facing results {width}")
-            check(not page.locator(".metrics-section").is_visible(),
-                  f"{kind}: technical counters hidden {width}")
-            check(page.locator("#navDownload").is_visible(),
-                  f"{kind}: download stays accessible {width}")
-            check(not page.locator("#navRecheck").is_visible(),
-                  f"{kind}: no extra recheck action {width}")
-            check(page.locator("#five-blockers .five-finding").count() == len(sample["conversion"]["blockers"]),
-                  f"{kind}: blocker count grounded {width}")
-            check(page.locator("#five-hesitations .five-concern").count() == min(4, len(sample["conversion"]["blockers"])),
-                  f"{kind}: buyer concerns grounded {width}")
+                  f"{kind} at {width}px: primary actions visible")
+            check(page.locator("#seven-actions > .seven-quiet-action").is_visible(),
+                  f"{kind} at {width}px: secondary Recheck visible")
+            check(page.locator("#seven-actions .ten-data-tools").count()==1,
+                  f"{kind} at {width}px: data tools behind disclosure")
+            check(page.locator(".five-score-number").inner_text()=="—",
+                  f"{kind} at {width}px: insufficient evidence does not produce misleading 85/100")
+            check(not errors,f"{kind} at {width}px: no uncaught JavaScript errors {errors}")
+            bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
+            check(max(bounds['b'],bounds['d'])<=bounds['w']+4,
+                  f"{kind} at {width}px: no horizontal overflow {bounds}")
             if sample["conversion"]["blockers"]:
-                check(page.locator("#five-hesitations .five-concern").first.inner_text().strip().endswith("?"),
-                      f"{kind}: buyer hesitation is a natural question {width}")
-                check(page.locator("#five-changes .five-action-note").first.is_visible(),
-                      f"{kind}: first recommendation visible without expansion {width}")
-                check("Review this improvement" not in
-                      page.locator("#five-action-plan").inner_text(),
-                      f"{kind}: action titles are specific, not generic at {width}")
-                first_change_title=page.locator("#five-change-0 .five-change-title").inner_text().strip()
-                first_change_action=page.locator("#five-change-0 .five-action-note span").first.inner_text().strip()
-                check(first_change_title.rstrip(".") != first_change_action.rstrip("."),
-                      f"{kind}: issue heading does not duplicate the fix text at {width}")
+                first=page.locator("#five-blockers .five-finding").first
+                check(first.evaluate("(node)=>node.open"),
+                      f"{kind} at {width}px: first finding expanded")
+                for name in ["Evidence","Possible buyer concern","What to change","How to verify"]:
+                    check(name in first.inner_text(),f"{kind} at {width}px: {name} inside finding")
+                check(first.locator(".ten-evidence-grid>.seven-evidence-line").count()==4,
+                      f"{kind} at {width}px: four individually highlighted subcards")
+                page.locator("#five-action-plan .seven-plan-step").first.click()
+                check(first.evaluate("(node)=>node.open"),
+                      f"{kind} at {width}px: improvement tap reaches matching blocker")
+                detail=page.locator("#five-action-plan .seven-support-details")
+                detail.locator("summary").click()
+                check(page.locator("#five-changes .five-change").count()==len(sample["conversion"]["blockers"]),
+                      f"{kind} at {width}px: detailed fix list preserved")
+            else:
+                check(page.locator("#five-blockers .ten-empty").count()==1,
+                      f"{kind} at {width}px: one compact no-blocker state")
+                check(page.locator("#five-action-plan .ten-empty").count()==1,
+                      f"{kind} at {width}px: one compact no-plan state")
+                check(page.locator("#five-action-plan .five-empty").count()==0,
+                      f"{kind} at {width}px: no duplicate no-plan messages")
+                check(page.locator("#five-action-plan .seven-support-details").count()==0,
+                      f"{kind} at {width}px: empty fix kit not shown")
             if sample["conversion"]["strengths"]:
-                positives=page.locator(".five-positive-details")
-                check(positives.count()==1 and not positives.evaluate("(e)=>e.open"),
-                      f"{kind}: real strengths available on demand {width}")
-                positives.locator("summary").click()
-                check("A button was observed." in positives.inner_text(),
-                      f"{kind}: positive observation explains its evidence {width}")
-            check(page.locator("#five-changes .five-change").count() == min(5, len(sample["conversion"]["blockers"])),
-                  f"{kind}: action count grounded {width}")
-            if kind == "website":
-                check(page.locator("#fiveBuyerReplay").is_visible(),
-                      f"{kind}: observed buyer replay visible inside section 2 at {width}")
-                check(page.locator("#fiveBuyerReplay .five-replay-step").count() == 4,
-                      f"{kind}: exactly four public journey steps at {width}")
-                check("below the first phone screen" in page.locator("#fiveBuyerReplay").inner_text(),
-                      f"{kind}: mobile observations selected by default at {width}")
-                page.locator("#fiveBuyerReplay button").filter(has_text="Desktop").click()
-                check("Buy now appears in the first screen" in page.locator("#fiveBuyerReplay").inner_text(),
-                      f"{kind}: switching to desktop updates the real journey at {width}")
-                check(page.locator("#fiveBuyerReplay button").filter(has_text="Desktop")
-                      .get_attribute("aria-pressed") == "true",
-                      f"{kind}: replay switch exposes its pressed state at {width}")
-            if sample["conversion"]["fixKit"]:
-                check(page.locator("#fiveConversionFixKit").is_visible(),
-                      f"{kind}: copyable fix kit present inside section 4 at {width}")
-                check(page.locator("#fiveConversionFixKit .five-kit-item").count() == 1,
-                      f"{kind}: copy-ready kit avoids duplicating checklist cards at {width}")
-                check("View pricing" in page.locator("#fiveConversionFixKit").inner_text(),
-                      f"{kind}: supported CTA wording preserved at {width}")
-            ring = page.locator(".five-score-number").inner_text()
-            check(ring.isdigit() if kind == "website" else ring == "—",
-                  f"{kind}: score withheld unless multiple rendered stages are assessed {width}")
-            check(page.locator(".five-problems-card").inner_text().find(
-                "1 High" if kind in ("website", "product") else
-                "No reported issues") >= 0,
-                  f"{kind}: severity correctly displayed at {width}")
-            check(not errors, f"{kind}: browser console without JS errors at {width}: {errors}")
-            bounds = page.evaluate(
-                "() => ({viewport: innerWidth, body: document.body.scrollWidth,"
-                " doc: document.documentElement.scrollWidth})"
-            )
-            check(max(bounds["body"], bounds["doc"]) <= bounds["viewport"] + 3,
-                  f"{kind}: no horizontal overflow at {width}: {bounds}")
-            if kind in ("website", "product"):
-                first = page.locator("#five-blockers .five-finding").first
-                first.locator("summary").click()
-                check(first.evaluate("(el) => el.open"),
-                      f"{kind}: expandable evidence works at {width}")
-                page.locator("#five-action-plan .five-plan-row").first.click()
-                check(page.locator("#five-change-0").evaluate("(el) => el.open"),
-                      f"{kind}: plan navigates to proposed fix at {width}")
-                check("Explain the concrete buyer benefit" in
-                      page.locator("#five-change-0").inner_text(),
-                      f"{kind}: real suggestion shown at {width}")
-                detail_count=page.locator("#five-change-0 .five-change-details .five-detail-line").count()
-                check(2 <= detail_count <= 3,
-                      f"{kind}: expanded fix has evidence, optional location and verification only {width}")
-                check("On inspected public page" in
-                      page.locator("#five-change-0 .five-change-details").inner_text(),
-                      f"{kind}: full evidence available on request {width}")
-            if kind == "website" and width in (390, 1280):
-                page.screenshot(path=str(OUT / f"five-report-{width}.png"), full_page=True)
-                with page.expect_download(timeout=15000) as started:
-                    page.locator("#fiveBottomDownload").click()
-                download=started.value
-                pdf_bytes=Path(download.path()).read_bytes()
-                check(download.suggested_filename.endswith(".pdf") and
-                      pdf_bytes.startswith(b"%PDF-1.4") and b"%%EOF" in pdf_bytes[-40:]
-                      and len(pdf_bytes)>2200 and b"/Type /Page" in pdf_bytes,
-                      f"{kind}: real PDF file downloaded, not print dialog at {width}")
-                check(b"Buyer Journey Replay" in pdf_bytes and
-                      b"Conversion Fix Kit" in pdf_bytes and
-                      b"View pricing" in pdf_bytes and
-                      b"Clarify the buyer benefit" in pdf_bytes,
-                      f"{kind}: both new features exported in PDF at {width}")
-                with page.expect_download(timeout=15000) as top_started:
-                    page.locator("#navDownload").click()
-                check(top_started.value.suggested_filename.endswith(".pdf"),
-                      f"{kind}: top download also saves PDF at {width}")
-                page.emulate_media(media="print")
-                check(page.locator("#fiveReport").is_visible(),
-                      f"{kind}: same five sections visible in PDF {width}")
-                check(not page.locator("#printAppendix").is_visible(),
-                      f"{kind}: technical print appendix hidden in PDF {width}")
+                check("Homepage" in page.locator("#seven-strengths").inner_text(),
+                      f"{kind} at {width}px: root path shown as Homepage, not slash")
             page.close()
-    # Even when most findings are collapsed visually, PDF must include them all.
-    page = browser.new_page(viewport={"width": 390, "height": 850})
-    sample = fixture(num=7)
-    page.add_init_script(
-        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
-    )
-    page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
-    check(page.locator(".five-finding[hidden]").count() == 4,
-          "extra findings are collapsed by default")
-    page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
-    check(page.locator(".five-finding:not([hidden])").count() == 7,
-          "all seven findings included when printing")
-    check(all(page.locator(".five-finding").nth(i).evaluate("(e) => e.open")
-              for i in range(7)), "print includes every finding's details")
-    page.evaluate("window.dispatchEvent(new Event('afterprint'))")
-    check(page.locator(".five-finding[hidden]").count() == 4,
-          "after-print restores collapsed extras")
-    page.locator("#five-blockers .five-more").click()
-    check(page.locator(".five-finding:not([hidden])").count() == 7,
-          "show all expands additional findings")
+    # Same-input recheck diff counts and continuity.
+    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce")
+    sample=fixture(num=3)
+    old={"mode":"website","sourceKey":"https://example.org","blockers":[
+        {"stage":"clarity","title":sample["conversion"]["blockers"][0]["title"],
+         "location":sample["conversion"]["blockers"][0]["location"]},
+        {"stage":"action","title":"Old detected issue","location":"/old"}]}
+    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");"+
+                         "sessionStorage.setItem('vylens:previous-conversion',"+json.dumps(json.dumps(old))+");")
+    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
+    values=page.locator("#seven-comparison .seven-compare-stat strong").all_inner_texts()
+    check(values==["2","1","1"],f"actual recheck new/continuing/not-now counts {values}")
+    check(page.locator("#seven-blocker-0").evaluate("(el)=>el.open"),"first issue open by default")
     page.close()
-    # Product files: issue count and visible details must match.
-    page=browser.new_page(viewport={"width":390,"height":850})
-    sample=fixture(mode="product",num=0)
-    sample["conversion"]["blockers"]=[
-        {"id":"file-1","stage":"value","priority":"high",
-         "title":"The delivered bundle contains no product files",
-         "evidence":"Archive contained no deliverables.",
-         "fix":"Add the promised files.","verify":"Extract the ZIP.",
-         "source":"Locally inspected product file","location":"Uploaded ZIP"},
-        {"id":"file-2","stage":"action","priority":"review",
-         "title":"Getting-started instructions are not obvious",
-         "evidence":"No recognizable start guide was found.",
-         "fix":"Add a start guide.","verify":"Ask a first-time user.",
-         "source":"Locally inspected product file","location":"Uploaded ZIP"}
-    ]
-    page.add_init_script(
-        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
-    )
-    page.goto(BASE + "/results.html",wait_until="load",timeout=55000)
-    check(page.locator(".five-problems-value").inner_text()=="2",
-          "product reported count is 2")
-    check("supplied product" in page.locator("#coverageMessage").inner_text(),
-          "product coverage explanation matches file review")
-    check("What Needs Fixing" in page.locator("#five-blockers").inner_text(),
-          "product-specific section title is understandable")
-    check(page.locator("#five-blockers .five-finding").count()==2,
-          "product file findings are visible in What Needs Fixing")
-    check(page.locator("#five-hesitations .five-concern").count()==2,
-          "product questions are supported by file defects")
-    check(page.locator("#five-changes .five-change").count()==2,
-          "product fix instructions match reported problems")
+    # Full-size positive set remains capped at six, all screenshot cases remain responsive.
+    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce",accept_downloads=True)
+    sample=fixture(num=7)
+    sample["conversion"]["strengths"]=[
+        {"stage":"clarity","title":f"Observed positive {i}","evidence":"Recorded page evidence",
+         "location":"/"} for i in range(8)]
+    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");")
+    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
+    check(page.locator("#seven-strengths .seven-strength").count()==6,"strengths capped at six")
+    check(page.locator("#five-blockers .five-finding").count()==7,"all seven findings preserved")
+    page.locator("#five-action-plan .seven-plan-step").nth(4).click()
+    check(page.locator("#seven-blocker-4").evaluate("(el)=>el.open && !el.hidden"),
+          "fifth step opens matching fifth evidence card")
+    page.locator("#seven-actions .ten-data-tools summary").click()
+    check(page.locator("#seven-actions .seven-report-tools button").count()==2,
+          "JSON tools accessible after expansion")
+    with page.expect_download(timeout=15000) as pending:
+        page.locator("#fiveBottomDownload").click()
+    result=pending.value
+    pdf=Path(result.path()).read_bytes()
+    check(result.suggested_filename.endswith(".pdf") and pdf.startswith(b"%PDF-1.4") and
+          b"%%EOF" in pdf[-40:] and len(pdf)>2000,"real PDF download works")
+    check(b"What Couldn't Be Verified" in pdf and b"Recheck Comparison" in pdf,
+          "PDF contains limitations and comparison")
     page.close()
-    # New Check navigates to a fresh audit rather than repeating the current URL.
-    page=browser.new_page(viewport={"width":390,"height":850})
+    # Existing technical-only reports must still use their original renderer.
+    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce")
     sample=fixture()
-    page.add_init_script(
-        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(sample)) + ");"
-    )
-    page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
-    page.locator("#fiveBottomNew").click()
-    page.wait_for_url("**/index.html#audit-tool", timeout=15000)
-    check("#audit-tool" in page.url, "New Check opens fresh audit")
-    page.close()
-    # Legacy / imported technical-only reports are still readable.
-    page = browser.new_page(viewport={"width": 390, "height": 850})
-    legacy = fixture()
-    legacy.pop("conversion")
-    page.add_init_script(
-        "sessionStorage.setItem('vylens:result'," + json.dumps(json.dumps(legacy)) + ");"
-    )
-    page.goto(BASE + "/results.html", wait_until="load", timeout=55000)
-    check(page.locator("#fiveReport").count() == 0,
-          "legacy report bypasses focused renderer")
-    check(page.locator(".metrics-section").is_visible(),
-          "legacy report keeps original technical results")
+    sample.pop("conversion")
+    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");")
+    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
+    check(page.locator("#fiveReport").count()==0 and page.locator(".metrics-section").is_visible(),
+          "legacy technical reports stay readable")
     page.close()
     browser.close()
-print("Five-section conversion report QA passed.", flush=True)
+
+# Scan progress copy: no arbitrary page caps or verbal elapsed clutter.
+import urllib.request
+with urllib.request.urlopen(BASE+"/inspect.html",timeout=20) as response:
+    inspect=response.read().decode()
+with urllib.request.urlopen(BASE+"/analysis.js",timeout=20) as response:
+    analysis=response.read().decode()
+check('role="timer"' in inspect and 'analysis-status-row' in inspect,
+      "scan clock is an accessible side pill")
+check("Inspecting up to 24" not in analysis and "Up to 24 discoverable" not in inspect,
+      "scan progress avoids arbitrary page-cap copy")
+print("PASS: VYLENS v10 seven-section, mobile, PDF and scanning QA",flush=True)

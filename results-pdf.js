@@ -74,8 +74,9 @@
     paragraph(subject,{size:11,bold:true,color:'0.34 0.43 0.30'});
     paragraph('Your Conversion Report',{size:22,bold:true,gap:14,color:'0.08 0.12 0.08'});
     section('1. Overall Assessment');
-    paragraph('Score: '+text('.five-score-number')+'/100    Problems found: '+
-      text('.five-problems-value'),{size:13,bold:true,gap:10});
+    const evidenceScore=text('.five-score-number');
+    paragraph('Evidence review: '+(evidenceScore==='—'?'Not enough evidence':evidenceScore+'/100 (heuristic)')+
+      '    Potential blockers: '+text('.five-problems-value'),{size:13,bold:true,gap:10});
     paragraph(text('.five-score-description'));
     const positives=list('#seven-strengths .seven-strength');
     section('2. '+(text('#five-blockers .five-panel-title')||'Buying Obstacles'));

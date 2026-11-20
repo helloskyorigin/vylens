@@ -79,3 +79,10 @@ a:focus-visible,button:focus-visible{outline:3px solid #79b400;outline-offset:4p
 .analysis-elapsed{margin:4px 0 0;color:#84937d;font:700 11px/1.6 var(--body);letter-spacing:.01em;text-align:center}
 .analysis-elapsed[hidden]{display:none!important}
 @media(max-width:390px){.analysis-elapsed{max-width:290px;font-size:10.5px;line-height:1.6}}
+
+/* v10: the elapsed clock is a quiet utility, not a sales claim or page-cap message. */
+.analysis-status-row{width:min(100%,455px);display:flex;align-items:center;justify-content:center;gap:16px;min-height:34px;position:relative}
+.analysis-status-row .analysis-elapsed{margin:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:59px;min-height:32px;padding:6px 10px;border-radius:12px;background:#f4f8ef;border:1px solid #e5ebdd;color:#456439;font:800 12px/1.2 var(--body);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.analysis-status-row .analysis-elapsed[hidden]{display:none!important}
+@media(max-width:480px){.analysis-status-row{justify-content:space-between;gap:10px}.analysis-status-row .analysis-eyebrow{font-size:9.5px;letter-spacing:.09em}.analysis-status-row .analysis-elapsed{min-width:54px;min-height:30px;font-size:11px}}
+@media(max-width:350px){.analysis-status-row .analysis-eyebrow{font-size:9px;letter-spacing:.04em}}

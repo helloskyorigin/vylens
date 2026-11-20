@@ -14,11 +14,11 @@
   let elapsedTimer = null;
   const messages = {
     website: [
-      ['Understanding your public offer…', 'Looking at what the page communicates to potential buyers.'],
-      ['Discovering relevant pages…', 'Checking reachable product, pricing and supporting pages.'],
-      ['Reviewing the next steps…', 'Observing public CTA labels, trust cues and mobile layout without clicking or paying.'],
-      ['Still inspecting public pages…', 'Larger websites may take longer; the report will disclose incomplete coverage.'],
-      ['Preparing evidence-backed findings…', 'Potential buyer concerns will be separated from observed page facts.']
+      ['Understanding your offer…', 'Reviewing the message and next steps visitors can see.'],
+      ['Reviewing relevant pages…', 'Checking available offer, pricing and supporting pages.'],
+      ['Checking the buying path…', 'Looking for unclear actions, missing trust cues and mobile issues.'],
+      ['Still reviewing available pages…', 'Some pages take longer to load. Any gaps will appear in your report.'],
+      ['Preparing your report…', 'Separating observed evidence from possible buyer concerns.']
     ],
     product: [
       ['Opening your delivered product…', 'Your original file stays on this device.'],
@@ -65,15 +65,13 @@
   }
   function beginElapsed() {
     const display=$('#analysisElapsed');
-    display.hidden=payload.mode!=='website';
-    if(display.hidden)return;
+    display.hidden=false;
     clearInterval(elapsedTimer);
     const started=Date.now();
     const update=()=>{
       const seconds=Math.max(0,Math.floor((Date.now()-started)/1000));
       display.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+
-        String(seconds%60).padStart(2,'0')+
-        ' elapsed · Inspecting up to 24 public pages';
+        String(seconds%60).padStart(2,'0');
     };
     update();
     elapsedTimer=setInterval(update,1000);
