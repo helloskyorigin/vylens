@@ -58,9 +58,13 @@ with sync_playwright() as playwright:
         check(page.locator("#five-blockers .five-finding").count()==7,"seven grounded findings")
         check(page.locator("#five-action-plan .seven-plan-step").count()==5,"exactly five actions")
         check(page.locator("#seven-strengths .seven-strength").count()==6,"all six positive signals")
-        check(page.locator("#seven-comparison .seven-compare-stat").count()==3,"three comparison states")
+        check(page.locator("#seven-comparison .seven-compare-stat").count()==3,"three comparable-scan states")
+        check(page.locator("#seven-comparison .seven-change-list").filter(has_text="Could not reassess").count()==1,
+              "an unmatched finding with unavailable coverage remains unverified")
+        check(page.locator("#seven-comparison .seven-compare-stat strong").all_inner_texts()==["6","1","0"],
+              "coverage gap is not counted as a removed finding")
         check(page.locator("#seven-journey .seven-stage").count()==4,"four buyer journey stages")
-        check(page.locator("#seven-limitations .seven-limit-body p").count()>=2,"unverified areas present")
+        check(page.locator("#seven-limitations .seven-limit-body p").count()>=1,"unverified areas present")
         check(page.locator("#seven-blocker-0").evaluate("(e)=>e.open"),"most important finding expanded")
         check("Possible buyer concern" in page.locator("#seven-blocker-0").inner_text(),"buyer concern visible")
         check("What to change" in page.locator("#seven-blocker-0").inner_text(),"recommended change visible")

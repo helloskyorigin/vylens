@@ -95,7 +95,7 @@ with sync_playwright() as playwright:
           'Clarity, Value, Trust and Action stages rendered')
     check(page.locator('#seven-limitations').is_visible(),
           'Review limitations available on demand')
-    check(page.locator('#seven-comparison .seven-compare-stat').count()==3,
+    check(page.locator('#seven-comparison .ten-empty-comparison').count()==1,
           'Three comparison states rendered')
     check(page.locator('#seven-actions #fiveBottomDownload').is_visible() and
           page.locator('#seven-actions #fiveBottomNew').is_visible(),

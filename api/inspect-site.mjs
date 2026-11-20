@@ -12,19 +12,40 @@ import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
 import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
 import {analyzeWebsiteConversion} from '../lib/conversion-engine.mjs';
+import {isDirectAction,isPurchaseAction} from '../lib/action-intent.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
+const MEDIA_BUDGET=36_000_000;
+const LINK_ERRORS=new Set([404,410,500,502,503]);
+const withDeadline=async (work,ms)=>{
+  if(ms<=0)throw new Error('Inspection time budget reached');
+  let timer;
+  try{
+    return await Promise.race([work(),new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new Error('Inspection time budget reached')),ms);
+    })]);
+  }finally{clearTimeout(timer);}
+};
 const UA='VYLENS-Inspector/4.0 (+https://vylens-tan.vercel.app/)';
 const rates=new Map();
 const str=s=>String(s??'').replace(/\s+/g,' ').trim();
 const urlOf=s=>source.validateURL(s);
 const respond=(data,status=200,extraHeaders={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff',...extraHeaders}});
 const sameSite=(u,root)=>u.hostname.replace(/^www\./,'')===root.hostname.replace(/^www\./,'');
-const dangerous=u=>/(?:^|\/)(?:logout|signout|sign-out|delete|remove|unsubscribe|checkout|cart|payment|admin|wp-admin|account|signin|login|register|api)(?:\/|$)/i.test(u.pathname);
+const restrictedPath=/(?:^|\/)(?:logout|signout|sign-out|delete|remove|unsubscribe|checkout|cart|payment|admin|wp-admin|account|signin|sign-in|login|register|auth|session|oauth|submit|update|webhook|callback)(?:[./_-]|$)/i;
+const dangerous=u=>{
+  try{
+    const path=decodeURIComponent(u.pathname);
+    return restrictedPath.test(path)||Array.from(u.searchParams.keys()).some(key=>
+      /^(?:action|token|code|session|password|key|secret|email|redirect_uri)$/i.test(key));
+  }catch{return true;}
+};
+const apiPath=u=>/(?:^|\/)api(?:\/|$)/i.test(decodeURIComponent(u.pathname));
+const publicDocument=u=>!dangerous(u)&&!apiPath(u);
 function normalize(target,base,root){
   try{
     const u=urlOf(new URL(target,base).toString());
-    if(!sameSite(u,root)||dangerous(u))return null;
+    if(!sameSite(u,root)||!publicDocument(u))return null;
     if(/\.(?:png|jpe?g|svg|webp|gif|ico|avif|pdf|zip|rar|mp4|mov|js|css|xml|json|txt|woff2?)$/i.test(u.pathname))return null;
     u.hash='';u.search='';
     if(u.pathname.length>200)return null;
@@ -37,25 +58,26 @@ function legal(url,label=''){
 function priority(entry){
   // Always inspect the requested landing page before sitemap suggestions.
   if(entry.via==='start')return -1;
-  const s=(new URL(entry.url).pathname+' '+entry.via).toLowerCase();
-  if(/pricing|plans|features|product|services|solution|demo/.test(s))return 0;
+  const s=(new URL(entry.url).pathname+' '+(entry.label||'')).toLowerCase();
+  if(entry.direct||/pricing|plans|features|product|services|solution|demo|purchase|offer/.test(s))return 0;
   if(/privacy|terms|refund|return|cookie|disclaimer|policy|legal|shipping|accessibility/.test(s))return 1;
   if(/contact|about/.test(s))return 2;
   return new URL(entry.url).pathname.split('/').filter(Boolean).length<2?3:4;
 }
 /* Network egress is validated and DNS-pinned before Chromium receives bytes. */
-async function secureFetch(input,{maxBytes=1400000,timeout=5500,method='GET'}={}){
+async function secureFetch(input,{maxBytes=1400000,timeout=5500,charge=()=>true}={}){
   const url=urlOf(input);
-  const records=await dns.lookup(url.hostname,{all:true,verbatim:true});
+  const started=Date.now();
+  const records=await withDeadline(()=>dns.lookup(url.hostname,{all:true,verbatim:true}),timeout);
   const ip=source.choosePublicAddress(records);
   return new Promise((resolve,reject)=>{
     const transport=url.protocol==='https:'?https:http;
-    const req=transport.request(url,{method,timeout,lookup:source.pinnedLookup(ip),maxHeaderSize:16384,
+    const req=transport.request(url,{method:'GET',agent:false,lookup:source.pinnedLookup(ip),maxHeaderSize:16384,
       headers:{'User-Agent':UA,'Accept':'*/*','Accept-Encoding':'identity'}},res=>{
       const chunks=[];let bytes=0;
       res.on('data',part=>{
         bytes+=part.length;
-        if(bytes>maxBytes){req.destroy(new Error('Resource too large'));return;}
+        if(!charge(part.length)||bytes>maxBytes){req.destroy(new Error('Resource budget exceeded'));return;}
         chunks.push(part);
       });
       res.on('error',reject);
@@ -71,7 +93,8 @@ async function secureFetch(input,{maxBytes=1400000,timeout=5500,method='GET'}={}
         }catch(error){reject(error);}
       });
     });
-    req.on('timeout',()=>req.destroy(new Error('Remote timeout')));
+    const timer=setTimeout(()=>req.destroy(new Error('Remote timeout')),Math.max(1,timeout-(Date.now()-started)));
+    req.once('close',()=>clearTimeout(timer));
     req.on('error',reject);
     req.end();
   });
@@ -121,13 +144,25 @@ function robotsAllow(path,rules){
 }
 async function discover(root,start){
   const robots=await getText(root.origin+'/robots.txt'),rules=robotsRules(robots);
-  const queue=[{url:start,via:'start'}],seen=new Set([start]);
+  const queue=[{url:start,via:'start'}],seen=new Map([[start,queue[0]]]);
   let discoveryCapped=false,activated=false;
-  const add=(href,via,base=root.origin)=>{
+  const add=(href,via,base=root.origin,label='')=>{
     const url=normalize(href,base,root);
-    if(!url||seen.has(url))return;
+    if(!url)return;
+    const direct=isDirectAction({label,path:new URL(url).pathname});
+    const existing=seen.get(url);
+    if(existing){
+      if(via==='link'&&existing.via!=='start'){
+        existing.via=via;
+        existing.direct||=direct;
+        existing.label||=label;
+      }
+      return;
+    }
     if(seen.size>=MAX_DISCOVERED){discoveryCapped=true;return;}
-    seen.add(url);queue.push({url,via});
+    const entry={url,via,label,direct};
+    seen.set(url,entry);
+    queue.push(entry);
   };
   const mapQueue=[root.origin+'/sitemap.xml'];
   for(const line of robots.split(/\r?\n/)){
@@ -135,25 +170,28 @@ async function discover(root,start){
     if(m)mapQueue.push(m[1]);
   }
   const checkedMaps=new Set(),sitemapEntries=[];
-  while(mapQueue.length&&checkedMaps.size<4&&sitemapEntries.length<400){
-    const next=mapQueue.shift();
-    let target;try{target=urlOf(next)}catch{continue;}
-    if(!sameSite(target,root)||checkedMaps.has(target.toString()))continue;
-    checkedMaps.add(target.toString());
-    const xml=await getText(target.toString());
-    if(!/<(?:urlset|sitemapindex)\b/i.test(xml))continue;
-    const isIndex=/<sitemapindex\b/i.test(xml);
-    for(const match of [...xml.matchAll(/<loc(?:\s[^>]*)?>([^<]+)<\/loc>/gi)].slice(0,240)){
-      const url=match[1].replace(/&amp;/gi,'&').trim();
-      if(isIndex){
-        let nested;try{nested=urlOf(url)}catch{continue;}
-        if(sameSite(nested,root)&&/\.xml(?:\.gz)?$/i.test(nested.pathname))mapQueue.push(nested.toString());
-      }else if(sitemapEntries.length<400)sitemapEntries.push(url);
+  const maps=(async()=>{
+    while(mapQueue.length&&checkedMaps.size<4&&sitemapEntries.length<400){
+      const next=mapQueue.shift();
+      let target;try{target=urlOf(next)}catch{continue;}
+      if(!sameSite(target,root)||checkedMaps.has(target.toString()))continue;
+      checkedMaps.add(target.toString());
+      const xml=await getText(target.toString());
+      if(!/<(?:urlset|sitemapindex)\b/i.test(xml))continue;
+      const isIndex=/<sitemapindex\b/i.test(xml);
+      for(const match of [...xml.matchAll(/<loc(?:\s[^>]*)?>([^<]+)<\/loc>/gi)].slice(0,240)){
+        const url=match[1].replace(/&amp;/gi,'&').trim();
+        if(isIndex){
+          let nested;try{nested=urlOf(url)}catch{continue;}
+          if(sameSite(nested,root)&&/\.xml(?:\.gz)?$/i.test(nested.pathname))mapQueue.push(nested.toString());
+        }else if(sitemapEntries.length<400)sitemapEntries.push(url);
+      }
     }
-  }
-  const activateSitemap=()=>{
+  })();
+  const activateSitemap=async()=>{
     if(activated)return;
     activated=true;
+    await maps;
     for(const url of sitemapEntries)add(url,'sitemap');
     if(sitemapEntries.length>=400||mapQueue.length)discoveryCapped=true;
   };
@@ -163,33 +201,57 @@ function extractSourceLinks(html){
   return [...html.matchAll(/<a\b[^>]{0,1000}\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)]
     .slice(0,160).map(m=>({href:(m[1]||m[2]||m[3]||'').replace(/&amp;/gi,'&'),label:''}));
 }
-async function intercept(route,state){
-  const req=route.request(),type=req.resourceType();
-  if(!['GET','HEAD'].includes(req.method())||!['document','script','stylesheet','image','font','xhr','fetch'].includes(type))
-    return route.abort('blockedbyclient');
-  let url;try{url=urlOf(req.url());}catch{return route.abort('blockedbyclient');}
-  if(type==='document'&&!sameSite(url,state.root))return route.abort('blockedbyclient');
-  if(dangerous(url))return route.abort('blockedbyclient');
-  if(state.total>=1100||state.page>=90)return route.abort('blockedbyclient');
-  state.total++;state.page++;
-  const max=type==='document'?1450000:type==='script'?650000:type==='stylesheet'?500000:type==='image'?750000:type==='font'?260000:240000;
+function browserResource(req,state){
+  const type=req.resourceType();
+  if(req.method()!=='GET'||!['document','script','stylesheet','image','font','xhr','fetch'].includes(type))return null;
   try{
-    const r=await secureFetch(url.toString(),{method:req.method(),maxBytes:max,timeout:type==='document'?7200:4200});
+    const url=urlOf(req.url());
+    if(dangerous(url))return null;
+    if(type==='document'&&(!publicDocument(url)||!sameSite(url,state.root)||
+      !robotsAllow(url.pathname+url.search,state.rules||[])))return null;
+    if(apiPath(url)&&(!['xhr','fetch'].includes(type)||url.origin!==state.root.origin))return null;
+    return {url,type};
+  }catch{return null;}
+}
+async function intercept(route,state){
+  const resource=browserResource(route.request(),state);
+  if(!resource)return route.abort('blockedbyclient');
+  const {url,type}=resource;
+  if(state.total>=850||state.page>=95||state.bytes>=MEDIA_BUDGET){
+    state.capped=true;
+    return route.abort('blockedbyclient');
+  }
+  state.total++;
+  state.page++;
+  const max={document:1_450_000,script:2_500_000,stylesheet:650_000,image:750_000,font:300_000,xhr:550_000,fetch:550_000}[type];
+  try{
+    const r=await secureFetch(url.toString(),{
+      maxBytes:max,timeout:type==='document'?7200:4600,
+      charge:bytes=>{
+        state.bytes+=bytes;
+        return state.bytes<=MEDIA_BUDGET;
+      }
+    });
     const headers={'content-type':String(r.headers['content-type']||'application/octet-stream')};
     if(r.headers.location)headers.location=String(r.headers.location).slice(0,1800);
     if(r.headers['access-control-allow-origin'])headers['access-control-allow-origin']=String(r.headers['access-control-allow-origin']);
-    // Preserve directives the audit uses; forwarding only content-type hid X-Robots-Tag.
     if(r.headers['x-robots-tag'])headers['x-robots-tag']=String(r.headers['x-robots-tag']).slice(0,500);
+    if(['script','stylesheet'].includes(type)&&r.status>=400&&url.origin===state.root.origin&&state.resourceGaps.length<6)
+      state.resourceGaps.push(type+' '+url.pathname+' (HTTP '+r.status+')');
     return route.fulfill({status:r.status,headers,body:r.body});
-  }catch{return route.abort('failed');}
+  }catch{
+    if(['script','stylesheet'].includes(type)&&state.resourceGaps.length<6)
+      state.resourceGaps.push(type+' '+url.pathname+' (unavailable)');
+    return route.abort('failed');
+  }
 }
-async function browserStart(root){
+async function browserStart(root,rules){
   const browser=await playwright.launch({executablePath:await chromium.executablePath(),
     args:[...chromium.args,'--disable-background-networking'],headless:true,timeout:20000});
   const context=await browser.newContext({viewport:{width:1280,height:800},serviceWorkers:'block',
     javaScriptEnabled:true,acceptDownloads:false,permissions:[],locale:'en-US',userAgent:UA});
   if(context.routeWebSocket)await context.routeWebSocket('**/*',socket=>socket.close());
-  const state={root,total:0,page:0};
+  const state={root,rules,total:0,page:0,bytes:0,capped:false,resourceGaps:[]};
   await context.route('**/*',route=>intercept(route,state));
   const page=await context.newPage();
   context.on('page',p=>{if(p!==page)p.close().catch(()=>{});});
@@ -347,14 +409,22 @@ async function captureCommerceSignals(page){
         r.width>2&&r.height>2;
     };
     const main=document.querySelector('main,[role="main"]')||document.body;
-    const content=trim(main.innerText||'',4200);
+    const visibleCopy=main.innerText||'';
+    const content=trim(visibleCopy,14000);
+    const locator=el=>el.id?'#'+el.id.slice(0,65):el.tagName.toLowerCase()+
+      (el.classList.length?'.'+String(el.classList[0]).slice(0,55):'');
+    const area=el=>el.closest('section,article,form,[id*="pricing" i],[class*="pricing" i]');
+    const nameOf=el=>trim((el.getAttribute('aria-labelledby')||'').split(/\s+/)
+      .map(id=>document.getElementById(id)?.textContent||'').join(' '),100);
+    const brand=trim(document.querySelector('meta[property="og:site_name"]')?.content||
+      document.querySelector('header a')?.innerText||'',80);
     const h1=[...main.querySelectorAll('h1')].find(visible)||
       [...document.querySelectorAll('h1')].find(visible);
     const intro=[...main.querySelectorAll('p')].filter(visible)
       .map(el=>trim(el.innerText||'',280)).find(v=>v.length>=25)||'';
     const title=trim(h1?.innerText||'',180);
-    const label=el=>trim(el.getAttribute('aria-label')||el.innerText||
-      el.getAttribute('value')||el.getAttribute('title')||'',100);
+    const label=el=>trim(nameOf(el)||el.getAttribute('aria-label')||el.innerText||
+      el.getAttribute('value')||el.querySelector('img[alt]')?.alt||el.getAttribute('title')||'',100);
     const purchaseAction=/^(?:(?:buy|purchase)(?:\s+(?:now|this|the|my|your|access|for)\b[^\n]{0,65})?|checkout|check out|pay now|order now|add to cart|subscribe(?:\s+now)?)\s*[.!?›→]*$/i;
     const bodyActions=[...main.querySelectorAll('a[href],button,[role="button"],input[type="submit"]')].slice(0,250)
       .filter(el=>visible(el)&&!el.closest('nav,header,footer,aside'));
@@ -362,16 +432,22 @@ async function captureCommerceSignals(page){
     // fixed header/navigation. Include it without treating the header as
     // evidence about disclosures next to a product checkout section.
     const headerActions=[...document.querySelectorAll('header a[href],header button,nav a[href],nav button')]
-      .slice(0,100).filter(visible).filter(el=>
-        /^(?:buy|purchase|order|checkout|pay now|subscribe|sign ?up|get started|start free|register|book demo)\b/i.test(label(el)));
+      .slice(0,100).filter(visible);
     const rawActions=[...bodyActions,...headerActions]
-      .filter((el,i,list)=>list.indexOf(el)===i).slice(0,250);
+      .filter((el,i,list)=>list.indexOf(el)===i).filter(el=>!el.disabled).slice(0,300);
     const actions=rawActions.map(el=>{
-      let path='';
+      let path='',destination='',missingFragment=false;
       if(el.matches('a[href]')){
         try{
           const u=new URL(el.getAttribute('href'),location.href);
-          path=u.origin===location.origin?u.pathname.slice(0,150):'External destination';
+          if(/^https?:$/.test(u.protocol)){
+            path=u.origin===location.origin?u.pathname.slice(0,150):'External destination';
+            destination=u.origin===location.origin?u.pathname.slice(0,150)+u.hash.slice(0,80):'External destination';
+            if(u.origin===location.origin&&u.pathname===location.pathname&&u.hash){
+              const id=decodeURIComponent(u.hash.slice(1));
+              missingFragment=id.toLowerCase()!=='top'&&!document.getElementById(id)&&!document.getElementsByName(id).length;
+            }
+          }
         }catch{}
       }
       const rect=el.getBoundingClientRect();
@@ -384,26 +460,63 @@ async function captureCommerceSignals(page){
         /\b(?:newsletter|updates|mailing list|email updates)\b/i.test(formContext)&&
         !/\b(?:checkout|card details|billing|payment)\b/i.test(formContext);
       const href=el.matches('a[href]')?String(el.getAttribute('href')||'').trim():'';
-      const onScreen=rect.top>=0&&rect.bottom<=window.innerHeight&&
+      const onScreen=rect.top+rect.height/2>=0&&rect.top+rect.height/2<window.innerHeight&&
         rect.left>=0&&rect.right<=window.innerWidth;
+      const style=getComputedStyle(el);
+      const textClipped=['hidden','clip'].includes(style.overflowX)&&el.scrollWidth>el.clientWidth+12;
+      const trigger=area(el);
+      const contextHeading=trim(trigger?.querySelector('h2,h3,legend')?.innerText||'',100);
       const hit=onScreen?document.elementFromPoint(
         Math.min(window.innerWidth-1,Math.max(1,rect.left+rect.width/2)),
         Math.min(window.innerHeight-1,Math.max(1,rect.top+rect.height/2))
       ):null;
       const centerReachable=onScreen?!!hit&&(hit===el||el.contains(hit)):null;
       const clippedHorizontally=rect.left< -3||rect.right>window.innerWidth+3;
-      return {label:actionLabel,path,isNewsletter,
+      return {label:actionLabel,path,destination,isNewsletter,missingFragment,
+        locator:locator(el),contextHeading,tag:el.tagName.toLowerCase(),
+        frame:window.innerWidth,textClipped,
+        inForm:!!relatedForm,disabled:el.getAttribute('aria-disabled')==='true',
+        nameMissing:!actionLabel,formRequired:relatedForm?.querySelectorAll(':required,[aria-required="true"]').length||0,
         region:el.closest('nav,header')?'navigation':'main',
         isPurchaseAction:!isNewsletter&&purchaseAction.test(actionLabel),
         isPlaceholderDestination:el.matches('a[href]')&&/^(?:#|javascript:.*)$/i.test(href),
         top:Math.round(rect.top),
         width:Math.round(rect.width),height:Math.round(rect.height),
         centerReachable,clippedHorizontally,
-        inFirstView:rect.top>=0&&rect.top<=Math.max(720,window.innerHeight*1.1)};
-    }).filter(a=>a.label).slice(0,40);
-    const priceMatches=[...content.matchAll(/(?:[$€£₹]\s?\d+(?:,\d{3})*(?:\.\d{1,2})?(?:\s?\/\s?(?:mo|month|yr|year))?|\b(?:USD|INR|EUR|GBP)\s?\d+(?:,\d{3})*(?:\.\d{1,2})?)/gi)]
-      .slice(0,6).map(x=>trim(x[0],65));
+        inFirstView:rect.top>=0&&rect.top<window.innerHeight};
+    }).filter(a=>a.label||(!a.inForm&&a.path)).sort((a,b)=>
+      Number(b.region==='main')-Number(a.region==='main')||a.top-b.top).slice(0,100);
+    const amount=/(?:[$€£₹]\s*\d+(?:,\d{3})*(?:\.\d{1,2})?|\b(?:USD|INR|EUR|GBP)\s*\d+(?:,\d{3})*(?:\.\d{1,2})?)(?:\s*(?:\/|per\s+)\s*(?:months?|mo\b|years?|yrs?\b|weeks?|wk\b))?/gi;
+    const prices=[];
+    for(const el of [...main.querySelectorAll('p,div,span,strong,b,small,dt,dd,li,h2,h3,h4')].slice(0,1200)){
+      if(!visible(el)||el.closest('del,s,strike,nav,footer,[aria-hidden="true"]'))continue;
+      const text=(el.innerText||'').trim();
+      if(text.length>110||!text||[...el.children].some(child=>visible(child)&&child.innerText?.trim()===text))continue;
+      for(const match of text.matchAll(amount)){
+        const before=text.slice(0,match.index);
+        if(/\b(?:save|save up to|worth|valued at|was|from a previous)\s*$/i.test(before))continue;
+        const section=area(el);
+        const priceContext=el.closest('[class*="price" i],[data-plan],article')||el.parentElement;
+        const near=trim(priceContext?.innerText||text,140);
+        const after=text.slice(match.index+match[0].length);
+        const cadence=(after.match(/^\s*(?:[·—–-]\s*)?(?:one[ -]time|once|per report|per analysis|billed monthly|billed annually)\b/i)||[])[0]||
+          (near.length<90?(near.match(/\b(?:one[ -]time|per report|per analysis|billed monthly|billed annually)\b/i)||[])[0]:'');
+        const value=trim(match[0],44);
+        const plan=trim(priceContext?.querySelector('h2,h3,h4')?.innerText||
+          section?.querySelector('h2,h3')?.innerText||'',75);
+        const explicit=!!el.closest('[data-plan],[class*="price" i],#pricing,[id*="pricing" i]')||
+          /^\s*(?:from\s+)?(?:[$€£₹]|USD|INR|EUR|GBP)/i.test(text);
+        prices.push({value,cadence:trim(cadence,28),plan,explicit,locator:locator(el)});
+      }
+      if(prices.length>=36)break;
+    }
+    const explicitPrices=prices.filter(price=>price.explicit);
+    const relevantPrices=explicitPrices.length?explicitPrices:prices;
+    const priceSamples=[...new Set(relevantPrices.map(price=>price.value))].slice(0,10);
     const links=[...document.querySelectorAll('a[href]')].filter(visible).slice(0,220);
+    const policyLinks=links.filter(a=>/refund|return|terms|cancellation|purchase.policy|privacy/i.test(
+      String(a.getAttribute('href')||'')+' '+String(a.innerText||''))).slice(0,12)
+      .map(a=>({href:a.href,label:label(a)}));
     const termsLinks=links.filter(a=>/refund|return|terms|cancellation|purchase.policy/i.test(
       String(a.getAttribute('href')||'')+' '+String(a.innerText||'')));
     const hasPurchaseTerms=termsLinks.length>0||
@@ -443,19 +556,27 @@ async function captureCommerceSignals(page){
     const proofCandidates=[...main.querySelectorAll(
       '[class*="testimonial" i],[id*="testimonial" i],[class*="customer-review" i],[class*="case-study" i],blockquote'
     )].slice(0,45).filter(visible);
-    const proofText=proofCandidates.map(el=>trim(el.innerText||'',220))
+    const proofText=proofCandidates.filter(el=>!el.closest('[id*="demo" i],[class*="demo" i]'))
+      .map(el=>trim(el.innerText||'',220))
       .find(t=>t.length>=45&&!/\b(?:no testimonials|no reviews|coming soon|placeholder)\b/i.test(t))||'';
     const hasProof=!!proofText;
     const forms=[...main.querySelectorAll('form')].filter(visible);
     const form=forms.map(f=>{
-      const fields=[...f.querySelectorAll('input:not([type="hidden"]),select,textarea')].filter(visible);
+      const fields=[...f.querySelectorAll('input:not([type="hidden"],[type="submit"],[type="reset"],[type="button"]),select,textarea')]
+        .filter(el=>!el.disabled&&visible(el));
       const context=trim((f.getAttribute('aria-label')||f.getAttribute('id')||'')+
         ' '+(f.querySelector('h1,h2,h3,legend')?.textContent||'')+' '+(f.innerText||''),130);
-      return {context,fields:fields.length,required:fields.filter(el=>el.required||el.getAttribute('aria-required')==='true').length};
+      return {context,locator:locator(f),fields:fields.length,required:fields.filter(el=>el.required||el.getAttribute('aria-required')==='true').length,
+        unnamedRequired:fields.filter(el=>(el.required||el.getAttribute('aria-required')==='true')&&
+          !nameOf(el)&&!el.getAttribute('aria-label')&&!el.getAttribute('title')&&!el.labels?.length)
+          .slice(0,6).map(locator)};
     }).sort((a,b)=>b.required-a.required)[0]||null;
-    return {heading:title,intro,visibleText:content,actions,priceSamples:priceMatches,
-      hasPrice:priceMatches.length>0,hasPurchaseTerms,termsNearAction,hasProof,
-      proofText,firstViewHeight:Math.max(720,window.innerHeight),form};
+    const draft=[...main.querySelectorAll('p,h2,h3,li')].slice(0,250).filter(visible)
+      .map(el=>trim(el.innerText||'',150))
+      .find(text=>/^lorem ipsum\b|^todo\s*:|\[(?:insert|your) (?:company|product|headline|testimonial)[^\]]{0,45}\]/i.test(text))||'';
+    return {heading:title,intro,brand,visibleText:content,actions,priceSamples,prices:relevantPrices.slice(0,18),
+      hasPrice:priceSamples.length>0,hasPurchaseTerms,termsNearAction,hasProof,policyLinks,draft,
+      proofText,firstViewHeight:window.innerHeight,form};
   });
 }
 function evaluateRenderedSignals(signals,path){
@@ -510,40 +631,48 @@ function evaluateRenderedSignals(signals,path){
     path+' · page structure','Inspect the page accessibility landmarks.');
   return {issues,checks};
 }
-async function rendered(session,url){
-  const {page,state}=session;state.page=0;
+async function waitForContent(page,timeout){
+  const ready=await page.waitForFunction(()=>{
+    const content=document.querySelector('main,[role="main"],article,#root,#__next,#app')||document.body;
+    const text=(content?.innerText||'').replace(/\s+/g,' ').trim();
+    if(/^.{0,24}\b(?:loading|initializing|please wait)\b[ .…!]*$/i.test(text))return false;
+    return text.length>=75||text.length>=12&&!!content?.querySelector('h1,h2,canvas,video,form');
+  },null,{timeout}).then(()=>true,()=>false);
+  if(ready)await page.waitForTimeout(180);
+  return ready;
+}
+async function rendered(session,url,{freshMobile=true}={}){
+  const {page,state}=session;
+  state.page=0;
+  state.resourceGaps=[];
+  state.capped=false;
   await page.setViewportSize({width:1280,height:800});
-  const errors=[];const onError=e=>{if(errors.length<2)errors.push(str(e.message).slice(0,120));};
+  const errors=[];
+  const onError=e=>{if(errors.length<3)errors.push(str(e.message).slice(0,140));};
   page.on('pageerror',onError);
   try{
-    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:14500});
+    const response=await page.goto(url,{waitUntil:'commit',timeout:7800});
     const status=response?.status()||0;
-    if(status>=400)return {status,html:'',links:[],browser:true};
-    // Let JS-rendered websites finish their initial paint; avoid diagnosing a loading shell.
-    await page.waitForLoadState('load',{timeout:3300}).catch(()=>{});
-    await page.waitForTimeout(300);
-    let signals=await captureRenderedSignals(page);
-    if(signals.mainTextMeasured&&signals.textSize<55&&!signals.hasVisualApp){
-      await page.waitForFunction(()=>((document.querySelector('main')||document.body)?.innerText||'').trim().length>=85,
-        null,{timeout:1800}).catch(()=>{});
-      signals=await captureRenderedSignals(page);
-    }
-    const commerce=await captureCommerceSignals(page).catch(()=>null);
-    const html=(await page.content()).slice(0,1400000);
-    const links=await page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
-      .map(a=>({href:a.href,label:(a.textContent||a.getAttribute('aria-label')||'').trim().slice(0,90)})));
-    const visibleText=await page.evaluate(()=>{
-      const container=document.querySelector('main')||document.querySelector('article')||document.body;
-      if(!container)return '';
-      if(container===document.body){
-        const clone=container.cloneNode(true);
-        clone.querySelectorAll('header,footer,nav,aside,script,style,noscript').forEach(el=>el.remove());
-        return String(clone.textContent||'').slice(0,14000);
-      }
-      return String(container.innerText||'').slice(0,14000);
-    });
-    await page.setViewportSize({width:390,height:844});
-    await page.waitForTimeout(220);
+    if(status>=400)return {status,html:'',links:[],browser:false};
+    if(!response)return {status:0,html:'',links:[],browser:false};
+    await page.waitForLoadState('domcontentloaded',{timeout:4200}).catch(()=>{});
+    const ready=await waitForContent(page,3000);
+    if(ready)await page.waitForLoadState('load',{timeout:650}).catch(()=>{});
+    const desktop=await withDeadline(async ()=>{
+      const [signals,commerce,html,links]=await Promise.all([
+        captureRenderedSignals(page),captureCommerceSignals(page),page.content(),
+        page.evaluate(()=>Array.from(document.querySelectorAll('a[href]')).slice(0,200)
+          .map(a=>({href:a.href,label:(a.innerText||a.getAttribute('aria-label')||'').trim().slice(0,90)})))
+      ]);
+      return {signals,commerce,html:html.slice(0,1400000),links};
+    },1800);
+    const {signals,commerce,html,links}=desktop;
+    const visibleText=commerce.visibleText;
+    const resourceGap=state.resourceGaps.length?
+      'Some rendering assets were unavailable: '+state.resourceGaps.join(', ')+'.':'';
+    const renderGap=!ready?'The browser did not reach a readable public content state.':
+      state.capped?'Browser resource limit was reached.':'';
+    const desktopCapped=state.capped;
     const measureMobile=()=>page.evaluate(()=>{
       const width=document.documentElement.clientWidth||window.innerWidth,small=[],clipped=[],offenders=[];
       const locator=el=>el.id?'#'+el.id.slice(0,40):el.tagName.toLowerCase()+
@@ -581,18 +710,43 @@ async function rendered(session,url){
       }
       return {width,scrollWidth:documentWidth,small,clipped,offenders};
     });
-    const mobile=await measureMobile();
-    const mobileCommerce=await captureCommerceSignals(page).catch(()=>null);
-    await page.setViewportSize({width:320,height:780});
-    await page.waitForTimeout(100);
-    const narrow=await measureMobile();
-    const combinedCommerce=commerce?{...commerce,
-      mobileActions:mobileCommerce?.actions||[],
+    let mobile=null,narrow=null,mobileCommerce=null,narrowCommerce=null,mobileGap='';
+    try{
+      await withDeadline(async ()=>{
+        await page.setViewportSize({width:390,height:844});
+        if(freshMobile){
+          state.page=0;
+          state.resourceGaps=[];
+          state.capped=false;
+          const phoneResponse=await page.goto(url,{waitUntil:'commit',timeout:4800});
+          if(!phoneResponse||phoneResponse.status()>=400)throw new Error('Phone page response unavailable');
+          await page.waitForLoadState('domcontentloaded',{timeout:2300}).catch(()=>{});
+          if(!await waitForContent(page,2400))throw new Error('No readable phone content');
+          await page.waitForLoadState('load',{timeout:500}).catch(()=>{});
+        }else await page.waitForTimeout(120);
+        if(state.capped||!freshMobile&&desktopCapped)throw new Error('Phone rendering resources unavailable');
+        [mobile,mobileCommerce]=await Promise.all([measureMobile(),captureCommerceSignals(page)]);
+        await page.setViewportSize({width:320,height:780});
+        await page.waitForTimeout(100);
+        [narrow,narrowCommerce]=await Promise.all([measureMobile(),captureCommerceSignals(page)]);
+      },freshMobile?10500:2200);
+    }catch{
+      // A failed secondary viewport must keep the desktop DOM and source coverage.
+      mobileGap=mobile?'320px layout could not be checked.':'390px phone content could not be verified.';
+    }
+    const combinedCommerce={...commerce,
+      mobileActions:mobileCommerce?.actions??null,
+      narrowActions:narrowCommerce?.actions??null,
       mobilePriceVisible:mobileCommerce?.hasPrice??null,
-      mobilePriceSamples:mobileCommerce?.priceSamples||[]
-    }:null;
+      mobilePriceSamples:mobileCommerce?.priceSamples||[],
+      mobilePrices:mobileCommerce?.prices||[],
+      mobileCaptured:!!mobileCommerce,
+      renderGap,mobileGap,resourceGap
+    };
     return {status,html,links,mobile,narrow,visibleText,signals,
-      commerce:combinedCommerce,headers:await response.allHeaders(),browser:true,errors};
+      commerce:ready?combinedCommerce:null,renderGap,mobileGap,resourceGap,
+      headers:await response.allHeaders(),browser:true,errors};
+
   }finally{page.off('pageerror',onError);}
 }
 
@@ -616,7 +770,7 @@ function policyContentReview(url,visibleText,html){
     location:path,evidence:'Possible placeholder visible on the page: "'+match[0]+'".',
     fix:'Review the page and replace any unfinished template text with accurate, site-specific information.',
     verify:'Read the published page and check that template placeholders are gone.'});
-  if(shortContent)issues.push({category:'Policy content',severity:'note',title:'Policy page has very little readable content',
+  if(shortContent&&text.length>0)issues.push({category:'Policy content',severity:'note',title:'Policy page has very little readable content',
     location:path,evidence:'Only '+text.length+' readable characters observed in the page during inspection.',
     fix:'Review whether this page fully explains its intended policy. Requirements vary by site and jurisdiction.',
     verify:'Read the complete rendered policy page and confirm the relevant information is present.'});
@@ -659,9 +813,10 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
       evidence:small.slice(0,4).map(t=>(t.label||'Control')+' '+t.width+'×'+t.height+'px').join('; '),
       fix:'Increase the clickable area and spacing for the affected navigation links and buttons.',
       verify:'Check tap targets with browser device emulation or a mobile device.'});
-    if(errors?.length)checks.push({name:path+' · Uncaught script errors',status:'unverified',
-      detail:'Browser observed '+errors.length+' script error(s). Some may depend on the inspection environment.'});
-  }else checks.push({name:path+' · Rendered page',status:'unverified',detail:'Browser rendering unavailable. Only HTML source was checked.'});
+  }
+  if(browser&&errors?.length)checks.push({name:path+' · Uncaught script errors',status:'unverified',
+    detail:'Browser observed '+errors.length+' script error(s): '+errors.join(' | ')});
+  if(!browser)checks.push({name:path+' · Rendered page',status:'unverified',detail:'Browser rendering unavailable. Only HTML source was checked.'});
   if(browser && signals){
     const seen=evaluateRenderedSignals(signals,path);
     // Rendered DOM replaces initial HTML estimates for these checks. Don't display
@@ -704,25 +859,26 @@ function pageReview(html,url,status,browser,mobile,visibleText,errors,headers,si
   return {issues,checks,title:data.pageTitle};
 }
 function aggregate(analyses){
-  const result=new Map();
+  const result=new Map(),pathsByFinding=new Map();
   for(const page of analyses)for(const item of page.issues){
     // Same evidence on multiple pages is one finding with multiple recorded locations.
     // Group the same issue type across pages while retaining each page's exact evidence.
     // Otherwise counts split whenever a page-specific number or locator differs.
     const key=[item.category,item.title,item.severity].join('|');
     const pagePath=new URL(page.url).pathname||'/';
-    if(!result.has(key))
+    if(!result.has(key)){
       result.set(key,{...item,affectedCount:0,affectedPages:[],occurrences:[]});
-    const finding=result.get(key);
-    if(!finding.affectedPages.includes(pagePath)){
+      pathsByFinding.set(key,new Set());
+    }
+    const finding=result.get(key),paths=pathsByFinding.get(key);
+    if(!paths.has(pagePath)){
+      paths.add(pagePath);
       finding.affectedCount++;
       if(finding.affectedPages.length<18)finding.affectedPages.push(pagePath);
     }
-    if(finding.occurrences.length<18)finding.occurrences.push({
-      path:pagePath,url:page.url,
-      location:str(item.location||pagePath).slice(0,260),
-      evidence:str(item.evidence||'').slice(0,600)
-    });
+    const location=str(item.location||pagePath).slice(0,260),evidence=str(item.evidence||'').slice(0,600);
+    if(finding.occurrences.length<18&&!finding.occurrences.some(x=>x.path===pagePath&&x.location===location&&x.evidence===evidence))
+      finding.occurrences.push({path:pagePath,url:page.url,location,evidence});
   }
   const out=[...result.values()];
   for(const item of out)if(item.affectedCount>1)
@@ -730,20 +886,28 @@ function aggregate(analyses){
   out.sort((a,b)=>({critical:0,high:1,note:2}[a.severity]??2)-({critical:0,high:1,note:2}[b.severity]??2));
   return out.map((x,i)=>({...x,id:i+1}));
 }
-async function scanSite(input){
+async function scanSite(input,progress=()=>{}){
   const started=Date.now();
-  const home=await source.fetchPublic(input);
+  const remainingTime=()=>TIME_BUDGET-(Date.now()-started);
+  const parsed=urlOf(input);
+  if(!publicDocument(parsed))throw new Error('Use a public offer or homepage URL.');
+  progress('connecting');
+  const home=await source.fetchPublic(input,{timeout:10500,allowURL:publicDocument});
   const root=new URL(home.url),start=normalize(home.url,home.url,root);
   if(!start)throw new Error('Could not open a safe public website.');
+  progress('discovering');
   const discoverer=await discover(root,start);
   let session=null;
-  try{session=await browserStart(root);}
-  catch(error){console.error('Playwright unavailable',{name:error?.name});}
-  const pages=[],analyses=[],checks=[],titles=[],commerceSnapshots=[],done=new Set();
+  if(robotsAllow(new URL(start).pathname,discoverer.rules)){
+    try{session=await browserStart(root,discoverer.rules);}
+    catch(error){console.error('Playwright unavailable',{name:error?.name});}
+  }
+  progress(session?'rendering':'source');
+  const pages=[],analyses=[],checks=[],titles=[],commerceSnapshots=[],done=new Set(),destinationStatus=new Map();
   const mediaCache=new Map(),linkCandidates=new Map();
   let renderedCount=0,sourceCount=0;
   try{
-    while(discoverer.queue.length&&pages.length<LIMIT&&Date.now()-started<TIME_BUDGET){
+    while(discoverer.queue.length&&pages.length<LIMIT&&remainingTime()>1800){
       discoverer.queue.sort((a,b)=>priority(a)-priority(b));
       const item=discoverer.queue.shift();
       if(done.has(item.url))continue;done.add(item.url);
@@ -751,50 +915,65 @@ async function scanSite(input){
       if(!robotsAllow(path,discoverer.rules)){
         pages.push({url:item.url,path,type:kind,status:'skipped',reason:'Blocked by robots.txt',findings:0});continue;
       }
-      let visit=null,raw=null;
-      if(session)try{visit=await rendered(session,item.url);}catch(error){
-        visit={status:0,browser:false,html:'',links:[],error:str(error?.message).slice(0,150)};
+      let visit=null,raw=null,fallbackReason='';
+      if(session)try{
+        const freshMobile=item.via==='start'||priority(item)===0;
+        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(28000,remainingTime()-1100));
+      }catch(error){
+        fallbackReason=error.message==='Inspection time budget reached'?'The browser exceeded its inspection budget.':'The browser could not load this page.';
+        if(error.message==='Inspection time budget reached'){
+          await session.browser.close().catch(()=>{});
+          session=null;
+        }
       }
-      if(!visit?.html&&!visit?.status){
+      if(!visit?.html&&!visit?.status&&remainingTime()>900){
+        fallbackReason||='Browser rendering was unavailable.';
         try{
-          raw=item.url===start?home:await source.fetchPublic(item.url,{expectedOrigin:root.origin,timeout:6000});
+          raw=item.url===start?home:await withDeadline(()=>source.fetchPublic(item.url,{
+            expectedOrigin:new URL(item.url).origin,timeout:3200,
+            allowURL:u=>publicDocument(u)&&robotsAllow(u.pathname+u.search,discoverer.rules)
+          }),Math.min(5500,remainingTime()-500));
           visit={status:raw.status,html:raw.html,links:extractSourceLinks(raw.html),browser:false};
-        }catch(error){visit={status:0,html:'',links:[],browser:false,error:str(error?.message).slice(0,150)};}
+        }catch{visit={status:0,html:'',links:[],browser:false};}
       }
-      if(!visit.html){
+      if(!visit?.html){
+        const status=visit?.status||0;
         let confirmedBroken=false;
-        if(item.via==='link'&&[404,410,500,502,503].includes(visit.status)){
-          // A transient WAF/HEAD or browser-only response is not enough: repeat with safe GET.
+        if(item.via==='link'&&LINK_ERRORS.has(status)&&remainingTime()>4200){
           try{
-            const verification=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
-            confirmedBroken=verification.status===visit.status;
+            const verification=await withDeadline(()=>source.fetchPublic(item.url,{
+              probe:true,timeout:2600,expectedOrigin:new URL(item.url).origin,
+              allowURL:u=>publicDocument(u)&&robotsAllow(u.pathname+u.search,discoverer.rules)
+            }),3500);
+            confirmedBroken=verification.status===status;
           }catch{}
         }
-        pages.push({url:item.url,path,type:kind,status:'unverified',
-          reason:visit.error||('HTTP '+visit.status),findings:confirmedBroken?1:0});
+        if(confirmedBroken)destinationStatus.set(item.url,{state:'broken',status});
+        const reason=status?'HTTP '+status:(fallbackReason||'Page unavailable within scan budget.');
+        pages.push({url:item.url,path,type:kind,status:'unverified',reason,findings:confirmedBroken?1:0});
         checks.push({name:path+' · Page available',status:confirmedBroken?'attention':'unverified',
-          detail:confirmedBroken?'HTTP '+visit.status+' confirmed on two GET requests.':
-            (visit.error||'Page returned HTTP '+visit.status+'; availability not confirmed.')});
+          detail:confirmedBroken?'HTTP '+status+' confirmed on two GET requests.':reason});
         if(confirmedBroken)
-          analyses.push({url:item.url,issues:[{category:'Navigation',severity:'high',title:'Linked page returned HTTP '+visit.status,
-            location:path,evidence:'The internal link to '+path+' returned HTTP '+visit.status+' on two public GET requests.',
+          analyses.push({url:item.url,issues:[{category:'Navigation',severity:'high',title:'Linked page returned HTTP '+status,
+            location:path,evidence:'The internal link to '+path+' returned HTTP '+status+' on two public GET requests.',
             fix:'Restore the page or update its internal links.',verify:'Open the link and confirm it loads.'}]});
-        if(item.via==='start')discoverer.activateSitemap();
+        if(item.via==='start')await discoverer.activateSitemap();
         continue;
       }
+      destinationStatus.set(item.url,{state:'responded',status:visit.status,browser:visit.browser});
       const mediaEvidence=[];
       if(visit.browser&&Array.isArray(visit.signals?.brokenImages)){
         for(const img of visit.signals.brokenImages.slice(0,4)){
           if(Date.now()-started>TIME_BUDGET-11000)break;
           let target;try{target=urlOf(img.url)}catch{continue;}
-          if(!sameSite(target,root)||target.origin!==root.origin||dangerous(target))continue;
+          if(!sameSite(target,root)||target.origin!==root.origin||!publicDocument(target))continue;
           if(!mediaCache.has(target.toString())){
             let firstStatus=0,secondStatus=0;
             try{
-              const first=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
+              const first=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:2800,expectedOrigin:root.origin,allowURL:publicDocument});
               firstStatus=first.status;
               if([404,410].includes(firstStatus)){
-                const second=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:3500,expectedOrigin:root.origin});
+                const second=await source.fetchPublic(target.toString(),{method:'GET',probe:true,timeout:2800,expectedOrigin:root.origin,allowURL:publicDocument});
                 secondStatus=second.status;
               }
             }catch{}
@@ -808,18 +987,23 @@ async function scanSite(input){
         visit.visibleText,visit.errors,visit.headers||raw?.headers,visit.signals,visit.narrow,mediaEvidence);
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
-      pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length});
+      const desktop=!!visit.commerce&&!visit.renderGap,phone=desktop&&!!visit.commerce.mobileCaptured;
+      pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length,
+        desktop,phone,narrow:!!visit.narrow&&phone,
+        reason:visit.browser?(visit.renderGap||visit.mobileGap||visit.resourceGap||undefined):fallbackReason});
       if(visit.browser&&visit.commerce)commerceSnapshots.push({
-        url:item.url,status:'rendered',commerce:visit.commerce
+        url:item.url,status:'rendered',entry:item.via==='start',commerce:visit.commerce,
+        technical:{lowContrast:visit.signals?.lowContrast||[],mobileClipped:visit.mobile?.clipped||[],
+          narrowClipped:visit.narrow?.clipped||[],media:mediaEvidence}
       });
       if(visit.browser)renderedCount++;else sourceCount++;
       for(const link of visit.links||[]){
         if(!link.href)continue;
         const normalized=normalize(link.href,item.url,root);
-        if(normalized&&!linkCandidates.has(normalized))linkCandidates.set(normalized,{url:normalized,via:'link',referrer:item.url});
-        discoverer.add(link.href,'link',item.url);
+        if(normalized&&!linkCandidates.has(normalized))linkCandidates.set(normalized,{url:normalized,via:'link',referrer:item.url,label:link.label});
+        discoverer.add(link.href,'link',item.url,link.label);
       }
-      if(item.via==='start')discoverer.activateSitemap();
+      if(item.via==='start')await discoverer.activateSitemap();
     }
   }finally{if(session)await session.browser.close().catch(()=>{});}
   // Pages omitted by the bounded full crawl can still have a quick, safe availability check.
@@ -828,26 +1012,31 @@ async function scanSite(input){
     !done.has(item.url)&&robotsAllow(new URL(item.url).pathname,discoverer.rules))
     .sort((a,b)=>priority(a)-priority(b)).slice(0,12);
   const linkEvidence=[];
-  if(Date.now()-started<TIME_BUDGET-10000){
+  if(pendingLinks.length&&remainingTime()>10000){
+    progress('links');
     // Avoid unbounded parallel traffic and repeat failed GETs before publishing a finding.
     for(let index=0;index<pendingLinks.length;index+=3){
       if(Date.now()-started>TIME_BUDGET-9000)break;
       const batch=await Promise.all(pendingLinks.slice(index,index+3).map(async item=>{
         let firstStatus=0,secondStatus=0;
         try{
-          const first=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3200,expectedOrigin:root.origin});
+          const first=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:2600,expectedOrigin:new URL(item.url).origin,allowURL:publicDocument});
           firstStatus=first.status;
           if([404,410,500,502,503].includes(firstStatus)){
-            const second=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:3200,expectedOrigin:root.origin});
+            const second=await source.fetchPublic(item.url,{method:'GET',probe:true,timeout:2600,expectedOrigin:new URL(item.url).origin,allowURL:publicDocument});
             secondStatus=second.status;
           }
         }catch{}
-        return {pathname:new URL(item.url).pathname,firstStatus,secondStatus,referrer:item.referrer};
+        return {url:item.url,pathname:new URL(item.url).pathname,firstStatus,secondStatus,referrer:item.referrer};
       }));
       linkEvidence.push(...batch);
     }
   }
   for(const evidence of linkEvidence){
+    if(LINK_ERRORS.has(evidence.firstStatus)&&evidence.firstStatus===evidence.secondStatus)
+      destinationStatus.set(evidence.url,{state:'broken',status:evidence.firstStatus});
+    else if(evidence.firstStatus>=200&&evidence.firstStatus<300)
+      destinationStatus.set(evidence.url,{state:'responded',status:evidence.firstStatus});
     const result=analyzeVerifiedLinks([evidence]);
     checks.push(...result.checks);
     if(result.issues.length)analyses.push({url:evidence.referrer||start,issues:result.issues});
@@ -855,7 +1044,9 @@ async function scanSite(input){
   const remaining=discoverer.queue.filter(x=>!done.has(x.url)).length;
   const inspected=renderedCount+sourceCount,legalCount=pages.filter(p=>p.type==='legal'&&(p.status==='rendered'||p.status==='source')).length;
   const skipped=pages.filter(p=>p.status==='skipped'||p.status==='unverified').length;
-  const complete=remaining===0&&skipped===0&&sourceCount===0&&!discoverer.discoveryCapped;
+  const pageGaps=pages.filter(p=>p.reason).map(p=>({path:p.path,reason:p.reason}));
+  const viewportGaps=pages.filter(p=>p.status==='rendered'&&(!p.desktop||!p.phone||!p.narrow)).length;
+  const complete=remaining===0&&skipped===0&&sourceCount===0&&viewportGaps===0&&pageGaps.length===0&&!discoverer.discoveryCapped;
   if(sourceCount)checks.push({name:'Playwright coverage',status:'unverified',detail:sourceCount+' page(s) used source fallback instead of rendered checks.'});
   if(remaining||skipped||discoverer.discoveryCapped)checks.push({name:'Crawl coverage',status:'unverified',detail:remaining+' discovered pages not visited; '+skipped+' blocked or unavailable.'+(discoverer.discoveryCapped?' Discovery URL cap reached.':'')});
   const issues=aggregate(analyses);
@@ -897,14 +1088,31 @@ async function scanSite(input){
   if(findingsLimited)checks.push({name:'Finding coverage',status:'unverified',detail:'Additional findings exceeded the 250-item report cap.'});
   issues.length=Math.min(issues.length,250);
   issues.forEach((x,i)=>x.id=i+1);
-  const conversion=analyzeWebsiteConversion(commerceSnapshots,{issues,coverage:{
-    complete:complete&&!findingsLimited,inspected,rendered:renderedCount,sourceOnly:sourceCount
-  }});
+  const coverage={discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
+    desktop:pages.filter(p=>p.desktop).length,mobile:pages.filter(p=>p.phone).length,narrow:pages.filter(p=>p.narrow).length,
+    legal:legalCount,skipped,remaining,discoveryCapped:discoverer.discoveryCapped,findingsLimited,
+    limit:LIMIT,complete:complete&&!findingsLimited,elapsedSeconds:Math.round((Date.now()-started)/1000),gaps:pageGaps.slice(0,12)};
+  const destinations=[];
+  for(const snapshot of commerceSnapshots){
+    const observed= [
+      ...snapshot.commerce.actions.filter(a=>isDirectAction(a)||/pricing|plans|checkout|purchase/i.test(a.destination||''))
+        .map(a=>({href:a.destination,label:a.label,kind:'action',locator:a.locator,purchase:isPurchaseAction(a)})),
+      ...snapshot.commerce.policyLinks.map(a=>({...a,kind:'policy'}))
+    ];
+    for(const link of observed){
+      if(!link.href||link.href==='External destination'||link.href.includes('#'))continue;
+      const target=normalize(link.href,snapshot.url,root);
+      if(!target)continue;
+      const result=destinationStatus.get(target);
+      destinations.push({...link,url:target,path:new URL(target).pathname,referrer:new URL(snapshot.url).pathname,
+        state:result?.state||'unverified',status:result?.status});
+    }
+  }
+  progress('diagnosing');
+  const conversion=analyzeWebsiteConversion(commerceSnapshots,{issues,coverage,destinations});
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     conversion,
-    engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,
-    coverage:{discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
-      legal:legalCount,skipped,remaining,discoveryCapped:discoverer.discoveryCapped,findingsLimited,limit:LIMIT,complete:complete&&!findingsLimited,elapsedSeconds:Math.round((Date.now()-started)/1000)},
+    engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,coverage,
     summary:inspected+' pages inspected ('+legalCount+' legal); '+issues.length+' types of issues.',
     meta:'Multi-page inspection',coverageLabel:'Public site + mobile browser',
     scope:renderedCount?'Rendered pages and mobile layout were checked in Playwright where possible. These checks do not establish legal compliance or the cause of sales changes.'
@@ -939,10 +1147,15 @@ export async function POST(request){
   }
   rates.set(ip,now);
   try{
-    if(Number(request.headers.get('content-length')||0)>3500)return respond({error:'Request too large.'},413);
-    const raw=await request.text();if(raw.length>3500)return respond({error:'Request too large.'},413);
-    let data;try{data=JSON.parse(raw)}catch{return respond({error:'Invalid JSON.'},400);}
-    return respond(await scanSite(urlOf(data?.url).toString()));
+    let data;
+    try{data=await source.readSmallJSON(request);}
+    catch(error){
+      return /too large/i.test(error.message)?respond({error:'Request too large.'},413):respond({error:'Invalid JSON.'},400);
+    }
+    const url=urlOf(data?.url).toString();
+    if(request.headers.get('accept')?.includes('application/x-ndjson'))
+      return streamScan(url);
+    return respond(await scanSite(url));
   }catch(error){
     const msg=str(error?.message).slice(0,180);
     console.error('Site scan failed',{name:error?.name,message:msg});
@@ -950,5 +1163,23 @@ export async function POST(request){
     return respond({error:safe?msg:'Could not inspect this website. It may block automated scans or be temporarily unavailable.'},422);
   }
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'problem-engine-v4',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion};
+function streamScan(url){
+  const encoder=new TextEncoder();
+  let active=true;
+  const stream=new ReadableStream({
+    start(controller){
+      const send=value=>{if(active)controller.enqueue(encoder.encode(JSON.stringify(value)+'\n'));};
+      void scanSite(url,stage=>send({stage}))
+        .then(report=>send({report}),error=>{
+          const message=str(error?.message).slice(0,180);
+          send({error:/^Enter|^Only|^Use|^The website|^This site|^This address|^Could not|^A public/.test(message)?
+            message:'Could not inspect this website. It may block automated scans or be temporarily unavailable.'});
+        }).finally(()=>{if(active)controller.close();});
+    },
+    cancel(){active=false;}
+  });
+  return new Response(stream,{headers:{'content-type':'application/x-ndjson; charset=utf-8','cache-control':'no-store',
+    'x-content-type-options':'nosniff','x-accel-buffering':'no'}});
+}
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion,rendered,browserResource,waitForContent};

@@ -47,6 +47,10 @@ jobs:
         run: node qa_rendered_fixture.mjs
       - name: Test realistic purchase scenarios on phone and desktop
         run: node qa_commercial_acceptance.mjs
+      - name: Test responsive hydration, destination evidence and coverage gaps
+        run: node qa_conversion_coverage.mjs
+      - name: Test public URL and source checks
+        run: node qa_scanner.mjs && node qa_security.mjs
 
   responsive-results:
     name: Offline mobile, result, file and PDF QA
@@ -62,7 +66,7 @@ jobs:
         run: python -m pip install playwright==1.56.0
       - name: Verify local product-file parsing
         run: python qa_product_browser.py
-      - name: Run the five-section Results quality matrix
+      - name: Run the seven-section Results quality matrix
         shell: bash
         run: |
           set -euo pipefail
@@ -77,6 +81,7 @@ jobs:
           VYLENS_BASE=http://127.0.0.1:8765 python qa_focus_results.py
           VYLENS_BASE=http://127.0.0.1:8765 python qa_results_states.py
           VYLENS_BASE=http://127.0.0.1:8765 python qa_retry_browser.py
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_seven_results.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

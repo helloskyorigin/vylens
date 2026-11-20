@@ -7,7 +7,7 @@ for(const ip of publicIPs){if(!isPublicIP(ip))throw Error('Public IP blocked '+i
 for(const url of ['http://localhost','http://127.0.0.1','http://10.1.2.3','http://example.com:8080','http://user:pass@example.com','file:///etc/passwd','http://example.local']){
  let blocked=false;try{validateURL(url)}catch{blocked=true}if(!blocked)throw Error('Unsafe URL allowed '+url)
 }
-const good='<html lang="en"><head><title>Example Project - Landing page for makers</title><meta name="description" content="Details"/><meta name="viewport" content="width=device-width,initial-scale=1" /></head><body><h1>Real heading</h1><button>Get started</button><img src="x" alt="decorative" /></body></html>';
+const good='<html lang="en"><head><title>Example Project - Landing page for makers</title><meta name="description" content="Details"/><meta property="og:title" content="Example Project"/><meta property="og:description" content="Project details"/><meta name="viewport" content="width=device-width,initial-scale=1" /></head><body><h1>Real heading</h1><button>Get started</button><img src="x" alt="decorative" /></body></html>';
 const bad='<html><head></head><body><img src="hero"/><p>Hello</p></body></html>';
 const a=review(good,'https://example.com');if(a.issues.length)throw Error('False positives on clean fixture '+JSON.stringify(a));
 const b=review(bad,'https://example.com');if(b.issues.length<4)throw Error('Expected evidence-based findings');

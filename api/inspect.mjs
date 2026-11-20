@@ -66,20 +66,30 @@ function pinnedLookup(chosen) {
     else cb(null,chosen.address,chosen.family);
   };
 }
-async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxBytes=MAX_HTML,probe=false,expectedOrigin=null}={}) {
+async function fetchPublic(input, {
+  method='GET', redirects=0, timeout=7000, maxBytes=MAX_HTML, probe=false,
+  expectedOrigin=null, allowURL=()=>true, deadline=Date.now()+timeout
+}={}) {
   if (redirects>3) throw new Error('The website redirected too many times.');
   const url=validateURL(input);
+  if(!allowURL(url))throw new Error('The URL is outside the public inspection scope.');
   if(expectedOrigin && url.origin!==expectedOrigin) throw new Error('Link redirected away from the inspected website.');
-  const chosen=await resolvePublic(url.hostname);
+  const wait=deadline-Date.now();
+  if(wait<=0)throw new Error('The website took too long to respond.');
+  let dnsTimer;
+  const chosen=await Promise.race([
+    resolvePublic(url.hostname),
+    new Promise((_,reject)=>{dnsTimer=setTimeout(()=>reject(new Error('The website took too long to resolve.')),wait);})
+  ]).finally(()=>clearTimeout(dnsTimer));
   return new Promise((resolve,reject)=>{
     const client=url.protocol==='https:'?https:http;
-    const req=client.request(url,{method,timeout,lookup:pinnedLookup(chosen),
+    const req=client.request(url,{method,agent:false,lookup:pinnedLookup(chosen),
       headers:{'User-Agent':USER_AGENT,'Accept':method==='HEAD'?'*/*':'text/html,application/xhtml+xml;q=0.9', 'Accept-Encoding':'identity'},maxHeaderSize:16384},res=>{
       const status=res.statusCode||0;
       if (status>=300 && status<400 && res.headers.location) {
         res.resume();let next;try{next=new URL(res.headers.location,url).toString()}catch{return reject(new Error('Invalid redirect from website.'))}
         // Never follow a redirect into another scheme, local network or non-standard port.
-        fetchPublic(next,{method,redirects:redirects+1,timeout,maxBytes,probe,expectedOrigin}).then(resolve,reject);return;
+        fetchPublic(next,{method,redirects:redirects+1,timeout,maxBytes,probe,expectedOrigin,allowURL,deadline}).then(resolve,reject);return;
       }
       if (method==='HEAD') {res.resume();resolve({url:url.toString(),status,headers:res.headers,html:''});return;}
       if (status===401 || status===403) {res.resume();reject(new Error('This site blocks automated inspection. Try a public page.'));return;}
@@ -98,7 +108,8 @@ async function fetchPublic(input, {method='GET', redirects=0, timeout=7000, maxB
         resolve({url:url.toString(),status,headers:res.headers,html});
       });res.on('error',reject);
     });
-    req.on('timeout',()=>req.destroy(new Error('The website took too long to respond.')));
+    const timer=setTimeout(()=>req.destroy(new Error('The website took too long to respond.')),Math.max(1,deadline-Date.now()));
+    req.once('close',()=>clearTimeout(timer));
     req.on('error',reject);
     req.end();
   });
@@ -398,4 +409,4 @@ export async function POST(request){
     return reply({error:allowed?message:'Could not inspect this site. It may block automated requests or be temporarily unavailable.',failureCode,failureType},bad?400:422);
   }
 }
-export const _test={isPublicIP,choosePublicAddress,pinnedLookup,validateURL,review,scan,fetchPublic,decode,getAttr};
+export const _test={isPublicIP,choosePublicAddress,pinnedLookup,validateURL,review,scan,fetchPublic,decode,getAttr,readSmallJSON};

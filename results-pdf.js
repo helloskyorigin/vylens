@@ -74,44 +74,24 @@
     paragraph(subject,{size:11,bold:true,color:'0.34 0.43 0.30'});
     paragraph('Your Conversion Report',{size:22,bold:true,gap:14,color:'0.08 0.12 0.08'});
     section('1. Overall Assessment');
-    const evidenceScore=text('.five-score-number');
-    paragraph('Evidence review: '+(evidenceScore==='—'?'Not enough evidence':evidenceScore+'/100 (heuristic)')+
-      '    Potential blockers: '+text('.five-problems-value'),{size:13,bold:true,gap:10});
-    paragraph(text('.five-score-description'));
+    const status=text('.evidence-summary-status')||'Evidence review';
+    paragraph(status+'    Potential blockers: '+text('.five-problems-value'),{size:13,bold:true,gap:10});
+    paragraph(text('.evidence-summary-detail')||text('.five-score-description'));
     const positives=list('#seven-strengths .seven-strength');
     section('2. '+(text('#five-blockers .five-panel-title')||'Buying Obstacles'));
-    // Replay is a public DOM observation, not an actual recorded user path.
-    let replay=null;
-    try{
-      replay=JSON.parse(sessionStorage.getItem('vylens:result')||'null')?.conversion?.buyerReplay;
-    }catch{}
-    if(replay?.version===1){
-      paragraph('Buyer Journey Replay - observed public path (not a visitor recording)',
-        {size:10,bold:true,gap:8});
-      for(const view of ['desktop','mobile']){
-        if(!Array.isArray(replay[view]))continue;
-        paragraph(view==='desktop'?'Desktop view':'Mobile view',
-          {size:10,bold:true,gap:6,color:'0.28 0.46 0.18'});
-        replay[view].slice(0,4).forEach(item=>{
-          paragraph(String(item.title||'Step')+' - '+String(item.description||'')+
-            (item.place?' ('+item.place+')':'')+
-            ' ['+String(item.status||'unknown')+']',{size:9,gap:6,indent:8});
-        });
-      }
-    }
     const blockers=list('#five-blockers .five-finding');
-    if(!blockers.length)paragraph(text('#five-blockers .five-empty')||'No verified finding.');
+    if(!blockers.length)paragraph(text('#five-blockers .ten-empty')||text('#five-blockers .five-empty')||'No verified finding.');
     blockers.forEach((item,i)=>{
-      const details=list('.five-detail-line',item).map(el=>el.textContent);
-      entry((i+1)+'. '+text('.five-row-title',item),[text('.five-location',item),...details]);
+      const details=list('.five-detail-line',item).map(el=>{
+        const label=text('strong',el),value=text('span',el);
+        return label&&value?label+' — '+value:el.textContent;
+      });
+      entry((i+1)+'. '+text('.five-row-title',item),[text('.seven-location',item)||text('.five-location',item),text('.seven-confidence',item),...details]);
     });
-    section('3. '+(text('#five-hesitations .five-panel-title')||'Buyer Questions'));
-    const questions=list('#five-hesitations .five-concern');
-    if(!questions.length)paragraph(text('#five-hesitations .five-empty'));
-    questions.forEach((item,i)=>paragraph((i+1)+'. '+item.textContent,{size:10,gap:9}));
-    section('4. Exactly What to Change');
-    // The compact UI only previews copy-ready wording. The PDF includes ALL
-    // source-backed kit actions, even the checklists hidden from UI to prevent repeats.
+    section('3. Your Improvement Plan');
+    const steps=list('#five-action-plan .five-plan-row');
+    if(!steps.length)paragraph(text('#five-action-plan .ten-empty strong')||'No priority fixes were supported.');
+    steps.forEach((item,i)=>paragraph((i+1)+'. '+text('.five-plan-text strong',item),{size:10,gap:8}));
     let savedKit=[];
     try{
       const report=JSON.parse(sessionStorage.getItem('vylens:result')||'null');
@@ -133,21 +113,11 @@
           {size:8.5,gap:5,indent:12});
       });
     }
-    const changes=list('#five-changes .five-change');
-    if(!changes.length)paragraph(text('#five-changes .five-empty'));
-    changes.forEach((item,i)=>entry((i+1)+'. '+text('.five-change-title',item),[
-      text('.five-action-note',item),
-      ...list('.five-change-details .five-detail-line',item).map(el=>el.textContent)
-    ]));
-    section('5. Your Priority Action Plan');
-    const steps=list('#five-action-plan .five-plan-row');
-    if(!steps.length)paragraph(text('#five-action-plan .five-empty'));
-    steps.forEach((item,i)=>paragraph((i+1)+'. '+text('.five-plan-text strong',item),{size:10,gap:8}));
-    section("6. What's Working");
+    section("4. What's Working");
     if(!positives.length)paragraph('No positive finding was verified in the supported checks.');
     positives.forEach((item,i)=>entry((i+1)+'. '+text('strong',item),[
       text('p',item),text('small',item)]));
-    section('7. Recheck Comparison');
+    section('5. Recheck Comparison');
     const compare=list('#seven-comparison .seven-compare-stat');
     if(compare.length){
       compare.forEach(item=>paragraph(text('strong',item)+' - '+text('span',item),{size:10,gap:8}));
@@ -156,14 +126,31 @@
       });
     }else paragraph(text('#seven-comparison .seven-empty')||'No comparable previous scan.');
     paragraph(text('#seven-comparison .seven-comparison-note'),{size:9,gap:9});
-    section('8. Buyer Journey Review');
+    section('6. Buyer Journey Review');
     list('#seven-journey .seven-stage').forEach((item,i)=>entry((i+1)+'. '+text('h3',item),[
       text('.seven-stage-status',item),text('p',item)]));
-    section("9. What Couldn't Be Verified");
+    // Replay is a public DOM observation, not an actual recorded user path.
+    let replay=null;
+    try{
+      replay=JSON.parse(sessionStorage.getItem('vylens:result')||'null')?.conversion?.buyerReplay;
+    }catch{}
+    if(replay?.version===1){
+      paragraph('Buyer Journey Replay - observed public path (not a visitor recording)',
+        {size:10,bold:true,gap:8});
+      for(const view of ['desktop','mobile']){
+        if(!Array.isArray(replay[view]))continue;
+        paragraph(view==='desktop'?'Desktop view':'Mobile view',
+          {size:10,bold:true,gap:6,color:'0.28 0.46 0.18'});
+        replay[view].slice(0,4).forEach(item=>{
+          paragraph(String(item.title||'Step')+' - '+String(item.description||'')+
+            (item.place?' ('+item.place+')':'')+
+            ' ['+String(item.status||'unknown')+']',{size:9,gap:6,indent:8});
+        });
+      }
+    }
+    section("7. What Couldn't Be Verified");
     list('#seven-limitations .seven-limit-body p').forEach(item=>
       paragraph('- '+item.textContent,{size:9.5,gap:9}));
-    paragraph('Potential findings, not proof of lost sales. Verify with real buyers.',
-      {size:8,color:'0.41 0.48 0.39'});
     pages.push(commands.join('\n'));
     pages.forEach((s,i)=>{
       const footer=['0.87 0.90 0.85 RG 0.6 w '+M+' 47 m '+(W-M)+' 47 l S',

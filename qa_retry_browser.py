@@ -25,7 +25,10 @@ with sync_playwright() as p:
                 headers={'retry-after':'2'},
                 body=json.dumps({'error':'Please retry in 2 seconds.','retryAfter':2}))
         else:
-            route.fulfill(status=200,content_type='application/json',body=json.dumps(mock_result))
+            assert 'application/x-ndjson' in route.request.headers['accept']
+            events=[{'stage':'connecting'},{'stage':'rendering'},{'stage':'diagnosing'},{'report':mock_result}]
+            route.fulfill(status=200,content_type='application/x-ndjson',
+                body='\n'.join(json.dumps(event) for event in events)+'\n')
     page.route('**/api/inspect-site',respond)
     page.add_init_script("""sessionStorage.setItem('vylens:pending',
       JSON.stringify({mode:'website',url:'https://example.org/'}))""")

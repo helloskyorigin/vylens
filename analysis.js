@@ -5,27 +5,21 @@
   let payload = null;
   let selectedFile = null;
   let inspecting = false;
-  let currentMessage = 0;
   let messageQueue = Promise.resolve();
   let isFinished = false;
   let waitingTimer = null;
   let retryTimer = null;
   let retryUntil = 0;
   let elapsedTimer = null;
-  const messages = {
-    website: [
-      ['Understanding your offer…', 'Reviewing the message and next steps visitors can see.'],
-      ['Reviewing relevant pages…', 'Checking available offer, pricing and supporting pages.'],
-      ['Checking the buying path…', 'Looking for unclear actions, missing trust cues and mobile issues.'],
-      ['Still reviewing available pages…', 'Some pages take longer to load. Any gaps will appear in your report.'],
-      ['Preparing your report…', 'Separating observed evidence from possible buyer concerns.']
-    ],
-    product: [
-      ['Opening your delivered product…', 'Your original file stays on this device.'],
-      ['Checking usability and completeness…', 'Reviewing available instructions and delivered content.'],
-      ['Preparing buyer-facing observations…', 'File evidence will not be mistaken for real checkout behavior.']
-    ]
+  const stages={
+    connecting:['Opening your website…','Connecting to the public URL you entered.'],
+    discovering:['Finding relevant public pages…','Looking for offer, pricing and policy links.'],
+    rendering:['Checking desktop and phone views…','Reading visible content and measuring buying controls.'],
+    source:['Reading available HTML…','Browser views are unavailable. The report will show what could still be checked.'],
+    links:['Verifying public destinations…','Checking selected internal links for repeatable errors.'],
+    diagnosing:['Putting the evidence together…','Ranking findings and recording gaps in coverage.']
   };
+  let lastStageAt=0;
   function readableError(error) {
     if (error?.name === 'AbortError') return 'The website audit ran too long. Please retry.';
     return error?.message || 'Something interrupted this inspection.';
@@ -52,16 +46,44 @@
     return messageQueue;
   }
   function beginWaitingMessages() {
-    let next = 1;
+    lastStageAt=Date.now();
     clearInterval(waitingTimer);
-    waitingTimer = setInterval(() => {
-      if (isFinished) { stopWaitingMessages(); return; }
-      if (next >= messages[payload.mode].length) {
-        if (payload.mode !== 'website') { stopWaitingMessages(); return; }
-        next = 3; // Repeat truthful heartbeat updates, never fabricated progress percentages.
+    waitingTimer=setInterval(()=>{
+      if(payload.mode==='website'&&Date.now()-lastStageAt>18000){
+        lastStageAt=Date.now();
+        changeMessage('The check is still running…','Slow or unavailable pages will appear in the coverage notes.');
       }
-      changeMessage(...messages[payload.mode][next++]);
-    }, payload.mode === 'website' ? 8000 : 2700);
+    },5000);
+  }
+  async function readScanStream(response){
+    if(!response.body)throw new Error('The scanner returned no response body.');
+    const reader=response.body.getReader(),decoder=new TextDecoder();
+    let pending='',report=null;
+    const consume=line=>{
+      if(!line.trim())return;
+      const update=JSON.parse(line);
+      if(update.error)throw new Error(update.error);
+      if(stages[update.stage]){
+        lastStageAt=Date.now();
+        changeMessage(...stages[update.stage]);
+      }
+      if(update.report)report=update.report;
+    };
+    try{
+      while(true){
+        const {done,value}=await reader.read();
+        if(done)break;
+        pending+=decoder.decode(value,{stream:true});
+        let end;
+        while((end=pending.indexOf('\n'))!==-1){
+          consume(pending.slice(0,end));
+          pending=pending.slice(end+1);
+        }
+      }
+      consume(pending+decoder.decode());
+      if(!report)throw new Error('The connection ended before the report was ready. Please retry.');
+      return report;
+    }finally{reader.releaseLock();}
   }
   function beginElapsed() {
     const display=$('#analysisElapsed');
@@ -128,10 +150,11 @@
     if (inspecting) return;
     if(Date.now()<retryUntil){showError('Another audit was requested recently. Please use the retry countdown.');return;}
     if(retryTimer){clearInterval(retryTimer);retryTimer=null;}
-    inspecting = true; isFinished = false; currentMessage = 0;
+    inspecting = true; isFinished = false;
     $('#analysisRunning').hidden = false;
     $('#analysisError').hidden = true;
-    renderMessage(...messages[payload.mode][0]);
+    if(payload.mode==='website')renderMessage('Starting your check…','Waiting for the website inspector to respond.');
+    else renderMessage('Opening your delivered product…','Your original file stays on this device.');
     beginElapsed();
     beginWaitingMessages();
     try {
@@ -141,25 +164,31 @@
         if (!url) throw new Error('No website URL was provided. Please start from the homepage.');
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 135000);
-        let response;
-        try {
-          response = await fetch('./api/inspect-site', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'});
-        } finally {clearTimeout(timeout);}
-        const type=response.headers.get('content-type')||'';
-        if (!type.includes('application/json')) {
-          if(response.status===404) throw new Error('The scanner service is not available on this deployment (HTTP 404).');
-          throw new Error(`Scanner service returned an unexpected response (HTTP ${response.status}).`);
-        }
         let data;
-        try {data = await response.json();} catch {throw new Error('The scanner service returned invalid JSON.');}
-        if (!response.ok) {
-          if(response.status===429){
-            const seconds=Math.max(1,Math.min(120,Number(data?.retryAfter||response.headers.get('retry-after'))||25));
-            retryUntil=Date.now()+seconds*1000;
-            throw new Error(data?.error||'The scanner is temporarily busy. You can retry when the countdown finishes.');
+        try{
+          const response=await fetch('./api/inspect-site',{
+            method:'POST',headers:{'Content-Type':'application/json','Accept':'application/x-ndjson, application/json'},
+            body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'
+          });
+          const type=response.headers.get('content-type')||'';
+          if(response.ok&&type.includes('application/x-ndjson'))data=await readScanStream(response);
+          else{
+            if(!type.includes('application/json')){
+              if(response.status===404)throw new Error('The scanner service is unavailable (HTTP 404).');
+              if(response.status===504)throw new Error('The scanner timed out. Try checking the specific offer page.');
+              throw new Error('Scanner service returned an unexpected response (HTTP '+response.status+').');
+            }
+            try{data=await response.json();}
+            catch(error){if(error.name==='AbortError')throw error;throw new Error('The scanner service returned invalid JSON.');}
+            if(!response.ok){
+              if(response.status===429){
+                const seconds=Math.max(1,Math.min(120,Number(data?.retryAfter||response.headers.get('retry-after'))||25));
+                retryUntil=Date.now()+seconds*1000;
+              }
+              throw new Error(data?.error||'Scanner service returned HTTP '+response.status+'.');
+            }
           }
-          throw new Error(data?.error || `Scanner service returned HTTP ${response.status}.`);
-        }
+        }finally{clearTimeout(timeout);}
         result={...data,summary:data.summary||'Multi-page inspection completed.',meta:data.meta||'Public pages',coverageLabel:data.coverageLabel||'Site audit'};
       } else {
         if (!selectedFile) { const transfer = await window.VylensCore.takeFile(); selectedFile = transfer?.file || null; }
@@ -228,7 +257,10 @@
           sessionStorage.setItem('vylens:previous-conversion',JSON.stringify({
             mode:previous.mode,sourceKey:key(previous),checkedAt:previous.checkedAt||null,
             complete:previous.coverage?.complete===true,
-            blockers:buyer.blockers.slice(0,12).map(item=>({
+            blockers:buyer.blockers.slice(0,20).map(item=>({
+              fingerprint:String(item.fingerprint||'').slice(0,350),
+              affectedPages:Array.isArray(item.affectedPages)?item.affectedPages.slice(0,10):[],
+              destinationPath:String(item.destinationPath||'').slice(0,160),
               stage:String(item.stage||'').slice(0,40),
               title:String(item.title||'').slice(0,155),
               location:String(item.location||'').slice(0,190)
@@ -241,7 +273,9 @@
       sessionStorage.removeItem('vylens:imported');
       // Avoid rerunning a completed (potentially expensive) inspection when this page is refreshed.
       sessionStorage.removeItem('vylens:pending');
-      await changeMessage('Your buyer review is ready.', 'Opening the observations and priority improvement plan.');
+      const limited=report.mode==='website'&&(report.coverage?.complete===false||!report.conversion?.renderedPages);
+      await changeMessage(limited?'Your review is ready with coverage gaps.':'Your review is ready.',
+        limited?'Opening the available evidence and what to verify next.':'Opening your findings and improvement plan.');
       if (!motionReduced) await new Promise(resolve => setTimeout(resolve, 530));
       isFinished = true;
       window.location.replace('./results.html');

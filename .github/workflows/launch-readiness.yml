@@ -37,7 +37,7 @@ jobs:
           ready=0
           for attempt in $(seq 1 24); do
             if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/api/inspect-site' -o /tmp/vylens-health.json &&
-               python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get("engine")=="bounded-playwright-crawl" and d.get("deploymentCommit") in (None,"",sys.argv[2]) else 1)' /tmp/vylens-health.json "$GITHUB_SHA"; then
+               python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get("engine")=="bounded-playwright-crawl" and d.get("deploymentCommit")==sys.argv[2] else 1)' /tmp/vylens-health.json "$GITHUB_SHA"; then
               matches=1
               for asset in results.html results-seven.js results-seven.css results-five.js results-pdf.js analysis.js analysis.css inspect.html; do
                 if ! curl --max-time 12 -fsSL "https://vylens-tan.vercel.app/$asset" -o "/tmp/vylens-live-${asset//\//-}" ||

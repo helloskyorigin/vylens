@@ -339,7 +339,7 @@ body.five-report-ui .ten-results .five-verdict{
 /* Give empty states a composed, useful visual language, not orphan paragraphs. */
 body.five-report-ui .ten-results .ten-empty{
  display:flex;align-items:flex-start;gap:13px;border:1px solid #e4edde;
- background:linear-gradient(135deg,#f9fcf6,#f3faed);
+ background:#f6f8f2;
  padding:17px 16px;border-radius:16px;min-width:0
 }
 body.five-report-ui .ten-results .ten-empty-icon{
@@ -675,4 +675,83 @@ body.five-report-ui .ten-results #five-blockers .five-level.high{
 body.five-report-ui .ten-results #five-blockers .five-index.high,
 body.five-report-ui .ten-results #five-action-plan .five-index.high{
  background:#fff0dc;color:#995c27
+}
+
+/* Compact evidence summary and progressive disclosure. */
+body.five-report-ui .ten-results .evidence-summary{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(230px, .56fr);
+  gap:24px;
+  align-items:center;
+  padding:23px clamp(16px,3vw,30px);
+  min-height:0;
+  background:#fff;
+  border:1px solid #e0e5dc;
+  box-shadow:0 3px 16px #17281108;
+}
+.evidence-summary-copy{min-width:0}
+.evidence-summary-status,.seven-confidence{
+  display:inline-flex;align-items:center;max-width:100%;
+  padding:5px 9px;border-radius:8px;
+  background:#eef6e3;color:#31511f;font-size:.78rem;font-weight:750;
+}
+.evidence-summary-status.is-limited{background:#f0f0ed;color:#4e514b}
+.evidence-summary-title{
+  margin:7px 0 4px;color:#141714;font-size:clamp(1.35rem,3vw,1.95rem);
+  line-height:1.16;letter-spacing:-.045em;
+}
+.evidence-summary-detail{margin:0;color:#484e45;font-size:.92rem;line-height:1.5}
+body.five-report-ui .ten-results .evidence-summary .ten-summary-side{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;
+  gap:8px;min-width:0;margin:0;
+}
+body.five-report-ui .ten-results .evidence-summary .five-problems-card,
+body.five-report-ui .ten-results .evidence-summary .ten-strengths-card{
+  min-height:0;min-width:0;padding:11px 12px;border-radius:13px;box-shadow:none;
+  background:#f4f7ef;border:1px solid #e4e9dc;
+}
+body.five-report-ui .ten-results .evidence-summary .five-problems-label,
+body.five-report-ui .ten-results .evidence-summary .ten-strengths-label{
+  color:#3a4735;font-size:.78rem;line-height:1.3;white-space:normal;
+}
+body.five-report-ui .ten-results .evidence-summary .five-problems-value,
+body.five-report-ui .ten-results .evidence-summary .ten-strengths-count{font-size:1.6rem;line-height:1.05}
+body.five-report-ui .ten-results .five-panel-subtitle:empty{display:none}
+body.five-report-ui .ten-results .seven-finding-meta{
+  grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;
+  color:#485145;font-size:.82rem;
+}
+body.five-report-ui .ten-results .seven-finding-meta .seven-location{margin:0;overflow-wrap:anywhere}
+body.five-report-ui .ten-results .seven-finding-meta .seven-confidence{
+  background:#eef1ea;color:#344331;padding:4px 7px;font-size:.75rem;
+}
+body.five-report-ui .ten-results .seven-inline-link{
+  appearance:none;border:0;background:transparent;color:#344e1e;min-height:40px;
+  padding:4px 0;font:inherit;font-weight:750;text-align:left;text-decoration:underline;cursor:pointer;
+}
+body.five-report-ui .ten-results .ten-empty-blockers,
+body.five-report-ui .ten-results .ten-empty-plan,
+body.five-report-ui .ten-results #seven-comparison .ten-empty-comparison{
+  background:#f6f7f3;border:1px solid #e7eae2;box-shadow:none;color:#363d34;
+}
+body.five-report-ui .ten-results .ten-empty-blockers strong,
+body.five-report-ui .ten-results .ten-empty-plan strong{color:#293126}
+body.five-report-ui .ten-results #seven-journey .seven-stage{min-height:0}
+body.five-report-ui .ten-results #seven-journey .seven-stage p{font-size:.84rem;line-height:1.48}
+body.five-report-ui .ten-results #seven-limitations .ten-limit-preview{font-size:.78rem}
+body.five-report-ui .ten-results .seven-finding summary:focus-visible,
+body.five-report-ui .ten-results button:focus-visible,
+body.five-report-ui .ten-results a:focus-visible,
+body.five-report-ui .ten-results summary:focus-visible{
+  outline:2px solid #50782d;outline-offset:3px;
+}
+@media(max-width:640px){
+  body.five-report-ui .ten-results .evidence-summary{grid-template-columns:1fr;gap:10px;padding:14px}
+  body.five-report-ui .ten-results .evidence-summary .five-problems-card,
+  body.five-report-ui .ten-results .evidence-summary .ten-strengths-card{padding:9px 11px}
+  body.five-report-ui .ten-results .evidence-summary-detail{font-size:.86rem}
+  body.five-report-ui .ten-results #seven-journey .seven-stage p{font-size:.81rem}
+}
+@media(max-width:360px){
+  body.five-report-ui .ten-results #seven-journey .seven-journey-grid{grid-template-columns:1fr}
 }

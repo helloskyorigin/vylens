@@ -1,4 +1,4 @@
-/* VYLENS Results v9: seven evidence-led sections on the existing Results flow.
+/* VYLENS Results: seven evidence-led sections on the existing Results flow.
  * Keeps scanner data, the original five-section renderer, fix kit, PDF and legacy report paths. */
 (() => {
   'use strict';
@@ -19,6 +19,10 @@
   };
   const append=(parent,...nodes)=>{nodes.filter(Boolean).forEach(el=>parent.append(el));return parent;};
   const panel=(id,title,subtitle)=>append(make('section','five-panel seven-panel'),make('h2','five-panel-title',title),make('p','five-panel-subtitle',subtitle));
+  const website=report.mode==='website';
+  const coverage=report.coverage||{};
+  const coveredStages=data.journey.filter(stage=>['observed','attention'].includes(stage?.status)).length;
+  const partial=website&&(coverage.complete===false||!Number(data.renderedPages)||coveredStages<3);
   const rank=item=>({high:0,review:1,medium:1,low:2}[item.priority]??1);
   const all=data.blockers.filter(v=>v&&typeof v==='object'&&typeof v.title==='string')
     .slice(0,20).sort((a,b)=>rank(a)-rank(b));
@@ -31,11 +35,13 @@
     detailedChanges=$('five-changes'),bottom=root.querySelector('.five-bottom-actions');
   if(!grid1||!grid2||!blockers||!plan||!questions||!detailedChanges||!bottom)return;
   root.classList.add('seven-results','ten-results');
+  if($('coverageMessage'))$('coverageMessage').hidden=true;
   root.setAttribute('aria-label','VYLENS conversion report: findings, plan, strengths, recheck, buyer journey, limitations and actions');
 
   // 1 — Most important evidence first. The original renderer already sorts by priority.
   blockers.querySelector('.five-panel-title').textContent='Potential Buying Blockers';
-  blockers.querySelector('.five-panel-subtitle').textContent='Prioritized concerns from inspected evidence, not measured customer drop-offs.';
+  blockers.querySelector('.five-panel-subtitle').textContent=findings.length?
+    'Open a finding to see the evidence and how to verify the fix.':'';
   const rows=Array.from(blockers.querySelectorAll('.five-finding'));
   function evidenceLine(label,value){
     const line=make('p','five-detail-line seven-evidence-line');
@@ -55,9 +61,13 @@
       evidenceLine('What to change',clean(item.fix)||'No change recommended without additional evidence.'),
       evidenceLine('How to verify',clean(item.verify)||'No verification instruction was recorded.')
     );
-    if(clean(item.location))body.append(make('small','seven-location','Location: '+clean(item.location)));
+    const metadata=make('div','seven-finding-meta');
+    if(clean(item.location))metadata.append(make('span','seven-location',item.location));
+    const confidence={observed:'Direct observation',hypothesis:'Review inference','source-only':'Source evidence'};
+    if(confidence[item.confidence])metadata.append(make('span','seven-confidence',confidence[item.confidence]));
+    body.append(metadata);
     if(item.confidence==='source-only')body.append(make('p','seven-evidence-note',
-      'Source-only evidence: confirm what visitors actually see before editing.'));
+      'Confirm the observation in a browser before editing.'));
     if(clean(item.fix)){
       const copy=make('button','seven-copy-fix','Copy finding');
       copy.type='button';
@@ -76,17 +86,17 @@
   else{
     blockers.querySelector('.five-empty')?.remove();
     const state=make('div','ten-empty ten-empty-blockers');
-    append(state,make('span','ten-empty-icon','✓'),
-      append(make('div','ten-empty-content'),
-        make('strong','','No specific buying blockers detected'),
-        make('p','','No blocker was identified in the areas assessed. This does not verify checkout success or buyer behavior.')));
+    append(state,append(make('div','ten-empty-content'),
+      make('strong','',partial?'Coverage too limited for a conclusion':'No supported blockers detected'),
+      make('p','',partial?'Review the unchecked areas before deciding which changes to make.':
+        'The covered areas produced no findings that warrant a change.')));
     blockers.append(state);
   }
 
   // 2 — A five-step action list that navigates to the EXACT matching blocker.
   plan.querySelector('.five-panel-title').textContent='Your Improvement Plan';
   plan.querySelector('.five-panel-subtitle').textContent=
-    'Top five recommended actions. Tap a step to open the matching evidence and verification.';
+    changes.length?'Open a priority fix to see the matching finding.':'';
   const formerPlans=Array.from(plan.querySelectorAll('.five-plan-row'));
   formerPlans.forEach(el=>el.remove());
   changes.slice(0,5).forEach((item,i)=>{
@@ -121,10 +131,17 @@
   if(!changes.length){
     plan.querySelector('.five-empty')?.remove();
     const state=make('div','ten-empty ten-empty-plan');
-    append(state,make('span','ten-empty-icon','✓'),
-      append(make('div','ten-empty-content'),
-        make('strong','','No priority fixes supported by this scan'),
-        make('p','','No change is recommended without stronger evidence. Review the unverified areas before making edits.')));
+    const next=make('button','seven-inline-link','Review what to verify next');
+    next.type='button';
+    next.addEventListener('click',()=>{
+      const target=$('seven-limitations');
+      target.open=true;
+      target.scrollIntoView({block:'start'});
+      target.querySelector('summary').focus({preventScroll:true});
+    });
+    append(state,append(make('div','ten-empty-content'),
+      make('strong','','No evidence-backed fixes to prioritize'),
+      partial?next:null));
     plan.append(state);
   }
   if(changes.length>5)plan.append(make('p','seven-micro-note',
@@ -136,14 +153,13 @@
   // 3 — All six available positive signals, each with its actual supporting evidence.
   root.querySelector('.five-positive-details')?.remove();
   const positives=panel('seven-strengths',"What's Working",
-    'Positive signals actually recorded by this scan (up to six).');
+    '');
   positives.id='seven-strengths';
   if(strengths.length){
     const list=make('div','seven-strength-grid');
     strengths.forEach(item=>{
       const row=make('article','seven-strength five-positive-row');
       append(row,make('span','seven-check','✓'),make('strong','',item.title));
-      row.append(make('span','ten-observed-label','Observed signal'));
       if(clean(item.evidence))row.append(make('p','',item.evidence));
       const where=clean(item.location);
       if(where)row.append(make('small','ten-location',where==='/'?'Homepage':where));
@@ -151,11 +167,11 @@
     });
     positives.append(list);
   } else positives.append(make('p','seven-empty',
-    'No positive signal was verified by supported checks. That does not mean there are no strengths.'));
+    'No strength was verified in the available evidence.'));
 
   // 4 — Compare only snapshots for the same input, and never infer that a fix worked.
   const comparison=panel('seven-comparison','Recheck Comparison',
-    'New, continuing and no-longer-detected findings from the same input.');
+    '');
   comparison.id='seven-comparison';
   const imported=sessionStorage.getItem('vylens:imported')==='1';
   let previous=null;
@@ -166,24 +182,35 @@
       catch{return '';}})():clean(report.subject,250).toLowerCase();
   const notice=make('p','seven-comparison-note');
   if(previous?.mode===report.mode&&previous.sourceKey===sourceKey&&
-     Array.isArray(previous.blockers)&&previous.blockers.length<=12){
-    const key=item=>[item.stage,item.title,item.location]
+     Array.isArray(previous.blockers)&&previous.blockers.length<=20){
+    const legacyKey=item=>[item.stage,item.title,item.location]
       .map((part,i)=>clean(part,[40,155,190][i]).toLowerCase()).join('|');
     const past=previous.blockers.filter(x=>x&&typeof x==='object');
-    const current=all.slice(0,12);
-    const oldKeys=new Set(past.map(key)),nowKeys=new Set(current.map(key));
-    const newly=current.filter(x=>!oldKeys.has(key(x)));
-    const continuing=current.filter(x=>oldKeys.has(key(x)));
-    const missing=past.filter(x=>!nowKeys.has(key(x)));
+    const current=all;
+    const sameFinding=(a,b)=>a.fingerprint&&b.fingerprint?a.fingerprint===b.fingerprint:legacyKey(a)===legacyKey(b);
+    const newly=current.filter(x=>!past.some(old=>sameFinding(old,x)));
+    const continuing=current.filter(x=>past.some(old=>sameFinding(old,x)));
+    const absent=past.filter(x=>!current.some(now=>sameFinding(now,x)));
+    const pages=Array.isArray(report.pages)?report.pages:[];
+    const checkedPaths=new Set(pages.filter(x=>x?.desktop&&x?.phone).map(x=>x.path));
+    const respondedPaths=new Set(pages.filter(x=>['rendered','source'].includes(x?.status)).map(x=>x.path));
+    const checked=item=>{
+      if(!website)return true;
+      if(item.destinationPath&&!respondedPaths.has(item.destinationPath))return false;
+      return coverage.complete===true||
+        Array.isArray(item.affectedPages)&&item.affectedPages.length&&item.affectedPages.every(path=>checkedPaths.has(path));
+    };
+    const missing=absent.filter(checked);
+    const unavailable=absent.filter(item=>!checked(item));
     const stats=make('div','seven-comparison-grid');
-    [['Newly detected',newly],['Still detected',continuing],['Not detected now',missing]]
+    [['Newly detected',newly],['Still detected',continuing],['No longer detected',missing]]
       .forEach(([label,items])=>{
         stats.append(append(make('div','seven-compare-stat'),make('strong','',items.length),make('span','',label)));
       });
     comparison.append(stats);
     const details=make('div','seven-comparison-details');
     for(const [label,items] of [['New observations',newly],['Still appearing',continuing],
-      ['Not found in this scan',missing]]){
+      ['No longer detected',missing],['Could not reassess',unavailable]]){
       if(!items.length)continue;
       const part=make('div','seven-change-list');
       part.append(make('strong','',label));
@@ -191,13 +218,8 @@
       details.append(part);
     }
     if(details.children.length)comparison.append(details);
-    notice.textContent='Not detected now does not mean fixed: different scan coverage, page content or rendering can change results.';
+    notice.textContent='Confirm any apparent change against the cited page and evidence.';
   }else{
-    const placeholders=make('div','seven-comparison-grid ten-awaiting-comparison');
-    for(const label of ['Newly detected','Still detected','Not detected now'])
-      placeholders.append(append(make('div','seven-compare-stat'),
-        make('strong','','—'),make('span','',label)));
-    comparison.append(placeholders);
     const state=make('div','ten-empty ten-empty-comparison');
     append(state,make('span','ten-empty-icon','↻'),
       append(make('div','ten-empty-content'),
@@ -206,23 +228,22 @@
           'This saved report is not a fresh scan. Run two scans of the same input to compare changes.':
           'Recheck this same input after changes to see what is new, still detected or no longer detected.')));
     comparison.append(state);
-    notice.textContent='Comparison uses this tab’s previous scan only. It does not measure real sales or confirmed fixes.';
+    notice.hidden=true;
   }
   comparison.append(notice);
 
   // 5 — Four clearly labeled observational stages, never fabricated funnel data.
   const journey=panel('seven-journey','Buyer Journey Review',
-    'Clarity → Value → Trust → Action · observations, not a measured funnel.');
+    '');
   journey.id='seven-journey';
   const names={clarity:'Clarity',value:'Value',trust:'Trust',action:'Action'};
   const labels={attention:'Needs review',observed:'Evidence observed',unverified:'Not verified'};
   const journeyGrid=make('div','seven-journey-grid');
-  ['clarity','value','trust','action'].forEach((id,i)=>{
+  ['clarity','value','trust','action'].forEach(id=>{
     const stage=data.journey.find(x=>x&&x.id===id)||{};
     const status=['attention','observed'].includes(stage.status)?stage.status:'unverified';
     const card=make('article','seven-stage '+status);
-    append(card,make('span','seven-stage-number',String(i+1).padStart(2,'0')),
-      make('h3','',names[id]),make('span','seven-stage-status',labels[status]),
+    append(card,make('h3','',names[id]),make('span','seven-stage-status',labels[status]),
       make('p','',stage.detail||'Not assessed from the available evidence.'));
     journeyGrid.append(card);
   });
@@ -245,11 +266,11 @@
   const unverified=Array.isArray(data.unverified)?
     data.unverified.filter(x=>typeof x==='string'&&clean(x)).slice(0,12):[];
   const notes=[...unverified];
-  if(report.coverage?.complete===false)
-    notes.unshift('Partial scan: some pages were not inspected or could not be verified.');
+  if(coverage.complete===false&&!notes.length)
+    notes.push('Some pages or browser views were unavailable. Check the public offer and its main action directly.');
   if(report.mode==='product'&&!Number(data.inspectedOfferPages))
     notes.push('Product-file checks cannot establish how visitors experience a sales page or checkout.');
-  notes.push('Real visitor behavior, purchases and conversion rates were not measured.');
+  if(!notes.length)notes.push('Visitor behavior and completed purchases were outside the scan.');
   const unique=[...new Set(notes)];
   const limitTitle=make('span','ten-limit-label');
   append(limitTitle,make('strong','',"What Couldn't Be Verified"),
@@ -300,36 +321,37 @@
   const actions=panel('seven-actions','Report Actions','Save the report or start your next check.');
   actions.id='seven-actions';
   append(actions,bottom,recheckButton,dataOptions,message);
-  const caveat=root.querySelector('.five-disclaimer');
-  if(caveat)caveat.remove();
+  root.querySelector('.five-disclaimer')?.remove();
   grid1.replaceChildren(blockers,plan);
   grid1.classList.add('seven-primary-grid');
   grid2.remove();
   append(root,positives,comparison,journey,limitations,actions);
-  if(caveat)root.append(caveat);
 
-  // Visible hierarchy for quick scanning: header markers and signal-first summary.
+  // Coverage is more useful than a weighted score for independent page checks.
   const scoreCard=root.querySelector('.five-score-card');
-  const scoreVisual=scoreCard?.querySelector('.five-score-visual');
-  const problemCard=scoreVisual?.querySelector('.five-problems-card');
-  if(scoreCard&&scoreVisual&&problemCard){
-    scoreCard.classList.add('ten-score-summary');
-    const side=make('div','ten-summary-side');
-    const positiveCard=make('div','ten-strengths-card');
-    append(positiveCard,make('span','ten-strengths-label','Verified positives'),
-      make('strong','ten-strengths-count',String(strengths.length)));
+  const problemCard=scoreCard?.querySelector('.five-problems-card');
+  if(scoreCard&&problemCard){
+    scoreCard.classList.add('ten-score-summary','evidence-summary');
+    scoreCard.setAttribute('aria-label','Audit summary and coverage');
     problemCard.querySelector('.five-problems-label').textContent='Potential blockers';
-    side.append(problemCard,positiveCard);
-    scoreVisual.append(side);
-    const chip=scoreCard.querySelector('.five-score-meta');
-    if(chip)chip.hidden=true;
-    const scoreTitle=scoreCard.querySelector('.five-score-title');
-    if(scoreTitle)scoreTitle.textContent='Offer Evidence Review';
-    const scored=scoreCard.querySelector('.five-score-number');
-    if(scored?.textContent==='—'){
-      const footer=scoreCard.querySelector('.five-score-footnote');
-      if(footer)footer.textContent='Not enough verified stages for a meaningful evidence score.';
-    }
+    if(!findings.length)problemCard.querySelector('.five-problems-breakdown')?.remove();
+    const positiveCard=make('div','ten-strengths-card');
+    append(positiveCard,make('span','ten-strengths-label','Verified strengths'),
+      make('strong','ten-strengths-count',String(strengths.length)));
+    const stats=append(make('div','ten-summary-side'),problemCard,positiveCard);
+    const coverageStatus=website?(partial?'Limited coverage':'Public pages reviewed'):'File review';
+    const summary=make('div','evidence-summary-copy');
+    const title=findings.length?
+      findings.length+' '+(findings.length===1?'finding':'findings')+' to review':
+      partial?'Some areas still need a look':'Your review at a glance';
+    const detail=website?
+      [Number(coverage.desktop??data.renderedPages)||0,Number(coverage.mobile)||0,Number(coverage.sourceOnly)||0]
+        .map((count,i)=>count?count+' '+['desktop','phone','source-only'][i]+' '+(count===1?'page':'pages'):'')
+        .filter(Boolean).join(' · ')||'No browser view was verified.':
+      data.inspectedOfferPages?'Delivered file and sales-page HTML':'Delivered file';
+    append(summary,make('span','evidence-summary-status'+(partial?' is-limited':''),coverageStatus),
+      make('h2','evidence-summary-title',title),make('p','evidence-summary-detail',detail));
+    scoreCard.replaceChildren(summary,stats);
   }
   limitations.querySelector('.seven-limit-heading')?.prepend(make('span','ten-limit-index','06'));
   const sectionInfo=[

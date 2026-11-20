@@ -4,7 +4,7 @@ A free beta with a three-screen workflow:
 
 1. `index.html` — select a public website URL or a supported digital-product file.
 2. `inspect.html` / `analysis.js` — run the requested audit and show real states, errors and progress messages.
-3. `results.html` / `results-five.js` — five-section buyer-focused report with observed desktop/mobile Buyer Journey Replay and a source-backed Conversion Fix Kit. `results-pdf.js` downloads the full report directly, without a print dialog. Legacy `results.js` supports historical reports and JSON import.
+3. `results.html` / `results-five.js` — seven-section buyer-focused report with observed desktop/mobile Buyer Journey Replay and a source-backed Conversion Fix Kit. `results-pdf.js` downloads the full report directly, without a print dialog. Legacy `results.js` supports historical reports and JSON import.
 
 ## Local quality gate and production verification
 
@@ -22,6 +22,8 @@ The main website workflow calls `POST /api/inspect-site` (`api/inspect-site.mjs`
 
 - Discovers a bounded set of public same-site links and sitemap URLs while respecting supported robots.txt rules. It attempts up to **24 pages per scan** (not necessarily every page on a site).
 - Uses a guarded Playwright crawl where available. Captures bounded, visible public offer evidence (headline, introductory text, pricing references, CTA labels and their first-screen position, purchase-term links near a buying action, selected proof sections and signup form structure) and passes it to `lib/conversion-engine.mjs` for deterministic buyer-journey hypotheses. Existing mobile, accessibility, link, policy and metadata checks stay in a **technical appendix**.
+- Uses an opt-in NDJSON response for scan stages, with JSON still supported for integrations.
+- Captures offer pages with a fresh phone navigation at 390px and checks 320px layout separately. A failed phone view retains desktop observations and records a coverage gap.
 - Falls back to source-only checks when browser rendering is not available. The report labels source-only or skipped pages; lack of verification is **not** treated as a confirmed defect.
 - Limits requests, redirects, response sizes, runtime and targets. Browser network requests go through URL/DNS/IP safeguards; this service does not submit forms or inspect authenticated areas.
 - The separate `POST /api/inspect` (`api/inspect.mjs`) performs **source-level HTML checks only** and is used for an optional digital-product sales-page URL. Source-only findings never imply that a dynamic rendered CTA or checkout is missing.
@@ -60,6 +62,7 @@ python qa_conversion_results.py
 node qa_conversion_engine.mjs
 node qa_problem_engine.mjs
 node qa_rendered_fixture.mjs
+node qa_conversion_coverage.mjs
 node qa_multisite_accuracy.mjs
 ```
 

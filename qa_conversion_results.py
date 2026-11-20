@@ -134,8 +134,8 @@ with sync_playwright() as pw:
                   f"{kind} at {width}px: top five navigable actions")
             check(page.locator("#seven-strengths .seven-strength").count()==len(sample["conversion"]["strengths"]),
                   f"{kind} at {width}px: evidence-backed strengths")
-            check(page.locator("#seven-comparison .seven-compare-stat").count()==3,
-                  f"{kind} at {width}px: comparison has 3 states before and after recheck")
+            check(page.locator("#seven-comparison .ten-empty-comparison").count()==1,
+                  f"{kind} at {width}px: comparison starts without placeholder counters")
             check(page.locator("#seven-journey .seven-stage").count()==4,
                   f"{kind} at {width}px: Clarity / Value / Trust / Action stages")
             check(page.locator("#seven-limitations .ten-limit-preview").count()==1,
@@ -147,12 +147,17 @@ with sync_playwright() as pw:
                   f"{kind} at {width}px: secondary Recheck visible")
             check(page.locator("#seven-actions .ten-data-tools").count()==1,
                   f"{kind} at {width}px: data tools behind disclosure")
-            check(page.locator(".five-score-number").inner_text()=="—",
-                  f"{kind} at {width}px: insufficient evidence does not produce misleading 85/100")
+            check(page.locator(".five-score-ring").count()==0 and page.locator(".evidence-summary-status").is_visible(),
+                  f"{kind} at {width}px: audit summary renders coverage without an empty score ring")
+            height=page.locator(".evidence-summary").bounding_box()["height"]
+            check(height < (240 if width < 640 else 160),
+                  f"{kind} at {width}px: compact evidence summary ({height:.0f}px)")
             check(not errors,f"{kind} at {width}px: no uncaught JavaScript errors {errors}")
             bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
             check(max(bounds['b'],bounds['d'])<=bounds['w']+4,
                   f"{kind} at {width}px: no horizontal overflow {bounds}")
+            if (kind,width) in [("limited",320),("website",390),("website",1280)]:
+                page.screenshot(path=str(OUT/f"conversion-{kind}-{width}.png"),animations="disabled")
             if sample["conversion"]["blockers"]:
                 first=page.locator("#five-blockers .five-finding").first
                 check(first.evaluate("(node)=>node.open"),
@@ -241,4 +246,4 @@ check('role="timer"' in inspect and 'analysis-status-row' in inspect,
       "scan clock is an accessible side pill")
 check("Inspecting up to 24" not in analysis and "Up to 24 discoverable" not in inspect,
       "scan progress avoids arbitrary page-cap copy")
-print("PASS: VYLENS v10 seven-section, mobile, PDF and scanning QA",flush=True)
+print("PASS: VYLENS evidence-coverage, mobile, PDF and scanning QA",flush=True)

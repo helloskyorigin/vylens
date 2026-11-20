@@ -58,7 +58,7 @@ jobs:
           ready=0
           for attempt in $(seq 1 36); do
             code=$(curl -sS --max-time 12 -o /tmp/browser-health.json -w '%{http_code}' "$BASE/api/inspect-site" || true)
-            if [ "$code" = "200" ] && jq -e --arg sha "$GITHUB_SHA" '.engine=="bounded-playwright-crawl" and .auditRevision=="problem-engine-v4" and .pageLimit>=20 and .deploymentCommit==$sha' /tmp/browser-health.json >/dev/null 2>&1; then
+            if [ "$code" = "200" ] && jq -e --arg sha "$GITHUB_SHA" '.engine=="bounded-playwright-crawl" and .auditRevision=="conversion-intelligence-v5" and .pageLimit>=20 and .deploymentCommit==$sha' /tmp/browser-health.json >/dev/null 2>&1; then
               ready=1; break
             fi
             sleep 6
