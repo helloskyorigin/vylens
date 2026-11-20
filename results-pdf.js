@@ -77,9 +77,7 @@
     paragraph('Score: '+text('.five-score-number')+'/100    Problems found: '+
       text('.five-problems-value'),{size:13,bold:true,gap:10});
     paragraph(text('.five-score-description'));
-    const positives=list('.five-positive-row');
-    if(positives.length)paragraph('Positive observations',{bold:true,size:10});
-    positives.forEach(row=>paragraph('- '+row.textContent,{size:9.5}));
+    const positives=list('#seven-strengths .seven-strength');
     section('2. '+(text('#five-blockers .five-panel-title')||'Buying Obstacles'));
     // Replay is a public DOM observation, not an actual recorded user path.
     let replay=null;
@@ -144,6 +142,25 @@
     const steps=list('#five-action-plan .five-plan-row');
     if(!steps.length)paragraph(text('#five-action-plan .five-empty'));
     steps.forEach((item,i)=>paragraph((i+1)+'. '+text('.five-plan-text strong',item),{size:10,gap:8}));
+    section("6. What's Working");
+    if(!positives.length)paragraph('No positive finding was verified in the supported checks.');
+    positives.forEach((item,i)=>entry((i+1)+'. '+text('strong',item),[
+      text('p',item),text('small',item)]));
+    section('7. Recheck Comparison');
+    const compare=list('#seven-comparison .seven-compare-stat');
+    if(compare.length){
+      compare.forEach(item=>paragraph(text('strong',item)+' - '+text('span',item),{size:10,gap:8}));
+      list('#seven-comparison .seven-change-list').forEach(group=>{
+        entry(text('strong',group),list('p',group).map(item=>item.textContent));
+      });
+    }else paragraph(text('#seven-comparison .seven-empty')||'No comparable previous scan.');
+    paragraph(text('#seven-comparison .seven-comparison-note'),{size:9,gap:9});
+    section('8. Buyer Journey Review');
+    list('#seven-journey .seven-stage').forEach((item,i)=>entry((i+1)+'. '+text('h3',item),[
+      text('.seven-stage-status',item),text('p',item)]));
+    section("9. What Couldn't Be Verified");
+    list('#seven-limitations .seven-limit-body p').forEach(item=>
+      paragraph('- '+item.textContent,{size:9.5,gap:9}));
     paragraph('Potential findings, not proof of lost sales. Verify with real buyers.',
       {size:8,color:'0.41 0.48 0.39'});
     pages.push(commands.join('\n'));
