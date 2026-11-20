@@ -61,6 +61,11 @@
   const findings=data.blockers.filter(x=>x&&typeof x==='object'&&clean(x.title))
     .slice(0,20).sort((a,b)=>rank(a)-rank(b));
   const positives=Array.isArray(data.strengths)?data.strengths.filter(x=>x&&clean(x.title)):[];
+  // Backend supplies an independently evaluated five-card decision model.
+  // Local product audits and saved reports can use the existing findings safely.
+  const intelligence=data.buyerIntelligence?.version===1?data.buyerIntelligence:null;
+  const overview=intelligence?.overview||null;
+  const depth=overview?.observed||null;
 
   const result=make('section','rv-report');
   result.id='rvReport';
@@ -110,6 +115,8 @@
   const coverage=report.coverage||{};
   const limited=report.mode==='website'&&
     (coverage.complete===false||Number(data.renderedPages)<1||Number(data.inspectedOfferPages)<1);
+  const signalCount=depth?['visibleHeadings','visiblePrices','visibleProof','visibleNextSteps']
+    .filter(k=>Number(depth[k])>0).length:null;
   const highCount=findings.filter(x=>x.priority==='high').length;
   const headingCount=findings.length;
   const feature=make('section','rv-overview'+(limited?' rv-overview-limited':''));
@@ -130,14 +137,20 @@
   const score=make('div','rv-confidence');
   const ring=make('div','rv-confidence-ring');
   ring.setAttribute('role','img');
-  ring.setAttribute('aria-label','Buying confidence not measured from public pages');
-  ring.append(make('strong','','—'));
+  ring.setAttribute('aria-label',signalCount!==null?
+    signalCount+' of four public buying signals observed, not a conversion score':
+    'Buying confidence not measured from public pages');
+  if(signalCount!==null&&Number(depth.commercialPages)>0){
+    ring.style.setProperty('--rv-evidence-progress',String(signalCount*25)+'%');
+    ring.append(make('strong','',signalCount+'/4'));
+  }else ring.append(make('strong','','—'));
   const scoreText=make('div','rv-confidence-copy');
   add(scoreText,make('h3','','Buying Confidence'),
-    make('span','rv-confidence-pill','Not measured'),
+    make('span','rv-confidence-pill',signalCount!==null&&Number(depth.commercialPages)>0?
+      signalCount+' public signals observed':'Not measured'),
     make('p','',headingCount?
-      'Potential buying barriers were observed. Actual buyer confidence needs customer evidence.':
-      'Public-page scanning cannot establish how confident buyers feel.'));
+      'Prioritized concerns were detected. Buyer confidence and purchase probability remain unmeasured.':
+      'Public-page scanning does not establish actual buyer confidence.'));
   add(score,ring,scoreText);
   add(feature,overviewLeft,score);
   result.append(feature);
@@ -148,10 +161,22 @@
     'Potential reasons for hesitation, based on the inspected offer.');
   const reasonList=make('div','rv-reasons');
   if(findings.length){
-    findings.slice(0,3).forEach(item=>{
-      const text=clean(item.buyerQuestion||item.buyerConcern||item.title,130);
-      add(reasonList,add(make('div','rv-reason'),add(make('span','rv-check'),icon('check')),
-        make('strong','',text)));
+    const reasonsData=Array.isArray(intelligence?.whyNotBuying)&&intelligence.whyNotBuying.length?
+      intelligence.whyNotBuying:findings;
+    reasonsData.slice(0,3).forEach((item,i)=>{
+      const label=clean(item.heading||item.title,145);
+      const node=make('details','rv-reason rv-reason-detail');
+      const summary=add(make('summary','rv-reason-head'),
+        make('span','rv-concern-index',String(i+1)),make('strong','',label),icon('chevron'));
+      const body=make('div','rv-reason-body');
+      body.append(make('b','','Possible buyer concern'));
+      body.append(make('p','',item.buyerQuestion||item.concern||item.buyerConcern||
+        'A buyer may have a related question. This was not directly measured.'));
+      if(clean(item.evidence)){
+        body.append(make('b','','Observed evidence'));
+        body.append(make('p','',item.evidence));
+      }
+      node.append(summary,body);reasonList.append(node);
     });
   }else reasonList.append(add(make('div','rv-quiet-state'),
     make('strong','',limited?'Buyer hesitation not verified':'No clear hesitation identified'),
@@ -165,7 +190,9 @@
     'Highest-priority observed issues to review.');
   const riskList=make('div','rv-risk-list');
   if(findings.length){
-    findings.slice(0,4).forEach((item,i)=>{
+    const killers=Array.isArray(intelligence?.biggestSalesKillers)&&intelligence.biggestSalesKillers.length?
+      intelligence.biggestSalesKillers:findings;
+    killers.slice(0,4).forEach((item,i)=>{
       const node=make('details','rv-risk');
       const row=make('summary','rv-risk-summary');
       add(row,make('span','rv-risk-number',String(i+1)),
@@ -202,13 +229,28 @@
   };
   const stageOrder=['clarity','value','trust','action'];
   const affected=[...new Set(findings.map(x=>x.stage).filter(x=>stageOrder.includes(x)))];
-  const priorities=[...affected,...stageOrder.filter(x=>!affected.includes(x))].slice(0,4);
-  priorities.forEach(stage=>{
-    const affectedStage=affected.includes(stage);
-    const row=add(make('div','rv-need'),add(make('span','rv-check'),icon('check')),
-      make('span','',stageNeeds[stage]));
-    if(affectedStage)row.append(make('span','rv-need-review','Review'));
-    needList.append(row);
+  const needsData=Array.isArray(intelligence?.buyerNeeds)&&intelligence.buyerNeeds.length===4?
+    intelligence.buyerNeeds:stageOrder.map(stage=>({
+      stage,need:stageNeeds[stage],status:affected.includes(stage)?'review':
+        positives.some(p=>p.stage===stage)?'observed':'unverified',
+      why:affected.includes(stage)?'A relevant finding needs review.':
+        'This stage was not established as effective from the available evidence.'
+    }));
+  needsData.forEach(item=>{
+    const state=['review','observed'].includes(item.status)?item.status:'unverified';
+    const row=make('details','rv-need rv-need-'+state);
+    const summary=add(make('summary','rv-need-head'),
+      add(make('span','rv-need-icon '+state),
+        state==='observed'?icon('check'):make('span','',state==='review'?'!':'?')),
+      make('strong','',stageNeeds[item.stage]||item.need),
+      make('span','rv-need-review rv-need-status-'+state,
+        state==='review'?'Review':state==='observed'?'Observed':'Unverified'));
+    row.append(summary);
+    const why=make('div','rv-need-detail');
+    why.append(make('p','',item.why||'See the supported findings.'));
+    if(clean(item.evidence))why.append(make('small','','Evidence: '+clean(item.evidence,260)));
+    if(clean(item.fix))why.append(make('small','','Action: '+clean(item.fix,260)));
+    row.append(why);needList.append(row);
   });
   needs.append(needList);
   if(!findings.length)needs.append(make('p','rv-card-footnote',
@@ -218,7 +260,12 @@
   const actions=card('layers','What to Change, Remove & Improve',
     'Simple, evidence-led recommendations you can act on.','rv-change-card');
   const actionGrid=make('div','rv-change-grid');
-  const categorized={
+  const decisions=intelligence?.whatToChangeRemoveImprove;
+  const categorized=decisions?{
+    Change:Array.isArray(decisions.change)?decisions.change:[],
+    Remove:Array.isArray(decisions.remove)?decisions.remove:[],
+    Improve:Array.isArray(decisions.improve)?decisions.improve:[]
+  }:{
     Change:findings.filter(x=>/clarity|value|action/.test(x.stage||'')&&!/placeholder|draft|unfinished|remove/i.test(x.title||'')),
     Remove:findings.filter(x=>/placeholder|draft|unfinished|unnecessary|duplicate|vague|remove/i.test((x.title||'')+' '+(x.fix||''))),
     Improve:findings.filter(x=>x.stage==='trust'||/improve|support|evidence/i.test((x.title||'')+' '+(x.fix||'')))
@@ -231,10 +278,19 @@
       icon(type==='Change'?'layers':type==='Remove'?'alert':'target'),make('span','',type));
     col.append(strip);
     const list=make('ul','rv-change-list');
-    const choices=categorized[type].filter(x=>!assigned.has(x)).slice(0,2);
+    const choices=categorized[type].filter(x=>!assigned.has(x.findingId||x.id||x)).slice(0,2);
     choices.forEach(x=>{
-      assigned.add(x);
-      list.append(make('li','',clean(x.fix||x.title,176)));
+      assigned.add(x.findingId||x.id||x);
+      const line=make('li','rv-change-item');
+      const title=make('span','',clean(x.fix||x.title,176));
+      line.append(title);
+      if(clean(x.evidence)){
+        const proof=make('details','rv-change-proof');
+        proof.append(make('summary','','Why this change?'),
+          make('p','',clean(x.evidence,370)));
+        line.append(proof);
+      }
+      list.append(line);
     });
     if(!choices.length)list.append(make('li','rv-change-none',
       type==='Remove'?'No removal supported by the scan.':
@@ -247,14 +303,22 @@
   // Card 5: cautious skeptical-buyer test: observed concerns, not simulated purchases.
   const test=card('cart','Purchase Decision Test',
     'Would a skeptical buyer purchase based on the page today?','rv-decision-card');
+  const decisionData=intelligence?.purchaseDecisionTest;
   const decision=make('div','rv-decision-banner'+(findings.length?'':' rv-decision-neutral'));
   add(decision,icon(findings.length?'alert':'clock'),
-    make('strong','',findings.length?'Potential hesitation before buying':'Purchase decision unverified'));
+    make('strong','',clean(decisionData?.headline||(
+      findings.length?'Potential hesitation before buying':'Purchase decision unverified'),175)));
   const issueLead=findings.slice(0,2).map(x=>clean(x.title,80).toLowerCase()).join(' and ');
-  const explanation=make('p','rv-decision-copy',findings.length?
-    'A skeptical buyer might pause over '+issueLead+'. These are evidence-based possibilities, not recorded customer behavior.':
-    'The available inspection did not verify real buyer hesitation or checkout success. A genuine purchase test would require additional evidence.');
+  const explanation=make('p','rv-decision-copy',decisionData?.explanation||(
+    findings.length?'A skeptical buyer might pause over '+issueLead+
+      '. These are possible concerns, not observed customer behavior.':
+      'Available inspection did not establish real buyer hesitation or completed purchases.'));
   test.append(decision,explanation);
+  const next=make('details','rv-test-next');
+  const nextSummary=make('summary','','How to validate the purchase decision');
+  next.append(nextSummary,make('p','',decisionData?.nextTest||
+    'Have a real prospective buyer review the offer and identify its price and next step; no payment is needed.'));
+  test.append(next);
 
   content.append(reasons,risks,needs,actions,test);
   result.append(content);

@@ -286,3 +286,126 @@ body.rv-ui #rvReport a:focus-visible{outline:3px solid #8fbe15;outline-offset:3p
  .rv-content-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .rv-change-card,.rv-decision-card{grid-column:span 2}
 }
+
+
+/* Five-card buyer intelligence v2 — utility-led hierarchy and disclosure detail.
+ * Keep the user's exact approved five visible cards, not a second dashboard. */
+body.rv-ui #rvReport .rv-confidence-ring{
+  background:conic-gradient(#c9f744 0 var(--rv-evidence-progress,0%),
+    #e7eae7 var(--rv-evidence-progress,0%) 100%);
+}
+body.rv-ui #rvReport .rv-confidence-ring strong{
+  font-size:clamp(18px,2vw,26px);letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;
+}
+body.rv-ui #rvReport .rv-risk{background:#fff}
+body.rv-ui #rvReport .rv-risk[open]{background:#fbfdf8;border-radius:9px}
+body.rv-ui #rvReport .rv-reason-detail{
+  display:block;min-height:0;padding:0;margin:0;
+  border-bottom:1px solid #edf1e8;
+}
+body.rv-ui #rvReport .rv-reason-detail:last-child{border-bottom:0}
+body.rv-ui #rvReport .rv-reason-head{
+  display:flex;align-items:center;gap:11px;list-style:none;cursor:pointer;
+  min-height:46px;padding:9px 1px;border-radius:9px;
+}
+body.rv-ui #rvReport .rv-reason-head::-webkit-details-marker,
+body.rv-ui #rvReport .rv-need-head::-webkit-details-marker{display:none}
+body.rv-ui #rvReport .rv-reason-head:hover strong,
+body.rv-ui #rvReport .rv-need-head:hover strong{color:#4a6d26}
+body.rv-ui #rvReport .rv-concern-index{
+  display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;
+  background:#fff2df;color:#975a28;border-radius:50%;font:800 11px/1 var(--body)
+}
+body.rv-ui #rvReport .rv-reason-head strong{
+  flex:1;min-width:0;color:#293026;font:750 12.2px/1.5 var(--body);overflow-wrap:anywhere
+}
+body.rv-ui #rvReport .rv-reason-head>svg{
+  width:13px!important;height:13px!important;flex:0 0 13px;
+  color:#8b9a83;transition:transform .16s
+}
+body.rv-ui #rvReport .rv-reason-detail[open] .rv-reason-head>svg{transform:rotate(180deg)}
+body.rv-ui #rvReport .rv-reason-body{
+  padding:3px 3px 15px 36px;color:#64715f
+}
+body.rv-ui #rvReport .rv-reason-body b{
+  display:block;margin:8px 0 3px;color:#43563b;font:800 10.3px/1.4 var(--body)
+}
+body.rv-ui #rvReport .rv-reason-body p{
+  font:500 11.3px/1.65 var(--body);color:#677362;overflow-wrap:anywhere
+}
+body.rv-ui #rvReport .rv-need{
+  display:block;min-height:0;margin:0;padding:0;border-bottom:1px solid #edf1e8
+}
+body.rv-ui #rvReport .rv-need:last-child{border-bottom:0}
+body.rv-ui #rvReport .rv-need-head{
+  display:flex;align-items:center;gap:9px;cursor:pointer;min-height:42px;
+  padding:7px 1px;list-style:none
+}
+body.rv-ui #rvReport .rv-need-head strong{
+  min-width:0;flex:1;color:#2f3a2b;font:700 11.7px/1.5 var(--body)
+}
+body.rv-ui #rvReport .rv-need-icon{
+  display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;
+  border-radius:50%;font:850 12px/1 var(--body)
+}
+body.rv-ui #rvReport .rv-need-icon.observed{
+  color:#3a7b23;background:#e9f8d8
+}
+body.rv-ui #rvReport .rv-need-icon.review{
+  color:#8a5925;background:#fff0d5
+}
+body.rv-ui #rvReport .rv-need-icon.unverified{
+  color:#63715f;background:#edf1e9
+}
+body.rv-ui #rvReport .rv-need-icon svg{width:13px!important;height:13px!important}
+body.rv-ui #rvReport .rv-need-status-observed{
+  color:#377221;background:#e9f8db
+}
+body.rv-ui #rvReport .rv-need-status-review{
+  color:#916028;background:#fff0da
+}
+body.rv-ui #rvReport .rv-need-status-unverified{
+  color:#73816e;background:#f0f3ed
+}
+body.rv-ui #rvReport .rv-need-detail{
+  display:grid;gap:6px;padding:1px 4px 13px 34px
+}
+body.rv-ui #rvReport .rv-need-detail p,
+body.rv-ui #rvReport .rv-need-detail small{
+  color:#65715f;font:500 10.9px/1.55 var(--body);overflow-wrap:anywhere
+}
+body.rv-ui #rvReport .rv-need-detail small{color:#82907b}
+body.rv-ui #rvReport .rv-change-proof{
+  font:500 10.3px/1.55 var(--body);margin-top:5px
+}
+body.rv-ui #rvReport .rv-change-proof>summary{
+  color:#648545;cursor:pointer;font-weight:750;list-style:none;min-height:24px
+}
+body.rv-ui #rvReport .rv-change-proof>summary::-webkit-details-marker{display:none}
+body.rv-ui #rvReport .rv-change-proof>summary:before{
+  content:'+';padding-right:5px;font-weight:900
+}
+body.rv-ui #rvReport .rv-change-proof[open]>summary:before{content:'−'}
+body.rv-ui #rvReport .rv-change-proof>p{
+  margin:2px 0 0;color:#77846e;font-size:10.5px;line-height:1.6
+}
+body.rv-ui #rvReport .rv-test-next{
+  margin-top:12px;border-top:1px solid #edf0eb;padding-top:9px
+}
+body.rv-ui #rvReport .rv-test-next summary{
+  color:#587d37;cursor:pointer;list-style:none;
+  font:750 11px/1.6 var(--body);min-height:30px
+}
+body.rv-ui #rvReport .rv-test-next summary:after{content:'⌄';margin-left:7px}
+body.rv-ui #rvReport .rv-test-next[open] summary:after{content:'⌃'}
+body.rv-ui #rvReport .rv-test-next>p{
+  color:#657362;font:500 11.2px/1.6 var(--body);padding-bottom:5px
+}
+@media(max-width:590px){
+ body.rv-ui #rvReport .rv-reason-head{min-height:48px;padding:10px 1px}
+ body.rv-ui #rvReport .rv-reason-head strong{font-size:12.4px}
+ body.rv-ui #rvReport .rv-need-head{min-height:45px}
+ body.rv-ui #rvReport .rv-need-head strong{font-size:11.6px}
+ body.rv-ui #rvReport .rv-need-detail{padding-left:33px}
+}

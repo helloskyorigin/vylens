@@ -27,6 +27,7 @@ jobs:
           node --check conversion-results.js
           node --check results-lime.js
           node --check lib/conversion-engine.mjs
+          node --check lib/buyer-intelligence.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/action-intent.mjs
           node --check results-showcase.js
@@ -41,6 +42,7 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion-blocker analysis, evidence and false positives
         run: node qa_conversion_engine.mjs
+        run: node qa_buyer_intelligence.mjs
       - name: Test Buyer Journey Replay and Conversion Fix Kit
         run: node qa_buyer_experience.mjs
       - name: Test shared action intent classification

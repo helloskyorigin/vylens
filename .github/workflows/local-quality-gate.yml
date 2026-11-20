@@ -29,6 +29,7 @@ jobs:
           node --check lib/action-intent.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/conversion-engine.mjs
+          node --check lib/buyer-intelligence.mjs
           node --check results-showcase.js
           node --check results-five.js
           node --check results-pdf.js
@@ -38,6 +39,7 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion issue detection and false-positive controls
         run: node qa_conversion_engine.mjs
+        run: node qa_buyer_intelligence.mjs
       - name: Test contextual CTA action classifier
         run: node qa_action_intent.mjs
       - name: Test journey checkpoints and Fix Kit source grounding
