@@ -122,6 +122,11 @@ with sync_playwright() as p:
               f'{label} {w}: fix link opens evidence without duplicate report data')
         if n>=2:
           page.locator('.rv-risk').nth(1).locator('summary').click()
+          page.wait_for_function(
+              "() => { const cards=[...document.querySelectorAll('#rvReport .rv-risk')]; "
+              + "return cards.length>=2 && cards[1].open && !cards[0].open; }",
+              timeout=3000
+          )
           check(page.locator('.rv-risk').nth(1).evaluate('(node)=>node.open') and
                 not page.locator('.rv-risk').first.evaluate('(node)=>node.open'),
                 f'{label} {w}: only one finding expanded at a time')

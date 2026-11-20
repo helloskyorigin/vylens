@@ -267,11 +267,17 @@
     killers.slice(0,4).forEach((item,i)=>{
       const node=make('details','rv-risk');
       node.id='rv-finding-'+(i+1);
+      // Native named details guarantee that just one finding can stay open.
+      // The click handler also covers browsers with older details support.
+      node.setAttribute('name','rv-exclusive-findings');
       riskNodes.push({key:issueKey(item),node});
       node.addEventListener('toggle',()=>{
         if(node.open)for(const other of riskNodes)if(other.node!==node)other.node.open=false;
       });
       const row=make('summary','rv-risk-summary');
+      row.addEventListener('click',()=>{
+        for(const other of riskNodes)if(other.node!==node)other.node.open=false;
+      });
       add(row,make('span','rv-risk-number',String(i+1)),
         make('strong','rv-risk-name',clean(item.title,96)),
         make('span','rv-risk-priority '+(item.priority==='high'?'is-high':'is-review'),
