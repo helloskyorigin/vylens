@@ -30,10 +30,10 @@ const frame=(body,head='')=>'<!doctype html><html lang="en"><head><meta name="vi
 const offer='<h1>Automated site reports for independent merchants</h1>'+
   '<p>See which product details customers need before choosing a plan for your online store.</p>';
 const snapshots=[];
-const scan=async (path,html)=>{
+const scan=async (path,html,{freshMobile=true}={})=>{
   const url=new URL(path,root).href;
   await context.route(url,route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
-  const actual=await browserAudit.rendered(session,url);
+  const actual=await browserAudit.rendered(session,url,{freshMobile});
   await context.unroute(url);
   assert.ok(actual.browser);
   return {url,status:'rendered',entry:path==='/',commerce:actual.commerce,visit:actual};
@@ -84,6 +84,10 @@ try{
   const cleanResult=await compare('Clean multi-tier offer with adjacent terms',clean);
   assert.equal(cleanResult.blockers.length,0);
   assert.deepEqual(clean.commerce.priceSamples,['$0','$29 / month']);
+  const serverRendered=await scan('/offer/server-rendered',frame(offer+'<a href="/purchase/pro">Buy now</a>'),{freshMobile:false});
+  assert.equal(serverRendered.commerce.mobileMode,'reflow');
+  assert.equal(serverRendered.visit.narrow.width,320);
+  assert.ok(serverRendered.commerce.mobileActions.some(action=>action.label==='Buy now'));
 
   const broken=await scan('/pricing/broken',frame(offer+
     '<p>Buy access for $19</p><a id="buy" href="/purchase/basic">Buy now</a><p>All sales final.</p>'));

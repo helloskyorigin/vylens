@@ -719,7 +719,20 @@ async function rendered(session,url,{freshMobile=true}={}){
       await view.waitForTimeout(100);
       [narrow,narrowCommerce]=await Promise.all([measureMobile(view),captureCommerceSignals(view)]);
     };
+    if(!desktopCapped){
+      try{
+        await withDeadline(async ()=>{
+          await page.setViewportSize({width:390,height:844});
+          await page.waitForTimeout(170);
+          await inspectPhone(page);
+          mobileMode='reflow';
+        },4800);
+      }catch{
+        mobileGap=mobile?'320px layout could not be checked.':'390px phone content could not be verified.';
+      }
+    }
     if(freshMobile&&!desktopCapped){
+      const reflow={mobile,narrow,mobileCommerce,narrowCommerce,mobileMode};
       try{
         phonePage=await withDeadline(()=>session.context.newPage(),1800);
         await withDeadline(async ()=>{
@@ -733,27 +746,16 @@ async function rendered(session,url,{freshMobile=true}={}){
           if(state.capped||state.resourceGaps.length)throw new Error('Phone rendering resources unavailable');
           await inspectPhone(phonePage);
           mobileMode='fresh';
+          mobileGap='';
         },8700);
       }catch{
-        mobileGap=mobile?'320px layout could not be checked.':'Fresh 390px load was unavailable.';
+        ({mobile,narrow,mobileCommerce,narrowCommerce,mobileMode}=reflow);
+        mobileGap='Fresh 390px load was unavailable.'+
+          (mobileMode==='reflow'?' The rendered desktop page was resized to check phone layout.':'');
       }finally{
         if(phonePage)await withDeadline(()=>phonePage.close(),1100).catch(()=>{});
       }
     }
-    if(!mobile&&!desktopCapped){
-      try{
-        await withDeadline(async ()=>{
-          await page.setViewportSize({width:390,height:844});
-          await page.waitForTimeout(120);
-          await inspectPhone(page);
-          mobileMode='reflow';
-        },2000);
-      }catch{
-        mobileGap=mobile?'320px layout could not be checked.':'390px phone content could not be verified.';
-      }
-    }
-    if(freshMobile&&mobileGap&&mobileMode==='reflow')
-      mobileGap+=' The rendered desktop page was resized to check phone layout.';
     const combinedCommerce={...commerce,
       mobileActions:mobileCommerce?.actions??null,
       narrowActions:narrowCommerce?.actions??null,
@@ -925,7 +927,8 @@ async function scanSite(input,progress=()=>{}){
   progress(session?'rendering':'source');
   const pages=[],analyses=[],checks=[],titles=[],commerceSnapshots=[],done=new Set(),destinationStatus=new Map();
   const mediaCache=new Map(),linkCandidates=new Map();
-  let renderedCount=0,sourceCount=0;
+  let renderedCount=0,sourceCount=0,browserRestarts=0;
+  const entrySource=source.review(home.html,home.url,{status:home.status,headers:home.headers});
   try{
     while(discoverer.queue.length&&pages.length<LIMIT&&remainingTime()>1800){
       discoverer.queue.sort((a,b)=>priority(a)-priority(b));
@@ -936,9 +939,15 @@ async function scanSite(input,progress=()=>{}){
         pages.push({url:item.url,path,type:kind,status:'skipped',reason:'Blocked by robots.txt',findings:0});continue;
       }
       let visit=null,raw=null,fallbackReason='';
+      if(!session&&browserRestarts<1&&remainingTime()>26000){
+        browserRestarts++;
+        try{session=await browserStart(root,discoverer.rules);}catch{}
+      }
       if(session)try{
-        const freshMobile=item.via==='start'||priority(item)===0;
-        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(freshMobile?27000:17000,remainingTime()-1100));
+        // Measure responsive layout first. A second live navigation is most useful
+        // when the submitted page has only a script shell in its initial HTML.
+        const freshMobile=item.via==='start'&&entrySource.jsShell;
+        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(freshMobile?29000:20000,remainingTime()-1100));
       }catch(error){
         fallbackReason=error.message==='Inspection time budget reached'?'The browser exceeded its inspection budget.':'The browser could not load this page.';
         if(session.browser.isConnected()&&remainingTime()>5000){
