@@ -30,16 +30,31 @@ jobs:
             sleep 1
           done
           VYLENS_BASE=http://127.0.0.1:8765 python qa_conversion_results.py
-      - name: Wait for updated landing page on production
+      - name: Verify latest Results and scanner assets on production
         shell: bash
         run: |
           set -euo pipefail
           ready=0
-          for i in $(seq 1 45); do
-            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/api/inspect-site' -o /tmp/vylens-health.json && jq -e --arg sha "$GITHUB_SHA" '.engine=="bounded-playwright-crawl" and .deploymentCommit==$sha' /tmp/vylens-health.json >/dev/null; then ready=1; break; fi
-            sleep 6
+          for attempt in $(seq 1 24); do
+            if curl --max-time 12 -fsSL 'https://vylens-tan.vercel.app/api/inspect-site' -o /tmp/vylens-health.json &&
+               python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get("engine")=="bounded-playwright-crawl" and d.get("deploymentCommit") in (None,"",sys.argv[2]) else 1)' /tmp/vylens-health.json "$GITHUB_SHA"; then
+              matches=1
+              for asset in results.html results-seven.js results-seven.css results-five.js results-pdf.js analysis.js analysis.css inspect.html; do
+                if ! curl --max-time 12 -fsSL "https://vylens-tan.vercel.app/$asset" -o "/tmp/vylens-live-${asset//\//-}" ||
+                   ! cmp -s "$asset" "/tmp/vylens-live-${asset//\//-}"; then
+                  matches=0
+                  break
+                fi
+              done
+              if [ "$matches" -eq 1 ]; then ready=1; break; fi
+            fi
+            sleep 5
           done
-          if [ "$ready" -ne 1 ]; then echo 'Latest commit not yet confirmed on production (requires Vercel system env vars).'; exit 1; fi
+          if [ "$ready" -ne 1 ]; then
+            echo 'Production health or exact Results/scan asset contents could not be verified.'
+            exit 1
+          fi
+          echo 'Production serves the current commit Results and scan assets.'
       - name: Test local digital-product audit and ZIP safety regressions
         run: python qa_product_browser.py
       - name: Run end-to-end production browser QA
