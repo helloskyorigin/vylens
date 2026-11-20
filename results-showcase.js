@@ -323,6 +323,48 @@
     risks.append(more);
   }
 
+
+  // Compact inspected-page replay inside card 2, not a recorded visitor session.
+  const replayInfo=data.buyerReplay;
+  if(report.mode==='website'&&replayInfo?.version===1&&
+      Array.isArray(replayInfo.desktop)&&Array.isArray(replayInfo.mobile)){
+    const replay=make('details','rv-inline-feature rv-journey');
+    replay.id='rvJourneyReplay';
+    const trigger=make('summary','rv-inline-trigger');
+    add(trigger,icon('target'),make('strong','','Buyer Journey Replay'),
+      make('small','','Compare inspected phone & desktop steps'),icon('chevron'));
+    const body=make('div','rv-inline-content');
+    const switcher=make('div','rv-view-switch');
+    switcher.setAttribute('role','group');
+    switcher.setAttribute('aria-label','Choose device for public buying steps');
+    const phone=make('button','','Phone'),desktop=make('button','','Desktop');
+    phone.type='button';desktop.type='button';
+    add(switcher,phone,desktop);
+    const steps=make('ol','rv-journey-steps');
+    steps.setAttribute('aria-live','polite');
+    const render=(device)=>{
+      phone.setAttribute('aria-pressed',String(device==='mobile'));
+      desktop.setAttribute('aria-pressed',String(device==='desktop'));
+      steps.replaceChildren();
+      const items=device==='mobile'?replayInfo.mobile:replayInfo.desktop;
+      items.slice(0,4).forEach((item,i)=>{
+        const state=['observed','review'].includes(item?.status)?item.status:'unverified';
+        const li=make('li','rv-journey-item is-'+state);
+        const point=make('span','rv-journey-dot',state==='observed'?'✓':state==='review'?'!':'?');
+        const copy=make('span','rv-journey-copy');
+        add(copy,make('strong','',clean(item.title||'Step '+(i+1),85)),
+          make('span','',clean(item.description||'This step was not verified.',230)));
+        add(li,point,copy);steps.append(li);
+      });
+    };
+    phone.addEventListener('click',()=>render('mobile'));
+    desktop.addEventListener('click',()=>render('desktop'));
+    render('mobile');
+    add(body,switcher,steps,make('p','rv-inline-note',
+      'Public page observations only. No visitors recorded and no payment tested.'));
+    replay.append(trigger,body);risks.append(replay);
+  }
+
   // Card 3: show buyer needs tied to findings, or neutral review criteria.
   const needs=card('heart','What Buyers Need to See',
     'Buying details to review, based on available evidence—not customer interviews.');
@@ -431,6 +473,50 @@
   }
   actionGrid.classList.toggle('rv-change-single',actionGrid.children.length===1);
   actions.append(actionGrid);
+
+
+  // Accessible, source-grounded fix kit inside card 4 (never another result card).
+  const kitItems=Array.isArray(data.fixKit)?data.fixKit.filter(item=>
+    item&&['copy','checklist'].includes(item.kind)&&
+    typeof item.content==='string'&&item.content.trim()).slice(0,20):[];
+  if(kitItems.length){
+    const kit=make('details','rv-inline-feature rv-fix-kit');
+    kit.id='rvConversionFixKit';
+    const trigger=make('summary','rv-inline-trigger');
+    add(trigger,icon('check'),make('strong','','Conversion Fix Kit'),
+      make('small','','Copy '+kitItems.length+' suggested action'+(kitItems.length===1?'':'s')),
+      icon('chevron'));
+    const body=make('div','rv-inline-content');
+    const copyAll=make('button','rv-copy-all','Copy all fixes');
+    copyAll.type='button';
+    const status=make('span','rv-copy-status');status.setAttribute('role','status');
+    const allText=kitItems.map((item,i)=>
+      (i+1)+'. '+clean(item.title||item.label||'Action',120)+'\n'+
+      clean(item.content,850)+(item.verify?'\nCheck: '+clean(item.verify,400):'')).join('\n\n');
+    copyAll.addEventListener('click',async()=>{
+      try{
+        if(!navigator.clipboard?.writeText)throw Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(allText);
+        status.textContent='Copied to clipboard';
+      }catch{status.textContent='Copy blocked by browser. Use the PDF report instead.';}
+    });
+    const toolbar=make('div','rv-kit-toolbar');
+    add(toolbar,copyAll,status);body.append(toolbar);
+    const usable=kitItems.filter(item=>item.kind==='copy').slice(0,3);
+    if(usable.length){
+      const sample=make('div','rv-kit-samples');
+      usable.forEach(item=>{
+        const row=make('div','rv-kit-copyline');
+        add(row,make('small','','Ready-to-use wording (review first)'),
+          make('strong','',clean(item.content,300)));
+        sample.append(row);
+      });
+      body.append(sample);
+    }
+    body.append(make('p','rv-inline-note',
+      'Suggestions come from inspected evidence. Check accuracy before publishing; no invented claims.'));
+    kit.append(trigger,body);actions.append(kit);
+  }
 
   // Card 5: cautious skeptical-buyer test: observed concerns, not simulated purchases.
   const test=card('cart','Purchase Clarity Check',
