@@ -84,7 +84,8 @@
       make('span','rv-preview-title'),make('span','rv-preview-line'),
       make('span','rv-preview-tiles')));
   const sourceText=make('div','rv-source-text');
-  const name=report.mode==='product'?'Digital Product Review':'Product Landing Page';
+  const name=report.mode==='product'?'Digital Product Review':
+    clean(depth?.examples?.find(x=>x.headline)?.headline||report.pageTitle||'Website Conversion Review',75);
   sourceText.append(make('h1','',name));
   const rawUrl=clean(report.url,500),sub=make('div','rv-source-url');
   let safeUrl='';
@@ -203,7 +204,7 @@
       node.append(row);
       const body=make('div','rv-risk-detail');
       for(const [label,value] of [
-        ['Evidence',item.evidence],['Buyer concern',item.buyerConcern||item.buyerQuestion],
+        ['Evidence',item.evidence],['Buyer concern',item.buyerConcern||item.buyerQuestion||item.concern],
         ['What to change',item.fix],['How to verify',item.verify]]){
         if(clean(value))body.append(add(make('div','rv-risk-fact'),
           make('b','',label),make('p','',value)));
