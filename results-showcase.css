@@ -928,3 +928,115 @@ body.rv-ui #rvReport .rv-actions button{
  body.rv-ui #rvReport .rv-risk,body.rv-ui #rvReport .rv-jump,
  body.rv-ui #rvReport .rv-card{transition:none!important}
 }
+
+
+/* Evidence and clarity refinements: all findings reachable, compact in-card tools. */
+body.rv-ui #rvReport .rv-risk[hidden]{display:none!important}
+body.rv-ui #rvReport .rv-show-all{
+  display:block;width:100%;min-height:41px;margin:12px 0 1px;
+  border:1px solid #d8e7cb;border-radius:11px;
+  background:#f2f9e9;color:#385c2d;
+  font:800 12px/1.35 var(--body);cursor:pointer
+}
+body.rv-ui #rvReport .rv-show-all:hover{background:#e9f6da}
+body.rv-ui #rvReport .rv-risk-priority.is-low{
+  background:#eaf7e2;color:#44752b;border:1px solid #d8ecd0
+}
+body.rv-ui #rvReport .rv-inline-feature{
+  margin-top:17px;border:1px solid #e4ebdb;
+  border-radius:13px;background:#fbfdf8;min-width:0
+}
+body.rv-ui #rvReport .rv-inline-trigger{
+  display:flex;align-items:center;gap:9px;
+  min-height:51px;padding:12px;cursor:pointer;list-style:none;
+  color:#294027
+}
+body.rv-ui #rvReport .rv-inline-trigger::-webkit-details-marker{display:none}
+body.rv-ui #rvReport .rv-inline-trigger>svg:first-child{
+  flex:0 0 18px;width:18px!important;height:18px!important;color:#5c972e
+}
+body.rv-ui #rvReport .rv-inline-trigger strong{
+  flex:0 1 auto;min-width:0;font:800 12.5px/1.45 var(--body)
+}
+body.rv-ui #rvReport .rv-inline-trigger small{
+  min-width:0;flex:1;color:#738370;
+  font:500 10.5px/1.45 var(--body)
+}
+body.rv-ui #rvReport .rv-inline-trigger>svg:last-child{
+  flex:0 0 16px;width:16px!important;height:16px!important;color:#81937b
+}
+body.rv-ui #rvReport .rv-inline-feature[open] .rv-inline-trigger>svg:last-child{
+  transform:rotate(180deg)
+}
+body.rv-ui #rvReport .rv-inline-content{
+  border-top:1px solid #e8efe2;padding:12px
+}
+body.rv-ui #rvReport .rv-view-switch{
+  display:flex;gap:4px;padding:3px;margin:0 0 11px;
+  background:#ebf2e5;border-radius:10px;width:fit-content
+}
+body.rv-ui #rvReport .rv-view-switch button{
+  border:0;border-radius:8px;min-width:73px;min-height:34px;
+  padding:8px 11px;background:transparent;
+  color:#64705e;font:750 11px/1.2 var(--body);cursor:pointer
+}
+body.rv-ui #rvReport .rv-view-switch button[aria-pressed="true"]{
+  background:#fff;color:#2f4929;box-shadow:0 1px 5px #1c33151c
+}
+body.rv-ui #rvReport .rv-journey-steps{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+body.rv-ui #rvReport .rv-journey-item{
+  display:flex;gap:9px;align-items:flex-start;
+  padding:10px;border-radius:9px;background:#fff;border:1px solid #edf1e8
+}
+body.rv-ui #rvReport .rv-journey-dot{
+  flex:0 0 24px;width:24px;height:24px;border-radius:8px;
+  display:grid;place-items:center;font:800 12px/1 var(--body);
+  color:#828c7e;background:#f0f2ed
+}
+body.rv-ui #rvReport .rv-journey-item.is-observed .rv-journey-dot{
+  background:#e8f7dc;color:#43762b
+}
+body.rv-ui #rvReport .rv-journey-item.is-review .rv-journey-dot{
+  background:#fff1d8;color:#8a6220
+}
+body.rv-ui #rvReport .rv-journey-copy{display:flex;flex-direction:column;min-width:0;gap:3px}
+body.rv-ui #rvReport .rv-journey-copy strong{
+  color:#2d3e2a;font:800 11.5px/1.4 var(--body)
+}
+body.rv-ui #rvReport .rv-journey-copy span{
+  color:#53634e;font:500 11.2px/1.5 var(--body);
+  overflow-wrap:anywhere
+}
+body.rv-ui #rvReport .rv-inline-note{
+  margin-top:10px!important;color:#71806e;
+  font:500 10.5px/1.55 var(--body)
+}
+body.rv-ui #rvReport .rv-kit-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+body.rv-ui #rvReport .rv-copy-all{
+  border:1px solid #d3e7c2;background:#e5f8d5;
+  padding:9px 13px;min-height:38px;border-radius:10px;
+  color:#355f24;font:800 11px/1.3 var(--body);cursor:pointer
+}
+body.rv-ui #rvReport .rv-copy-status{
+  color:#58754d;font:600 10.5px/1.5 var(--body)
+}
+body.rv-ui #rvReport .rv-kit-samples{display:grid;gap:7px;margin-top:11px}
+body.rv-ui #rvReport .rv-kit-copyline{
+  border:1px solid #e5ecdf;background:#fff;border-radius:9px;
+  padding:9px 11px;min-width:0;display:flex;flex-direction:column;gap:4px
+}
+body.rv-ui #rvReport .rv-kit-copyline small{
+  color:#64815b;font:650 10px/1.4 var(--body)
+}
+body.rv-ui #rvReport .rv-kit-copyline strong{
+  color:#263b26;font:650 11.8px/1.5 var(--body);
+  overflow-wrap:anywhere
+}
+@media(max-width:590px){
+  body.rv-ui #rvReport .rv-inline-trigger{padding:11px;flex-wrap:wrap}
+  body.rv-ui #rvReport .rv-inline-trigger small{flex-basis:100%;order:3;padding-left:27px}
+  body.rv-ui #rvReport .rv-inline-trigger>svg:last-child{margin-left:auto}
+  body.rv-ui #rvReport .rv-inline-content{padding:10px}
+  body.rv-ui #rvReport .rv-view-switch{width:100%}
+  body.rv-ui #rvReport .rv-view-switch button{flex:1;min-height:38px}
+}
