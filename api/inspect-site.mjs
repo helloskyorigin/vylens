@@ -254,7 +254,9 @@ async function browserStart(root,rules){
   const state={root,rules,total:0,page:0,bytes:0,capped:false,resourceGaps:[]};
   await context.route('**/*',route=>intercept(route,state));
   const page=await context.newPage();
-  context.on('page',p=>{if(p!==page)p.close().catch(()=>{});});
+  context.on('page',p=>{
+    void p.opener().then(opener=>{if(opener)return p.close();}).catch(()=>{});
+  });
   return {browser,context,page,state};
 }
 
@@ -651,11 +653,10 @@ async function rendered(session,url,{freshMobile=true}={}){
   const onError=e=>{if(errors.length<3)errors.push(str(e.message).slice(0,140));};
   page.on('pageerror',onError);
   try{
-    const response=await page.goto(url,{waitUntil:'commit',timeout:7800});
+    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:9000});
     const status=response?.status()||0;
     if(status>=400)return {status,html:'',links:[],browser:false};
     if(!response)return {status:0,html:'',links:[],browser:false};
-    await page.waitForLoadState('domcontentloaded',{timeout:4200}).catch(()=>{});
     const ready=await waitForContent(page,3000);
     if(ready)await page.waitForLoadState('load',{timeout:650}).catch(()=>{});
     const desktop=await withDeadline(async ()=>{
@@ -673,7 +674,7 @@ async function rendered(session,url,{freshMobile=true}={}){
     const renderGap=!ready?'The browser did not reach a readable public content state.':
       state.capped?'Browser resource limit was reached.':'';
     const desktopCapped=state.capped;
-    const measureMobile=()=>page.evaluate(()=>{
+    const measureMobile=view=>view.evaluate(()=>{
       const width=document.documentElement.clientWidth||window.innerWidth,small=[],clipped=[],offenders=[];
       const locator=el=>el.id?'#'+el.id.slice(0,40):el.tagName.toLowerCase()+
         (el.classList?.length?'.'+String(el.classList[0]).slice(0,35):'');
@@ -711,41 +712,60 @@ async function rendered(session,url,{freshMobile=true}={}){
       return {width,scrollWidth:documentWidth,small,clipped,offenders};
     });
     let mobile=null,narrow=null,mobileCommerce=null,narrowCommerce=null,mobileGap='';
-    try{
-      await withDeadline(async ()=>{
-        await page.setViewportSize({width:390,height:844});
-        if(freshMobile){
+    let mobileMode='',phonePage=null;
+    const inspectPhone=async view=>{
+      [mobile,mobileCommerce]=await Promise.all([measureMobile(view),captureCommerceSignals(view)]);
+      await view.setViewportSize({width:320,height:780});
+      await view.waitForTimeout(100);
+      [narrow,narrowCommerce]=await Promise.all([measureMobile(view),captureCommerceSignals(view)]);
+    };
+    if(freshMobile&&!desktopCapped){
+      try{
+        phonePage=await withDeadline(()=>session.context.newPage(),1800);
+        await withDeadline(async ()=>{
+          await phonePage.setViewportSize({width:390,height:844});
           state.page=0;
           state.resourceGaps=[];
           state.capped=false;
-          const phoneResponse=await page.goto(url,{waitUntil:'commit',timeout:4800});
-          if(!phoneResponse||phoneResponse.status()>=400)throw new Error('Phone page response unavailable');
-          await page.waitForLoadState('domcontentloaded',{timeout:2300}).catch(()=>{});
-          if(!await waitForContent(page,2400))throw new Error('No readable phone content');
-          await page.waitForLoadState('load',{timeout:500}).catch(()=>{});
-        }else await page.waitForTimeout(120);
-        if(state.capped||!freshMobile&&desktopCapped)throw new Error('Phone rendering resources unavailable');
-        [mobile,mobileCommerce]=await Promise.all([measureMobile(),captureCommerceSignals(page)]);
-        await page.setViewportSize({width:320,height:780});
-        await page.waitForTimeout(100);
-        [narrow,narrowCommerce]=await Promise.all([measureMobile(),captureCommerceSignals(page)]);
-      },freshMobile?10500:2200);
-    }catch{
-      // A failed secondary viewport must keep the desktop DOM and source coverage.
-      mobileGap=mobile?'320px layout could not be checked.':'390px phone content could not be verified.';
+          const phoneResponse=await phonePage.goto(url,{waitUntil:'domcontentloaded',timeout:5400});
+          if(!phoneResponse||phoneResponse.status()>=400)throw new Error('Phone response unavailable');
+          if(!await waitForContent(phonePage,2200))throw new Error('No readable phone content');
+          if(state.capped||state.resourceGaps.length)throw new Error('Phone rendering resources unavailable');
+          await inspectPhone(phonePage);
+          mobileMode='fresh';
+        },8700);
+      }catch{
+        mobileGap=mobile?'320px layout could not be checked.':'Fresh 390px load was unavailable.';
+      }finally{
+        if(phonePage)await withDeadline(()=>phonePage.close(),1100).catch(()=>{});
+      }
     }
+    if(!mobile&&!desktopCapped){
+      try{
+        await withDeadline(async ()=>{
+          await page.setViewportSize({width:390,height:844});
+          await page.waitForTimeout(120);
+          await inspectPhone(page);
+          mobileMode='reflow';
+        },2000);
+      }catch{
+        mobileGap=mobile?'320px layout could not be checked.':'390px phone content could not be verified.';
+      }
+    }
+    if(freshMobile&&mobileGap&&mobileMode==='reflow')
+      mobileGap+=' The rendered desktop page was resized to check phone layout.';
     const combinedCommerce={...commerce,
       mobileActions:mobileCommerce?.actions??null,
       narrowActions:narrowCommerce?.actions??null,
       mobilePriceVisible:mobileCommerce?.hasPrice??null,
       mobilePriceSamples:mobileCommerce?.priceSamples||[],
       mobilePrices:mobileCommerce?.prices||[],
-      mobileCaptured:!!mobileCommerce,
+      mobileCaptured:!!mobileCommerce,mobileMode,
       renderGap,mobileGap,resourceGap
     };
     return {status,html,links,mobile,narrow,visibleText,signals,
-      commerce:ready?combinedCommerce:null,renderGap,mobileGap,resourceGap,
-      headers:await response.allHeaders(),browser:true,errors};
+      commerce:ready?combinedCommerce:null,renderGap,mobileGap,resourceGap,mobileMode,
+      headers:response.headers(),browser:true,errors};
 
   }finally{page.off('pageerror',onError);}
 }
@@ -918,11 +938,20 @@ async function scanSite(input,progress=()=>{}){
       let visit=null,raw=null,fallbackReason='';
       if(session)try{
         const freshMobile=item.via==='start'||priority(item)===0;
-        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(28000,remainingTime()-1100));
+        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(freshMobile?27000:17000,remainingTime()-1100));
       }catch(error){
         fallbackReason=error.message==='Inspection time budget reached'?'The browser exceeded its inspection budget.':'The browser could not load this page.';
-        if(error.message==='Inspection time budget reached'){
-          await session.browser.close().catch(()=>{});
+        if(session.browser.isConnected()&&remainingTime()>5000){
+          const previousPage=session.page;
+          try{
+            await withDeadline(()=>previousPage.close(),1300);
+            session.page=await withDeadline(()=>session.context.newPage(),1800);
+          }catch{
+            await withDeadline(()=>session.browser.close(),1800).catch(()=>{});
+            session=null;
+          }
+        }else{
+          await withDeadline(()=>session.browser.close(),1800).catch(()=>{});
           session=null;
         }
       }
@@ -989,7 +1018,7 @@ async function scanSite(input,progress=()=>{}){
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       const desktop=!!visit.commerce&&!visit.renderGap,phone=desktop&&!!visit.commerce.mobileCaptured;
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length,
-        desktop,phone,narrow:!!visit.narrow&&phone,
+        desktop,phone,narrow:!!visit.narrow&&phone,phoneMode:phone?visit.mobileMode:undefined,
         reason:visit.browser?(visit.renderGap||visit.mobileGap||visit.resourceGap||undefined):fallbackReason});
       if(visit.browser&&visit.commerce)commerceSnapshots.push({
         url:item.url,status:'rendered',entry:item.via==='start',commerce:visit.commerce,
@@ -1005,7 +1034,7 @@ async function scanSite(input,progress=()=>{}){
       }
       if(item.via==='start')await discoverer.activateSitemap();
     }
-  }finally{if(session)await session.browser.close().catch(()=>{});}
+  }finally{if(session)await withDeadline(()=>session.browser.close(),2300).catch(()=>{});}
   // Pages omitted by the bounded full crawl can still have a quick, safe availability check.
   // This is NOT a substitute for fully auditing their content.
   const pendingLinks=[...linkCandidates.values()].filter(item=>
@@ -1089,7 +1118,9 @@ async function scanSite(input,progress=()=>{}){
   issues.length=Math.min(issues.length,250);
   issues.forEach((x,i)=>x.id=i+1);
   const coverage={discovered:discoverer.seen.size,inspected,rendered:renderedCount,sourceOnly:sourceCount,
-    desktop:pages.filter(p=>p.desktop).length,mobile:pages.filter(p=>p.phone).length,narrow:pages.filter(p=>p.narrow).length,
+    desktop:pages.filter(p=>p.desktop).length,mobile:pages.filter(p=>p.phone).length,
+    mobileFresh:pages.filter(p=>p.phoneMode==='fresh').length,
+    narrow:pages.filter(p=>p.narrow).length,
     legal:legalCount,skipped,remaining,discoveryCapped:discoverer.discoveryCapped,findingsLimited,
     limit:LIMIT,complete:complete&&!findingsLimited,elapsedSeconds:Math.round((Date.now()-started)/1000),gaps:pageGaps.slice(0,12)};
   const destinations=[];

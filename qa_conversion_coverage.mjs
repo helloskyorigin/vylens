@@ -23,7 +23,7 @@ const browser=await playwright.launch({
 const before=process.env.VYLENS_BASELINE?await import(pathToFileURL(process.env.VYLENS_BASELINE+'/api/inspect-site.mjs')):null;
 const context=await browser.newContext();
 const page=await context.newPage();
-const session={page,state:{root,rules:[],page:0}};
+const session={page,context,state:{root,rules:[],page:0}};
 const frame=(body,head='')=>'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1">'+
   '<style>body{font:16px sans-serif;color:#141414;background:#fff} a,button{display:inline-block;padding:10px}</style>'+head+
   '</head><body><main>'+body+'</main></body></html>';
@@ -32,9 +32,9 @@ const offer='<h1>Automated site reports for independent merchants</h1>'+
 const snapshots=[];
 const scan=async (path,html)=>{
   const url=new URL(path,root).href;
-  await page.route(url,route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
+  await context.route(url,route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
   const actual=await browserAudit.rendered(session,url);
-  await page.unroute(url);
+  await context.unroute(url);
   assert.ok(actual.browser);
   return {url,status:'rendered',entry:path==='/',commerce:actual.commerce,visit:actual};
 };
@@ -58,7 +58,7 @@ const compare=async (name,snapshot,opts={})=>{
   return next;
 };
 try{
-  await page.route('**/api/public-offer',route=>route.fulfill({json:{heading:'Get a practical website audit'}}));
+  await context.route('**/api/public-offer',route=>route.fulfill({json:{heading:'Get a practical website audit'}}));
   const spa=await scan('/',frame('<div id="app" aria-busy="true">Loading…</div><script>'+
     'setTimeout(async()=>{const data=await fetch("/api/public-offer").then(r=>r.json());'+
     'document.querySelector("main").innerHTML="<h1>"+data.heading+"</h1><p>Analyze your store and get a free website audit with concrete improvements.</p><button>Check My Website Free →</button>";},850);'+
@@ -102,13 +102,19 @@ try{
 
   const phoneFail=await scan('/offer/phone',frame(offer+'<a href="/purchase/basic">Buy now</a><script>'+
     'if(innerWidth<500)document.querySelector("main").textContent="Please wait…";</script>'));
-  assert.equal(phoneFail.commerce.mobileCaptured,false);
+  assert.equal(phoneFail.commerce.mobileMode,'reflow');
+  assert.equal(phoneFail.commerce.mobileCaptured,true);
+  assert.match(phoneFail.visit.mobileGap,/Fresh 390px load was unavailable/);
   const phoneResult=await compare('Unavailable phone render keeps desktop evidence',phoneFail,{coverage:{complete:false,gaps:[
     {path:'/offer/phone',reason:phoneFail.visit.mobileGap}
   ]}});
   assert.ok(phoneResult.strengths.some(x=>x.stage==='action'));
   assert.ok(!phoneResult.blockers.some(x=>x.title.includes('not detected in the mobile')));
   assert.ok(phoneResult.unverified.some(x=>x.includes('390px')));
+  const later=await scan('/offer/after-phone',frame(offer+'<button>Try for free</button>'));
+  assert.equal(later.commerce.mobileMode,'fresh','a later page still gets an independent phone load');
+  assert.ok(later.commerce.actions.some(action=>action.label==='Try for free'));
+
 
   const source=diagnose([],{coverage:{complete:false,sourceOnly:1}});
   assert.equal(source.blockers.length,0);
