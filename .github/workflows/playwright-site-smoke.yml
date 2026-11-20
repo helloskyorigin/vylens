@@ -29,6 +29,7 @@ jobs:
           node --check lib/conversion-engine.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/action-intent.mjs
+          node --check results-showcase.js
           node --check results-five.js
           node --check results-pdf.js
           node --check analysis.js

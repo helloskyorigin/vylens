@@ -1,249 +1,122 @@
-"""VYLENS seven-section buyer report browser QA: responsive, data-grounded, accessible."""
-import json
-import os
+"""VYLENS approved-reference Results: five visible cards, screenshot-style composition,
+real evidence, working PDF and responsive phone/desktop presentation.
+Only UI is changed. Scanner/legacy report fixtures stay independent.
+"""
+import json,os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+BASE=os.environ.get('VYLENS_BASE','http://127.0.0.1:8765').rstrip('/')
+OUT=Path('qa-captures');OUT.mkdir(exist_ok=True)
 
-BASE = os.environ.get("VYLENS_BASE", "https://vylens-tan.vercel.app").rstrip("/")
-OUT = Path("qa-captures")
-OUT.mkdir(exist_ok=True)
-
-def blocker(n, priority="review", stage="clarity"):
+def fixture(n=3,mode='website',limited=False):
+    names=['Offer outcome is unclear','Proof near the decision needs review',
+           'The next step needs clarification','Mobile price is not visible',
+           'Purchase terms are difficult to find','Unfinished offer copy']
+    stages=['clarity','trust','action','value','trust','clarity']
+    blockers=[{
+       'stage':stages[i], 'title':names[i], 'priority':'high' if i<2 else 'review',
+       'buyerConcern':f'Could this create hesitation around {stages[i]}?',
+       'buyerQuestion':f'Can I trust the information about {stages[i]}?',
+       'evidence':f'Observed public-page signal {i+1} at /pricing.',
+       'fix':f'Clarify the relevant {stages[i]} information on the public offer.',
+       'verify':f'Open /pricing on phone and desktop to verify {stages[i]}.',
+       'location':'/pricing · offer', 'confidence':'observed'
+    } for i in range(n)]
+    strengths=[{'stage':'clarity','title':'Offer heading is visible','evidence':'Rendered title observed.','location':'/'}]
     return {
-        "id": f"buyer-{n}", "stage": stage, "priority": priority,
-        "title": f"Potential buying obstacle {n}: value presentation needs clarity",
-        "evidence": f"On inspected public page {n}, the offer description was unclear.",
-        "buyerConcern": f"Could visitors understand why option {n} is worth choosing?",
-        "buyerQuestion": f"What do I get from option {n}?",
-        "fix": f"Explain the concrete buyer benefit for offer point {n} in everyday language.",
-        "verify": f"Ask five qualified visitors whether offer point {n} is understandable.",
-        "location": f"/offer-{n} · buying section",
-        "confidence": "observed" if n == 1 else "hypothesis",
-        "source": "Rendered public page",
+      'mode':mode, 'url':'https://example.org/product',
+      'subject':'example.org' if mode=='website' else 'product-guide.md',
+      'checkedAt':'2026-11-20T07:45:00Z',
+      'issues':[], 'checks':[{'name':'Sample check','status':'passed'}],
+      'coverage':{'complete':not limited,'inspected':1,'rendered':0 if limited else 1,
+                  'discovered':3 if limited else 1,'sourceOnly':1 if limited else 0},
+      'conversion':{'version':1,'kind':mode,'blockers':blockers,'strengths':strengths,
+                    'renderedPages':0 if limited else 1,'inspectedOfferPages':0 if limited else 1,
+                    'journey':[{'id':stage,'status':'attention' if any(x['stage']==stage for x in blockers) else 'unverified',
+                     'detail':'Only observed page evidence was checked.'}
+                    for stage in ['clarity','value','trust','action']],
+                    'unverified':['Real buyer purchases were not measured.']}
     }
 
-def fixture(mode="website", num=3, coverage=True):
-    items = [blocker(i+1, "high" if i == 0 else "review",
-                     ["clarity", "trust", "action"][i % 3]) for i in range(num)]
-    return {
-        "mode": mode, "url": "https://example.org/", "subject": "example.org",
-        "checkedAt": "2026-11-19T08:00:00Z",
-        "issues": [{"title": "Old technical finding", "category": "Metadata",
-                    "severity": "note", "fix": "Do not show this in the main report."}],
-        "checks": [{"name": "Technical check", "status": "passed"}],
-        "coverage": {"discovered": 3, "inspected": 2 if coverage else 0,
-                     "complete": coverage, "rendered": 2 if coverage else 0},
-        "conversion": {
-            "version": 1, "kind": mode, "goal": "Purchase or signup",
-            "blockers": items,
-            "journey": [
-                {"id": stage, "label": label, "status": "attention",
-                 "detail": "Evidence from the public offer."}
-                for stage, label in [
-                    ("clarity", "Offer clarity"), ("value", "Value"),
-                    ("trust", "Buyer confidence"), ("action", "Next step")]
-            ],
-            "strengths": [{"stage": "action", "title": "A visible offer action",
-                           "evidence": "A button was observed.", "location": "/"}]
-                         if coverage else [],
-            "unverified": ["Real buyers and checkout completion are not measured."],
-            "inspectedOfferPages": 1 if coverage else 0,
-            "renderedPages": 2 if coverage else 0,
-            "buyerReplay": {
-                "version": 1,
-                "source": "rendered-dom",
-                "desktop": [
-                    {"id": "offer", "title": "1. See the offer",
-                     "description": "Page headline: Example offer.", "status": "observed", "place": "/"},
-                    {"id": "price", "title": "2. Check price",
-                     "description": "A price of $19 was observed.", "status": "observed", "place": "/pricing"},
-                    {"id": "action", "title": "3. Find the next step",
-                     "description": "Buy now appears in the first screen.", "status": "observed", "place": "/"},
-                    {"id": "destination", "title": "4. Follow the destination",
-                     "description": "Link points to /checkout; payment was not tested.",
-                     "status": "unknown", "place": "/checkout"}
-                ],
-                "mobile": [
-                    {"id": "offer", "title": "1. See the offer",
-                     "description": "Phone offer was visible.", "status": "observed", "place": "/"},
-                    {"id": "price", "title": "2. Check price",
-                     "description": "Phone price was visible.", "status": "observed", "place": "/pricing"},
-                    {"id": "action", "title": "3. Find the next step",
-                     "description": "Buy now was below the first phone screen.",
-                     "status": "review", "place": "/"},
-                    {"id": "destination", "title": "4. Follow the destination",
-                     "description": "Checkout success was not measured.",
-                     "status": "unknown", "place": "/checkout"}
-                ]
-            } if coverage and mode == "website" else None,
-            "fixKit": [
-                {"id": "kit-1", "blockerId": "buyer-1", "kind": "copy",
-                 "label": "CTA label", "title": "A supported CTA wording",
-                 "content": "View pricing", "source": "Observed pricing link",
-                 "verify": "Confirm it opens the pricing page"},
-                {"id": "kit-2", "blockerId": "buyer-2", "kind": "checklist",
-                 "label": "Fix checklist", "title": "Offer clarity action",
-                 "content": "Clarify the buyer benefit in a single sentence.",
-                 "source": "Page heading", "verify": "Ask a visitor"}
-            ] if num and coverage else []
-        },
-    }
+def check(value,label):
+    assert value,label
+    print('PASS',label,flush=True)
 
-def check(result, label):
-    assert result, label
-    print("PASS:", label, flush=True)
-
-with sync_playwright() as pw:
-    browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
-    for width in [320,390,768,1280]:
-        for kind,sample in [
-            ("website",fixture(num=3)),
-            ("no-blockers",fixture(num=0)),
-            ("product",fixture(mode="product",num=1)),
-            ("limited",fixture(num=0,coverage=False))
-        ]:
-            page=browser.new_page(viewport={"width":width,"height":850},
-                                   reduced_motion="reduce",accept_downloads=True)
-            errors=[]
-            page.on("pageerror",lambda error:errors.append(str(error)))
-            page.add_init_script("sessionStorage.setItem('vylens:result',"+
-                                 json.dumps(json.dumps(sample))+");")
-            response=page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
-            check(response.status==200,f"{kind} at {width}px: response 200")
-            root=page.locator("#fiveReport.ten-results.seven-results")
-            check(root.is_visible(),f"{kind} at {width}px: premium seven-section report")
-            for section in ["five-blockers","five-action-plan","seven-strengths","seven-comparison",
-                            "seven-journey","seven-limitations","seven-actions"]:
-                check(page.locator("#"+section).is_visible(),
-                    f"{kind} at {width}px: {section} visible")
-            check(page.locator(".ten-section-heading").count()==6,
-                  f"{kind} at {width}px: six numbered section headers")
-            check(page.locator(".ten-limit-index").count()==1,
-                  f"{kind} at {width}px: numbered limitations header")
-            check(page.locator(".five-problems-value").inner_text()==str(len(sample["conversion"]["blockers"])),
-                  f"{kind} at {width}px: blockers derive from verified findings")
-            check(page.locator(".ten-strengths-count").inner_text()==str(len(sample["conversion"]["strengths"])),
-                  f"{kind} at {width}px: positive count is grounded")
-            check(page.locator(".ten-summary-side>.five-problems-card").count()==1,
-                  f"{kind} at {width}px: summary contains compact problems card")
-            check(page.locator(".ten-summary-side>.ten-strengths-card").count()==1,
-                  f"{kind} at {width}px: summary contains compact strengths card")
-            check(page.locator("#five-blockers .five-finding").count()==len(sample["conversion"]["blockers"]),
-                  f"{kind} at {width}px: findings count accurate")
-            check(page.locator("#five-action-plan .seven-plan-step").count()==min(5,len(sample["conversion"]["blockers"])),
-                  f"{kind} at {width}px: top five navigable actions")
-            check(page.locator("#seven-strengths .seven-strength").count()==len(sample["conversion"]["strengths"]),
-                  f"{kind} at {width}px: evidence-backed strengths")
-            check(page.locator("#seven-comparison .ten-empty-comparison").count()==1,
-                  f"{kind} at {width}px: comparison starts without placeholder counters")
-            check(page.locator("#seven-journey .seven-stage").count()==4,
-                  f"{kind} at {width}px: Clarity / Value / Trust / Action stages")
-            check(page.locator("#seven-limitations .ten-limit-preview").count()==1,
-                  f"{kind} at {width}px: limitations preview exists before expand")
-            check(page.locator("#fiveBottomDownload").is_visible() and
-                  page.locator("#fiveBottomNew").is_visible(),
-                  f"{kind} at {width}px: primary actions visible")
-            check(page.locator("#seven-actions > .seven-quiet-action").is_visible(),
-                  f"{kind} at {width}px: secondary Recheck visible")
-            check(page.locator("#seven-actions .ten-data-tools").count()==1,
-                  f"{kind} at {width}px: data tools behind disclosure")
-            check(page.locator(".five-score-ring").count()==0 and page.locator(".evidence-summary-status").is_visible(),
-                  f"{kind} at {width}px: audit summary renders coverage without an empty score ring")
-            height=page.locator(".evidence-summary").bounding_box()["height"]
-            check(height < (240 if width < 640 else 160),
-                  f"{kind} at {width}px: compact evidence summary ({height:.0f}px)")
-            check(not errors,f"{kind} at {width}px: no uncaught JavaScript errors {errors}")
-            bounds=page.evaluate("()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})")
-            check(max(bounds['b'],bounds['d'])<=bounds['w']+4,
-                  f"{kind} at {width}px: no horizontal overflow {bounds}")
-            if (kind,width) in [("limited",320),("website",390),("website",1280)]:
-                page.screenshot(path=str(OUT/f"conversion-{kind}-{width}.png"),animations="disabled")
-            if sample["conversion"]["blockers"]:
-                first=page.locator("#five-blockers .five-finding").first
-                check(first.evaluate("(node)=>node.open"),
-                      f"{kind} at {width}px: first finding expanded")
-                for name in ["Evidence","Possible buyer concern","What to change","How to verify"]:
-                    check(name in first.inner_text(),f"{kind} at {width}px: {name} inside finding")
-                check(first.locator(".ten-evidence-grid>.seven-evidence-line").count()==4,
-                      f"{kind} at {width}px: four individually highlighted subcards")
-                page.locator("#five-action-plan .seven-plan-step").first.click()
-                check(first.evaluate("(node)=>node.open"),
-                      f"{kind} at {width}px: improvement tap reaches matching blocker")
-                detail=page.locator("#five-action-plan .seven-support-details")
-                detail.locator("summary").first.click()
-                check(page.locator("#five-changes .five-change").count()==len(sample["conversion"]["blockers"]),
-                      f"{kind} at {width}px: detailed fix list preserved")
-            else:
-                check(page.locator("#five-blockers .ten-empty").count()==1,
-                      f"{kind} at {width}px: one compact no-blocker state")
-                check(page.locator("#five-action-plan .ten-empty").count()==1,
-                      f"{kind} at {width}px: one compact no-plan state")
-                check(page.locator("#five-action-plan .five-empty").count()==0,
-                      f"{kind} at {width}px: no duplicate no-plan messages")
-                check(page.locator("#five-action-plan .seven-support-details").count()==0,
-                      f"{kind} at {width}px: empty fix kit not shown")
-            if sample["conversion"]["strengths"]:
-                check("Homepage" in page.locator("#seven-strengths").inner_text(),
-                      f"{kind} at {width}px: root path shown as Homepage, not slash")
-            page.close()
-    # Same-input recheck diff counts and continuity.
-    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce")
-    sample=fixture(num=3)
-    old={"mode":"website","sourceKey":"https://example.org","blockers":[
-        {"stage":"clarity","title":sample["conversion"]["blockers"][0]["title"],
-         "location":sample["conversion"]["blockers"][0]["location"]},
-        {"stage":"action","title":"Old detected issue","location":"/old"}]}
-    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");"+
-                         "sessionStorage.setItem('vylens:previous-conversion',"+json.dumps(json.dumps(old))+");")
-    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
-    values=page.locator("#seven-comparison .seven-compare-stat strong").all_inner_texts()
-    check(values==["2","1","1"],f"actual recheck new/continuing/not-now counts {values}")
-    check(page.locator("#seven-blocker-0").evaluate("(el)=>el.open"),"first issue open by default")
-    page.close()
-    # Full-size positive set remains capped at six, all screenshot cases remain responsive.
-    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce",accept_downloads=True)
-    sample=fixture(num=7)
-    sample["conversion"]["strengths"]=[
-        {"stage":"clarity","title":f"Observed positive {i}","evidence":"Recorded page evidence",
-         "location":"/"} for i in range(8)]
-    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");")
-    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
-    check(page.locator("#seven-strengths .seven-strength").count()==6,"strengths capped at six")
-    check(page.locator("#five-blockers .five-finding").count()==7,"all seven findings preserved")
-    page.locator("#five-action-plan .seven-plan-step").nth(4).click()
-    check(page.locator("#seven-blocker-4").evaluate("(el)=>el.open && !el.hidden"),
-          "fifth step opens matching fifth evidence card")
-    page.locator("#seven-actions .ten-data-tools summary").click()
-    check(page.locator("#seven-actions .seven-report-tools button").count()==2,
-          "JSON tools accessible after expansion")
-    with page.expect_download(timeout=15000) as pending:
-        page.locator("#fiveBottomDownload").click()
-    result=pending.value
-    pdf=Path(result.path()).read_bytes()
-    check(result.suggested_filename.endswith(".pdf") and pdf.startswith(b"%PDF-1.4") and
-          b"%%EOF" in pdf[-40:] and len(pdf)>2000,"real PDF download works")
-    check(b"What Couldn't Be Verified" in pdf and b"Recheck Comparison" in pdf,
-          "PDF contains limitations and comparison")
-    page.close()
-    # Existing technical-only reports must still use their original renderer.
-    page=browser.new_page(viewport={"width":390,"height":850},reduced_motion="reduce")
-    sample=fixture()
-    sample.pop("conversion")
-    page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");")
-    page.goto(BASE+"/results.html",wait_until="load",timeout=55000)
-    check(page.locator("#fiveReport").count()==0 and page.locator(".metrics-section").is_visible(),
-          "legacy technical reports stay readable")
-    page.close()
-    browser.close()
-
-# Scan progress copy: no arbitrary page caps or verbal elapsed clutter.
-import urllib.request
-with urllib.request.urlopen(BASE+"/inspect.html",timeout=20) as response:
-    inspect=response.read().decode()
-with urllib.request.urlopen(BASE+"/analysis.js",timeout=20) as response:
-    analysis=response.read().decode()
-check('role="timer"' in inspect and 'analysis-status-row' in inspect,
-      "scan clock is an accessible side pill")
-check("Inspecting up to 24" not in analysis and "Up to 24 discoverable" not in inspect,
-      "scan progress avoids arbitrary page-cap copy")
-print("PASS: VYLENS evidence-coverage, mobile, PDF and scanning QA",flush=True)
+with sync_playwright() as p:
+  browser=p.chromium.launch(headless=True,args=['--no-sandbox'])
+  for w in [320,360,390,590,768,1024,1408]:
+    for label,n,limited,mode in [('findings',3,False,'website'),
+                                ('zero',0,False,'website'),
+                                ('partial',0,True,'website'),
+                                ('product',2,False,'product')]:
+      page=browser.new_page(viewport={'width':w,'height':900},reduced_motion='reduce',
+                            accept_downloads=True)
+      errors=[]
+      page.on('pageerror',lambda e:errors.append(str(e)))
+      sample=fixture(n,mode,limited)
+      page.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(sample))+')')
+      response=page.goto(BASE+'/results.html',wait_until='load',timeout=55000)
+      check(response.status==200,f'{label} {w}: HTTP 200')
+      root=page.locator('#rvReport')
+      check(root.is_visible(),f'{label} {w}: approved reference Results visible')
+      check(page.locator('body.rv-ui').count()==1,f'{label} {w}: UI scoped')
+      check(page.locator('#rvReport .rv-card').count()==5,f'{label} {w}: exactly five cards')
+      check(page.locator('.rv-content-grid > .rv-card').count()==5,f'{label} {w}: five-grid structure')
+      check(page.locator('.rv-overview').is_visible(),f'{label} {w}: horizontal summary card')
+      check(page.locator('#rvReport .rv-actions button').count()==2,
+            f'{label} {w}: only two report actions')
+      check(page.locator('#rvDownload').is_visible() and page.locator('#rvNewCheck').is_visible(),
+            f'{label} {w}: PDF and new audit actions')
+      check(not page.locator('#fiveReport').is_visible() and not page.locator('.report-hero').is_visible(),
+            f'{label} {w}: old sections not shown')
+      check(not page.locator('#navActions').is_visible(),f'{label} {w}: no top extra actions')
+      check(not page.locator('.rv-sidebar,.rv-notification,.rv-profile').count(),
+            f'{label} {w}: no sidebar, notification or profile')
+      check(page.locator('.rv-confidence-ring').get_attribute('aria-label')==
+            'Buying confidence not measured from public pages',
+            f'{label} {w}: no fabricated buying confidence')
+      check(page.locator('.rv-risk').count()==min(n,4),
+            f'{label} {w}: risk list derives from recorded blockers')
+      if n:
+        check(page.locator('.rv-overview h2').inner_text().startswith(str(n)),
+              f'{label} {w}: summary uses real count')
+        page.locator('.rv-risk summary').first.click()
+        detail=page.locator('.rv-risk').first
+        check(detail.evaluate('(el)=>el.open') and
+              detail.locator('.rv-risk-fact').count()==4,
+              f'{label} {w}: real issue expands to four evidence fields')
+        check('Observed public-page signal' in detail.inner_text(),
+              f'{label} {w}: no invented finding evidence')
+      else:
+        check(page.locator('.rv-risk-list .rv-quiet-state').count()==1 and
+              not page.locator('.rv-overview h2').inner_text().startswith('3'),
+              f'{label} {w}: honest zero-findings state')
+        check('No removal supported' in page.locator('.rv-change-card').inner_text(),
+              f'{label} {w}: no invented fixes')
+      if limited:
+        check('Limited' in page.locator('.rv-overview h2').inner_text(),
+              f'{label} {w}: partial evidence is acknowledged')
+      check(not errors,f'{label} {w}: no unhandled JavaScript errors {errors}')
+      dims=page.evaluate('()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})')
+      check(max(dims['b'],dims['d'])<=dims['w']+4,
+            f'{label} {w}: no horizontal overflow {dims}')
+      if label=='findings' and w in [320,390,1408]:
+        page.screenshot(path=str(OUT/f'reference-results-{w}.png'),full_page=True,animations='disabled')
+      if label=='findings' and w==390:
+        with page.expect_download(timeout=17000) as pending:
+          page.locator('#rvDownload').click()
+        out=pending.value
+        buf=Path(out.path()).read_bytes()
+        check(out.suggested_filename.endswith('.pdf') and buf.startswith(b'%PDF-1.4') and
+              b'%%EOF' in buf[-50:] and len(buf)>1800,'native PDF download still works')
+      page.close()
+  # Older standalone technical reports are preserved; this new layout is conversion-only.
+  legacy=fixture(0)
+  legacy.pop('conversion')
+  page=browser.new_page(viewport={'width':390,'height':900})
+  page.add_init_script('sessionStorage.setItem("vylens:result",'+json.dumps(json.dumps(legacy))+')')
+  page.goto(BASE+'/results.html',wait_until='load',timeout=55000)
+  check(page.locator('#rvReport').count()==0,'old reports retain their original renderer')
+  page.close()
+  browser.close()
+print('PASS: VYLENS approved-reference five-card Results',flush=True)

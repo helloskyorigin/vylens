@@ -60,7 +60,7 @@ with sync_playwright() as playwright:
     check(page.locator('#websiteError').is_visible() and page.url.rstrip('/')==BASE,
           'Website input validation prevents empty audit')
 
-    # Actual file -> native v10 Results -> PDF download -> fresh Product check.
+    # Real uploaded product -> the approved five-card Results -> native PDF -> New Check.
     page.locator('#productTab').click()
     check(page.locator('#productTab').get_attribute('aria-pressed')=='true' and
           page.locator('#productFields').is_visible(),'Product mode changes real form')
@@ -73,60 +73,43 @@ with sync_playwright() as playwright:
     page.wait_for_url(re.compile(r'/results\.html'),timeout=55000)
     check('launch-check.md' in page.locator('#reportSubject').inner_text(),
           'Report identifies uploaded product')
-    check(page.locator('#fiveReport.ten-results.seven-results').is_visible(),
-          'Premium seven-section Results visible on production')
-    check(page.locator('#navDownload').is_visible() and
-          not page.locator('#navRecheck').is_visible(),'Top PDF button without duplicate action')
-    check(page.locator('.ten-summary-side .five-problems-value').inner_text().isdigit() and
-          page.locator('.ten-summary-side .ten-strengths-count').inner_text().isdigit(),
-          'Grounded blocker and strengths summary cards')
-    check(page.locator('#five-blockers .five-finding').count()>=1,
-          'Uploaded product TODO issue appears as blocker')
-    first=page.locator('#five-blockers .five-finding').first
+    check(page.locator('#rvReport').is_visible(),
+          'Reference five-card Results visible on production')
+    check(page.locator('#rvReport .rv-card').count()==5,
+          'Exactly five buyer-facing cards, no extra sections')
+    check(not page.locator('.nav-actions').is_visible() and
+          not page.locator('#fiveReport').is_visible(),
+          'No top extra icons, sidebar or old report sections')
+    check(page.locator('.rv-overview').is_visible() and
+          page.locator('.rv-confidence-ring strong').inner_text()=='—',
+          'Buyer assessment presented without invented confidence score')
+    check(page.locator('.rv-risk').count()>=1,
+          'Real product TODO issue appears among prioritized blockers')
+    first=page.locator('.rv-risk').first
+    first.locator('summary').click()
     check(first.evaluate('(e)=>e.open') and 'TODO' in first.inner_text(),
-          'Priority blocker opens with observed TODO evidence')
-    check(first.locator('.ten-evidence-grid>.seven-evidence-line').count()==4,
-          'Four individually highlighted evidence subcards')
-    check(page.locator('#five-action-plan .seven-plan-step').count()>=1,
-          'Top fixes actionable and grounded')
-    page.locator('#five-action-plan .seven-plan-step').first.click()
-    check(first.evaluate('(e)=>e.open'),'Improvement opens matching evidence')
-    check(page.locator('#seven-journey .seven-stage').count()==4,
-          'Clarity, Value, Trust and Action stages rendered')
-    check(page.locator('#seven-limitations').is_visible(),
-          'Review limitations available on demand')
-    check(page.locator('#seven-comparison .ten-empty-comparison').count()==1,
-          'Three comparison states rendered')
-    check(page.locator('#seven-actions #fiveBottomDownload').is_visible() and
-          page.locator('#seven-actions #fiveBottomNew').is_visible(),
-          'PDF and New Check remain primary actions')
-    check(not page.locator('#conversionReport').is_visible() and
-          not page.locator('#technicalAppendix').is_visible(),
-          'Old dashboard and technical appendix hidden from buyer view')
-    page.locator('#seven-actions .ten-data-tools > summary').click()
-    check(page.locator('#seven-actions .seven-report-tools button').count()==2,
-          'JSON export and import available behind disclosure')
-    check(page.locator('.report-footer a').filter(has_text='Contact').count()==1,
-          'Results footer keeps Contact')
+          'The affected product evidence is visible on expansion')
+    check(first.locator('.rv-risk-fact').count()==4,
+          'Evidence, buyer concern, change and verification visible')
+    check(page.locator('.rv-change-col').count()==3,
+          'Change / Remove / Improve are three separate columns')
+    check(page.locator('#rvDownload').is_visible() and
+          page.locator('#rvNewCheck').is_visible(),
+          'Only two primary report actions')
     with page.expect_download(timeout=16000) as download_event:
-        page.locator('#navDownload').click()
-    download=download_event.value
-    pdf=Path(download.path()).read_bytes()
-    check(download.suggested_filename.endswith('.pdf') and
+        page.locator('#rvDownload').click()
+    downloaded=download_event.value
+    pdf=Path(downloaded.path()).read_bytes()
+    check(downloaded.suggested_filename.endswith('.pdf') and
           pdf.startswith(b'%PDF-1.4') and b'%%EOF' in pdf[-40:] and len(pdf)>1800,
-          'Save PDF downloads valid file instead of opening print dialog')
+          'Download PDF creates a valid document')
     check(b'Buyer Journey Review' in pdf and b"What Couldn't Be Verified" in pdf,
-          'Native PDF includes stages and limitations')
-    page.emulate_media(media='print')
-    check(page.locator('#fiveReport').is_visible() and
-          not page.locator('#printAppendix').is_visible(),
-          'Print layout shows focused Results without legacy appendix')
-    page.emulate_media(media='screen')
+          'Full PDF retains detailed evidence and limitations')
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
-    page.locator('#seven-actions > .seven-quiet-action').click()
+    page.locator('#rvNewCheck').click()
     page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
-    check(page.locator('#productTab').get_attribute('aria-pressed')=='true',
-          'Recheck returns to Product mode')
+    check(page.locator('#websiteTab').is_visible(),
+          'Run New Check returns to the scanner')
 
     # Critical policy/FAQ explanations reflect actual live capabilities.
     page.locator('#faq').scroll_into_view_if_needed()

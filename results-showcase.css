@@ -1,0 +1,288 @@
+/* VYLENS Results · exact five-card composition from approved reference.
+   No sidebar, no notification/profile chrome, no extra Results sections.
+   UI-only: the underlying scan, report and PDF builder are untouched. */
+body.rv-ui{
+  --rv-ink:#171b16;--rv-mute:#717770;--rv-lime:#cafe39;--rv-lime-soft:#eafbaf;
+  --rv-border:#e7ebe5;--rv-card-shadow:0 6px 21px rgba(18,30,16,.045),0 1px 3px rgba(18,30,16,.03);
+  margin:0;background:#fff;color:var(--rv-ink);overflow-x:clip;
+}
+body.rv-ui #main{max-width:1320px!important;width:100%;padding:0 26px 40px!important;margin:0 auto!important}
+body.rv-ui #main > :not(#rvReport){display:none!important}
+body.five-report-ui.rv-ui #fiveReport{display:none!important}
+body.rv-ui .page-header{background:#fff;border-bottom:1px solid #f0f2ee;box-shadow:none;padding:0 22px!important}
+body.rv-ui .floating-nav{
+  width:100%;max-width:1480px;min-height:62px;margin:auto;padding:0 4px;
+  background:#fff;border:0;box-shadow:none;border-radius:0;
+}
+body.rv-ui .nav-actions,body.rv-ui .nav-current,body.rv-ui .nav-divider{display:none!important}
+body.rv-ui .brand{gap:10px}
+body.rv-ui .brand img{width:34px;height:34px;border-radius:9px}
+body.rv-ui .brand strong{font:800 21px/1 var(--head);letter-spacing:-.063em;color:#111511}
+body.rv-ui #rvReport *{box-sizing:border-box}
+body.rv-ui #rvReport{
+  width:100%;display:block;font-family:var(--body);color:var(--rv-ink);
+  padding-top:14px;
+}
+body.rv-ui #rvReport svg{width:20px;height:20px;stroke-width:2}
+body.rv-ui #rvReport p,body.rv-ui #rvReport h1,body.rv-ui #rvReport h2,
+body.rv-ui #rvReport h3{margin:0}
+body.rv-ui #rvReport button,body.rv-ui #rvReport summary{-webkit-tap-highlight-color:transparent}
+body.rv-ui #rvReport button:focus-visible,
+body.rv-ui #rvReport summary:focus-visible,
+body.rv-ui #rvReport a:focus-visible{outline:3px solid #8fbe15;outline-offset:3px}
+
+/* Reference: compact back / thumbnail / page title / timestamp. */
+.rv-meta{padding:2px 0 22px}
+.rv-back{min-height:43px;display:inline-flex;align-items:center;gap:10px;padding:7px 8px;
+  margin:0 0 6px;color:#343b32;font:750 13px/1.3 var(--body);border-radius:9px}
+.rv-back:hover{background:#f4f8ec}
+.rv-back svg{width:17px!important;height:17px!important}
+.rv-meta-lower{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.rv-source{display:flex;align-items:center;gap:17px;min-width:0;flex:1}
+.rv-preview{
+  position:relative;flex:0 0 82px;width:82px;height:53px;overflow:hidden;
+  border:1px solid #e9e7f2;border-radius:12px;background:#e9e5fc;
+  box-shadow:inset 0 -5px 0 #e1def7;transform:translateZ(0)
+}
+.rv-preview-top{height:9px;background:#fff;opacity:.95;border-bottom:1px solid #dcd8ed;position:relative}
+.rv-preview-top:before{content:'';position:absolute;top:3px;left:5px;width:4px;height:4px;
+  border-radius:50%;background:#b7b7ca;box-shadow:7px 0 #d2d2dd,14px 0 #d2d2dd}
+.rv-preview-content{display:flex;flex-direction:column;gap:4px;align-items:center;padding:7px 8px}
+.rv-preview-title{display:block;width:36px;height:4px;border-radius:4px;background:#38354a}
+.rv-preview-line{display:block;width:47px;height:3px;border-radius:4px;background:#c1bddb}
+.rv-preview-tiles{display:block;width:55px;height:13px;border:3px solid #fff;
+  border-radius:4px;background:linear-gradient(90deg,#d1c6ff 0 55%,#b4aaff 55%)}
+.rv-source-text{min-width:0}
+.rv-source-text h1{font:800 clamp(14px,1.65vw,17px)/1.3 var(--head);letter-spacing:-.04em;color:#171a15}
+.rv-source-url{color:#7f837f;font:550 12.2px/1.45 var(--body);min-width:0;margin-top:3px}
+.rv-source-url a{display:inline-flex;align-items:center;max-width:100%;gap:6px;color:#6c6d6b;
+  overflow-wrap:anywhere;word-break:break-word}
+.rv-source-url svg{width:12px!important;height:12px!important;flex:0 0 12px;stroke-width:1.8}
+.rv-source-url a:hover{text-decoration:underline;color:#345f21}
+.rv-time{display:flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;
+  color:#777b75;font:600 12.5px/1.5 var(--body)}
+.rv-time svg{width:16px!important;height:16px!important;stroke-width:1.8}
+
+/* Reference: one prominent, horizontal summary with a dividing line. */
+.rv-overview{
+  display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.8fr);align-items:center;
+  background:#fff;min-height:151px;gap:0;border:1px solid var(--rv-border);
+  border-radius:23px;box-shadow:var(--rv-card-shadow);padding:24px 25px;margin:0 0 21px;
+}
+.rv-overview-left{display:flex;align-items:center;gap:26px;min-width:0;padding:2px 25px 2px 5px}
+.rv-overview-icon,.rv-card-icon{display:grid;place-items:center;flex:0 0 auto;color:#19251a;
+  background:#e3ffaa;border-radius:16px}
+.rv-overview-icon{height:70px;width:70px}
+.rv-overview-icon svg{width:36px!important;height:36px!important;stroke-width:1.9}
+.rv-overview-copy{min-width:0}
+.rv-overview-copy h2{font:850 clamp(21px,2.55vw,33px)/1.2 var(--head);
+  letter-spacing:-.065em;color:#151916;overflow-wrap:anywhere}
+.rv-overview-copy .rv-accent{color:#80c000}
+.rv-overview-copy p{margin-top:6px!important;font:500 13.2px/1.6 var(--body);color:#687067;max-width:640px}
+.rv-confidence{display:flex;align-items:center;gap:18px;border-left:1px solid #e7eae5;
+  padding:2px 0 2px 32px;min-height:110px;min-width:0}
+.rv-confidence-ring{position:relative;display:grid;place-items:center;width:115px;height:115px;
+  flex:0 0 115px;border-radius:50%;background:#e7eae7}
+.rv-confidence-ring:before{content:'';position:absolute;inset:15px;border-radius:50%;background:#fff}
+.rv-confidence-ring strong{position:relative;z-index:1;font:850 34px/1 var(--head);letter-spacing:-.07em}
+.rv-confidence-copy{min-width:0}
+.rv-confidence-copy h3{font:800 16px/1.3 var(--head);letter-spacing:-.03em;color:#1c211a}
+.rv-confidence-pill{display:inline-flex;margin-top:7px;border-radius:99px;
+  background:#eef2ea;color:#596655;padding:4px 11px;font:750 10.6px/1.3 var(--body)}
+.rv-confidence-copy p{margin-top:7px!important;color:#727a71;font:500 11.2px/1.55 var(--body)}
+.rv-overview-limited .rv-overview-copy h2{font-size:clamp(21px,2.25vw,29px)}
+
+/* Exactly 3 cards on first row + a wide card and narrow card on second row. */
+.rv-content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:19px;align-items:stretch}
+.rv-card{border-radius:22px;border:1px solid #e7ebe5;box-shadow:var(--rv-card-shadow);
+  background:#fff;padding:22px 20px 23px;min-width:0;min-height:235px;
+  display:flex;flex-direction:column}
+.rv-card-heading{display:flex;align-items:flex-start;gap:13px;min-width:0;margin-bottom:14px}
+.rv-card-icon{width:43px;height:43px;flex:0 0 43px;border-radius:11px}
+.rv-card-icon svg{width:21px!important;height:21px!important;stroke-width:1.9}
+.rv-card-title-group{min-width:0}
+.rv-card-title-group h2{font:800 clamp(16px,1.65vw,20px)/1.28 var(--head);
+  letter-spacing:-.047em;color:#181b16}
+.rv-card-title-group p{color:#7b807b;font:500 11.8px/1.47 var(--body);margin-top:4px!important}
+.rv-reasons,.rv-needs,.rv-risk-list{margin-top:2px;display:flex;flex-direction:column;gap:7px}
+.rv-reason,.rv-need{display:flex;align-items:flex-start;gap:11px;min-width:0;
+  min-height:33px;padding:5px 1px;font:650 12.3px/1.5 var(--body);color:#2c332a}
+.rv-reason strong{font-weight:700;min-width:0}
+.rv-check{display:grid;place-items:center;flex:0 0 26px;width:26px;height:26px;
+  border-radius:50%;background:#effbcf;color:#3e6327}
+.rv-check svg{width:15px!important;height:15px!important;stroke-width:2.3}
+.rv-quiet-state{margin-top:3px;border:1px solid #edf0eb;border-radius:14px;
+  background:#f9faf7;padding:15px;color:#677264}
+.rv-quiet-state strong{display:block;font:800 12px/1.4 var(--body);color:#3a4436}
+.rv-quiet-state p{font:500 11px/1.55 var(--body);margin-top:5px!important}
+.rv-need{align-items:center;gap:9px;min-height:30px;padding:3px 0}
+.rv-need>span:nth-child(2){flex:1;min-width:0}
+.rv-need-review{flex:0 0 auto;border-radius:8px;background:#fff2dd;
+  color:#956330;font-size:9px;font-weight:800;padding:4px 7px}
+.rv-card-footnote{margin-top:auto!important;padding-top:9px;font:500 10.5px/1.5 var(--body);color:#8a9386}
+
+/* Ranked lines expand to real evidence/fix rather than just show generic text. */
+.rv-risk-list{gap:0;margin-top:0}
+.rv-risk{border-bottom:1px solid #eef0ec;min-width:0}
+.rv-risk:last-child{border-bottom:0}
+.rv-risk-summary{display:flex;align-items:center;gap:9px;cursor:pointer;
+  list-style:none;padding:8px 0;min-height:38px}
+.rv-risk-summary::-webkit-details-marker{display:none}
+.rv-risk-summary:hover .rv-risk-name{color:#507e23}
+.rv-risk-number{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;
+  border-radius:50%;background:#f2f3f0;color:#536050;font:800 11px/1 var(--body)}
+.rv-risk-name{flex:1;min-width:0;font:700 12.2px/1.45 var(--body);color:#31382f;overflow-wrap:anywhere}
+.rv-risk-priority{padding:4px 9px;border-radius:9px;font:800 10px/1.2 var(--body);white-space:nowrap}
+.rv-risk-priority.is-high{background:#ffe7e7;color:#b14249}
+.rv-risk-priority.is-review{background:#fff1d5;color:#94652b}
+.rv-risk-chevron{width:14px!important;height:14px!important;color:#a0a69b;flex:0 0 14px}
+.rv-risk[open] .rv-risk-chevron{transform:rotate(180deg)}
+.rv-risk-detail{padding:3px 0 13px 35px}
+.rv-risk-fact{background:#f8faf6;border:1px solid #edf0e9;border-radius:10px;
+  padding:9px 11px;margin:7px 0;min-width:0}
+.rv-risk-fact b{display:block;font:800 10px/1.4 var(--body);color:#3a5430}
+.rv-risk-fact p{margin-top:3px!important;font:500 11.1px/1.55 var(--body);color:#62705b;overflow-wrap:anywhere}
+.rv-risk-detail small{font-size:10px;color:#859183;overflow-wrap:anywhere}
+
+/* Under the three top cards: wide actionable columns and compact decision review. */
+.rv-change-card{grid-column:span 2;min-height:246px}
+.rv-decision-card{grid-column:span 1;min-height:246px}
+.rv-change-card .rv-card-heading,.rv-decision-card .rv-card-heading{margin-bottom:16px}
+.rv-change-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;min-width:0}
+.rv-change-col{min-width:0;padding:0 13px}
+.rv-change-col:first-child{padding-left:0}
+.rv-change-col:last-child{padding-right:0}
+.rv-change-col+.rv-change-col{border-left:1px solid #ecefe9}
+.rv-change-strip{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;
+  font:800 12.3px/1.25 var(--body);color:#283221;letter-spacing:-.01em}
+.rv-change-strip svg{width:16px!important;height:16px!important}
+.rv-change-strip.rv-change{background:#edffd5}
+.rv-change-strip.rv-remove{background:#fff0f0;color:#8c3d3b}
+.rv-change-strip.rv-improve{background:#e9ffed}
+.rv-change-list{margin:11px 0 0;padding:0 2px 0 19px;font:500 11.2px/1.52 var(--body);
+  color:#505a4b;overflow-wrap:anywhere}
+.rv-change-list li{margin:0 0 8px}
+.rv-change-list .rv-change-none{color:#90998a}
+.rv-decision-banner{display:flex;align-items:center;gap:11px;
+  border-radius:12px;background:#fff1d3;color:#342b12;padding:13px 12px}
+.rv-decision-banner svg{color:#ba8a11;flex:0 0 22px;width:22px!important;height:22px!important}
+.rv-decision-banner strong{font:800 14px/1.35 var(--head);letter-spacing:-.025em}
+.rv-decision-banner.rv-decision-neutral{background:#f4f6f1;color:#344031}
+.rv-decision-banner.rv-decision-neutral svg{color:#65775b}
+.rv-decision-copy{color:#747b72!important;font:500 12.2px/1.7 var(--body);
+  margin-top:16px!important;overflow-wrap:anywhere}
+
+/* Reference: just two bottom actions. */
+.rv-actions{display:flex;align-items:stretch;justify-content:center;gap:18px;margin:32px auto 23px}
+.rv-actions button{display:flex;align-items:center;justify-content:center;gap:18px;
+  min-height:68px;width:min(100%,335px);border-radius:17px;padding:11px 20px;
+  transition:transform .14s ease,box-shadow .14s ease}
+.rv-actions button:hover{transform:translateY(-2px);box-shadow:0 5px 14px rgba(13,24,12,.08)}
+.rv-actions svg{width:24px!important;height:24px!important;flex:0 0 24px;stroke-width:2.1}
+.rv-actions button>span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.rv-actions button strong{font:800 15px/1.2 var(--head);letter-spacing:-.028em}
+.rv-actions button small{font:500 10.4px/1.35 var(--body)}
+.rv-primary{background:#caff2e;color:#141c0c;border:1px solid #c2f326;
+  box-shadow:0 6px 13px rgba(122,179,37,.14)}
+.rv-primary small{color:#3d5d12}
+.rv-secondary{border:1px solid #d9e0d6;background:#fff;color:#222820;
+  box-shadow:0 3px 12px rgba(12,24,10,.03)}
+.rv-secondary small{color:#737d6f}
+
+@media(min-width:1600px){
+ body.rv-ui #main{max-width:1360px!important}
+ .rv-overview{padding:28px 29px}
+ .rv-card{padding:25px 24px}
+}
+@media(max-width:1070px){
+ .rv-overview{grid-template-columns:minmax(0,1.1fr) minmax(260px,.8fr);padding:22px}
+ .rv-overview-left{gap:16px;padding-right:18px}
+ .rv-confidence{gap:13px;padding-left:20px}
+ .rv-confidence-ring{width:94px;height:94px;flex-basis:94px}
+ .rv-confidence-ring:before{inset:13px}
+ .rv-card{padding:18px 15px;min-height:240px}
+ .rv-card-heading{gap:10px}
+ .rv-card-icon{width:38px;height:38px;flex-basis:38px}
+ .rv-card-title-group h2{font-size:16px}
+ .rv-card-title-group p{font-size:11px}
+ .rv-change-col{padding:0 9px}
+ .rv-change-list{font-size:10.9px}
+}
+@media(max-width:820px){
+ body.rv-ui #main{padding:0 18px 30px!important}
+ .rv-overview{grid-template-columns:1fr;gap:18px;padding:20px}
+ .rv-overview-left{padding:0}
+ .rv-confidence{border-left:0;border-top:1px solid #e9ede7;padding:17px 0 0;min-height:0}
+ .rv-content-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .rv-change-card{grid-column:span 2}
+ .rv-decision-card{grid-column:span 2;min-height:175px}
+ .rv-card{min-height:210px}
+ .rv-card-title-group h2{font-size:17px}
+}
+@media(max-width:590px){
+ body.rv-ui .page-header{padding:0 17px!important}
+ body.rv-ui .floating-nav{min-height:60px}
+ body.rv-ui #main{padding:0 13px 25px!important}
+ body.rv-ui #rvReport{padding-top:6px}
+ .rv-meta{padding-bottom:17px}
+ .rv-back{margin-bottom:6px}
+ .rv-meta-lower{align-items:flex-start;gap:8px}
+ .rv-source{gap:10px}
+ .rv-preview{width:64px;height:45px;flex-basis:64px}
+ .rv-preview-content{padding:5px}
+ .rv-preview-tiles{width:44px}
+ .rv-source-text h1{font-size:14px}
+ .rv-source-url{font-size:11px}
+ .rv-time{font-size:10px;gap:3px;align-items:flex-start}
+ .rv-time svg{width:13px!important;height:13px!important}
+ .rv-overview{padding:19px 15px;border-radius:18px;gap:17px;margin-bottom:13px}
+ .rv-overview-left{gap:11px;align-items:flex-start}
+ .rv-overview-icon{width:48px;height:48px;border-radius:12px}
+ .rv-overview-icon svg{width:27px!important;height:27px!important}
+ .rv-overview-copy h2{font-size:clamp(19px,5.3vw,25px);letter-spacing:-.047em}
+ .rv-overview-copy p{font-size:11.8px}
+ .rv-confidence{padding-top:12px;gap:13px}
+ .rv-confidence-ring{width:75px;height:75px;flex-basis:75px}
+ .rv-confidence-ring:before{inset:12px}
+ .rv-confidence-ring strong{font-size:25px}
+ .rv-confidence-copy h3{font-size:14px}
+ .rv-confidence-copy p{font-size:10.6px}
+ .rv-content-grid{display:flex;flex-direction:column;gap:13px}
+ .rv-card{min-height:0;padding:19px 16px;border-radius:18px}
+ .rv-card-heading{margin-bottom:13px}
+ .rv-card-icon{width:39px;height:39px;flex-basis:39px}
+ .rv-card-title-group h2{font-size:17.5px}
+ .rv-card-title-group p{font-size:11.5px}
+ .rv-change-grid{grid-template-columns:1fr;gap:11px}
+ .rv-change-col{border:0!important;padding:0!important}
+ .rv-change-strip{padding:8px 11px}
+ .rv-change-list{font-size:11.6px;margin-top:8px;margin-bottom:0}
+ .rv-decision-copy{font-size:11.8px;margin-top:11px!important}
+ .rv-actions{gap:10px;margin:22px 0 17px}
+ .rv-actions button{min-height:64px;padding:11px 8px;gap:7px;border-radius:13px}
+ .rv-actions button strong{font-size:12px}
+ .rv-actions button small{font-size:9.3px}
+ .rv-actions svg{width:19px!important;height:19px!important;flex-basis:19px}
+}
+@media(max-width:360px){
+ .rv-meta-lower{flex-wrap:wrap}
+ .rv-time{padding-left:74px;flex:1}
+ .rv-overview-copy h2{font-size:19px}
+ .rv-card-heading{gap:10px}
+ .rv-card-title-group h2{font-size:16px}
+ .rv-risk-summary{gap:5px}
+ .rv-risk-priority{font-size:9px;padding:4px 6px}
+ .rv-actions button small{font-size:8.8px}
+}
+@media(prefers-reduced-motion:reduce){
+ body.rv-ui #rvReport *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+@media print{
+ body.rv-ui #main{max-width:none!important}
+ body.rv-ui #main > :not(#rvReport){display:none!important}
+ body.rv-ui .page-header,.rv-meta,.rv-actions{display:none!important}
+ .rv-report{padding:0!important}
+ .rv-overview,.rv-card{break-inside:avoid;box-shadow:none!important;border-color:#ddd!important}
+ .rv-content-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .rv-change-card,.rv-decision-card{grid-column:span 2}
+}

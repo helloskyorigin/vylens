@@ -1,85 +1,45 @@
-"""Seven-section VYLENS Results browser regression using synthetic report data.
-Run with VYLENS_BASE=http://127.0.0.1:8000 python qa_seven_results.py
-Run a local server in the repository root; PDF, browser state and UI are tested without scanning a real site.
-"""
-import json
-import os
+"""Reference five-card Results regression using a fuller set of grounded findings."""
+import os,json
 from playwright.sync_api import sync_playwright
-
-BASE=os.environ.get("VYLENS_BASE","http://127.0.0.1:8000").rstrip("/")
-stages=["clarity","value","trust","action"]
-blockers=[
-    {"stage":stages[i%4],"title":f"Example source-backed blocker {i+1}",
-     "priority":"high" if i<3 else "review",
-     "source":"Rendered public page","location":f"/offer/section-{i+1}",
-     "evidence":f"Visible observation {i+1}",
-     "buyerConcern":f"A possible customer question about issue {i+1}",
-     "fix":f"Clarify the visible action for issue {i+1}",
-     "verify":f"Recheck the public page for issue {i+1}."}
-    for i in range(7)
-]
-report={
-    "mode":"website","url":"https://example.org/","subject":"example.org",
-    "checkedAt":"2026-11-20T00:00:00Z","issues":[],"checks":[],
-    "coverage":{"complete":False},
-    "conversion":{"version":1,"goal":"Signup","renderedPages":1,
-       "blockers":blockers,
-       "strengths":[{"title":f"Positive observation {i+1}",
-          "evidence":f"Recorded support {i+1}","stage":stages[i%4]}
-          for i in range(6)],
-       "unverified":["Checkout completion was not checked."],
-       "journey":[{"id":stage,"status":"observed" if i%2 else "attention",
-          "detail":f"Observed {stage} detail."} for i,stage in enumerate(stages)]
-    }
-}
-previous={"mode":"website","sourceKey":"https://example.org","blockers":[
-    {"stage":blockers[0]["stage"],"title":blockers[0]["title"],"location":blockers[0]["location"]},
-    {"stage":"trust","title":"Older observation","location":"/pricing"}
-]}
-def check(result,label):
-    assert result,label
-    print("PASS:",label,flush=True)
-with sync_playwright() as playwright:
-    browser=playwright.chromium.launch(headless=True,args=["--no-sandbox"])
-    for width in [320,390,768,1280]:
-        page=browser.new_page(viewport={"width":width,"height":850},reduced_motion="reduce")
-        init="sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(report))+");"+\
-          "sessionStorage.setItem('vylens:previous-conversion',"+json.dumps(json.dumps(previous))+");"
-        page.add_init_script(init)
-        errors=[]
-        page.on("pageerror",lambda error:errors.append(str(error)))
-        response=page.goto(BASE+"/results.html",wait_until="load",timeout=45000)
-        check(response.status==200,f"results loads at {width}px")
-        root=page.locator("#fiveReport.seven-results")
-        check(root.count()==1,f"seven-section script active at {width}px")
-        for section in ["five-blockers","five-action-plan","seven-strengths","seven-comparison",
-                        "seven-journey","seven-limitations","seven-actions"]:
-            check(page.locator("#"+section).count()==1,f"{section} exists at {width}px")
-        check(page.locator("#five-blockers .five-finding").count()==7,"seven grounded findings")
-        check(page.locator("#five-action-plan .seven-plan-step").count()==5,"exactly five actions")
-        check(page.locator("#seven-strengths .seven-strength").count()==6,"all six positive signals")
-        check(page.locator("#seven-comparison .seven-compare-stat").count()==3,"three comparable-scan states")
-        check(page.locator("#seven-comparison .seven-change-list").filter(has_text="Could not reassess").count()==1,
-              "an unmatched finding with unavailable coverage remains unverified")
-        check(page.locator("#seven-comparison .seven-compare-stat strong").all_inner_texts()==["6","1","0"],
-              "coverage gap is not counted as a removed finding")
-        check(page.locator("#seven-journey .seven-stage").count()==4,"four buyer journey stages")
-        check(page.locator("#seven-limitations .seven-limit-body p").count()>=1,"unverified areas present")
-        check(page.locator("#seven-blocker-0").evaluate("(e)=>e.open"),"most important finding expanded")
-        check("Possible buyer concern" in page.locator("#seven-blocker-0").inner_text(),"buyer concern visible")
-        check("What to change" in page.locator("#seven-blocker-0").inner_text(),"recommended change visible")
-        page.locator("#five-action-plan .seven-plan-step").nth(4).click()
-        check(page.locator("#seven-blocker-4").evaluate("(e)=>e.open && !e.hidden"),
-              "fifth action opens fifth finding")
-        check(page.locator("#fiveBottomDownload").count()==1 and
-              page.locator("#fiveBottomNew").count()==1,"PDF and New Check retained")
-        check(page.locator(".seven-quiet-action").count()==3,"Recheck and JSON export/import present")
-        check(page.evaluate("()=>{const p=window.VylensPdfDownload?.build();return p?.bytes?.length>1000&&String.fromCharCode(...p.bytes.slice(0,5))==='%PDF-'}"),
-              "downloadable PDF bytes generated")
-        check(not errors,f"no unhandled JS exceptions at {width}px: {errors}")
-        dims=page.evaluate("()=>({viewport:innerWidth,body:document.body.scrollWidth,doc:document.documentElement.scrollWidth})")
-        check(max(dims["body"],dims["doc"])<=dims["viewport"]+4,
-              f"no horizontal overflow at {width}px: {dims}")
-        page.close()
-    browser.close()
-print("PASS: Seven-section Results UI regression")
+BASE=os.environ.get("VYLENS_BASE","http://127.0.0.1:8765").rstrip("/")
+blockers=[{
+ "title":f"Potential buyer barrier {i+1}","stage":['clarity','trust','action','value'][i%4],
+ "priority":"high" if i<2 else "review","evidence":f"Observed public source {i+1}",
+ "buyerConcern":f"Potential concern {i+1}","fix":f"Review observed issue {i+1}",
+ "verify":f"Verify issue {i+1} on the live page","location":f"/offer/{i+1}"
+} for i in range(6)]
+sample={"mode":"website","subject":"example.org","url":"https://example.org/product",
+ "issues":[],"checks":[{"name":"Evidence checked","status":"passed"}],
+ "coverage":{"discovered":1,"inspected":1,"rendered":1,"complete":True},
+ "conversion":{"version":1,"kind":"website","renderedPages":1,"inspectedOfferPages":1,
+ "blockers":blockers,"strengths":[{"title":"Positive evidence","stage":"action","evidence":"Observed source"}],
+ "journey":[{"id":s,"status":"attention","detail":"Observed source"} for s in ["clarity","value","trust","action"]],
+ "unverified":["Actual sales were not measured."]}}
+def check(ok,message):
+ assert ok,message
+ print("PASS",message,flush=True)
+with sync_playwright() as p:
+ browser=p.chromium.launch(headless=True,args=["--no-sandbox"])
+ for width in [320,390,768,1280]:
+  page=browser.new_page(viewport={"width":width,"height":860},reduced_motion="reduce")
+  page.add_init_script("sessionStorage.setItem('vylens:result',"+json.dumps(json.dumps(sample))+");")
+  response=page.goto(BASE+"/results.html",wait_until="load",timeout=45000)
+  check(response.status==200,f"Results loads {width}px")
+  check(page.locator("#rvReport").is_visible(),f"Reference design visible {width}px")
+  check(page.locator(".rv-card").count()==5,f"Exactly five cards {width}px")
+  check(page.locator(".rv-risk").count()==4,f"Four top ranked entries {width}px")
+  check(page.locator(".rv-reason").count()==3,f"Three buyer concerns {width}px")
+  check(page.locator(".rv-change-col").count()==3,f"Change Remove Improve columns {width}px")
+  check(page.locator(".rv-confidence-ring strong").inner_text()=="—",
+       f"No invented confidence percent {width}px")
+  check(not page.locator(".nav-actions").is_visible(),f"No profile/notification toolbar {width}px")
+  bounds=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
+  check(max(bounds[1:])<=bounds[0]+4,f"No horizontal overflow {width}px")
+  page.locator(".rv-risk").first.locator("summary").click()
+  check(page.locator(".rv-risk").first.evaluate("(e)=>e.open"),
+        f"Buyer finding expands {width}px")
+  check(page.locator(".rv-risk").first.locator(".rv-risk-fact").count()==4,
+        f"Evidence detail sections {width}px")
+  page.close()
+ browser.close()
+print("PASS: reference five-card VYLENS Results")
