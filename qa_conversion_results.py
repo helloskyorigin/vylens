@@ -14,7 +14,7 @@ def fixture(n=3,mode='website',limited=False):
            'Purchase terms are difficult to find','Unfinished offer copy']
     stages=['clarity','trust','action','value','trust','clarity']
     blockers=[{
-       'stage':stages[i], 'title':names[i], 'priority':'high' if i<2 else 'review',
+       'id':f'finding-{i}', 'stage':stages[i], 'title':names[i], 'priority':'high' if i<2 else 'review',
        'buyerConcern':f'Could this create hesitation around {stages[i]}?',
        'buyerQuestion':f'Can I trust the information about {stages[i]}?',
        'evidence':f'Observed public-page signal {i+1} at /pricing.',
@@ -89,18 +89,44 @@ with sync_playwright() as p:
               f'{label} {w}: buyer consequence is not duplicate technical finding')
         check(page.locator('.rv-first-action').count()==1,
               f'{label} {w}: top recommended action immediately visible')
+        check(page.locator('.rv-first-action .rv-jump').count()==1,
+              f'{label} {w}: top action has direct evidence link')
+        page.locator('.rv-first-action .rv-jump').click()
+        check(page.locator('.rv-risk').first.evaluate('(node)=>node.open') and
+              page.evaluate('()=>document.activeElement?.closest(".rv-risk")?.id')=='rv-finding-1',
+              f'{label} {w}: summary jumps to, expands and focuses correct first finding')
+        page.locator('.rv-risk summary').first.click()
         page.locator('.rv-reason-head').first.click()
+        check(page.locator('.rv-reason-body .rv-jump').first.is_visible(),
+              f'{label} {w}: buyer hesitation links back to matching finding')
+        page.locator('.rv-reason-body .rv-jump').first.click()
+        check(page.locator('.rv-risk').first.evaluate('(node)=>node.open'),
+              f'{label} {w}: buyer hypothesis opens supporting original finding')
         check(page.locator('.rv-reason-body').first.is_visible() and
               'Observed public-page signal' in page.locator('.rv-reason-body').first.inner_text(),
               f'{label} {w}: buyer-facing concern expands to actual observed evidence')
         check(page.locator('.rv-need-head').count()==4,
               f'{label} {w}: all four decision criteria present')
+        page.locator('.rv-need.rv-need-review summary').first.click()
+        check(page.locator('.rv-need-detail .rv-jump').first.is_visible(),
+              f'{label} {w}: reviewed buyer need links to evidence')
         check(page.locator('.rv-test-question').count()==1,
               f'{label} {w}: skeptical-buyer question replaces generic repeated summary')
         check(page.locator('.rv-change-col').count()>=1 and
               page.locator('.rv-change-none').count()==0,
               f'{label} {w}: actionable categories only; empty headings hidden')
-        page.locator('.rv-risk summary').first.click()
+        check(page.locator('.rv-change-item > .rv-jump').count()>=1,
+              f'{label} {w}: actionable fix can navigate to the source finding')
+        page.locator('.rv-change-item > .rv-jump').first.click()
+        check(page.locator('.rv-risk').first.evaluate('(node)=>node.open'),
+              f'{label} {w}: fix link opens evidence without duplicate report data')
+        if n>=2:
+          page.locator('.rv-risk').nth(1).locator('summary').click()
+          check(page.locator('.rv-risk').nth(1).evaluate('(node)=>node.open') and
+                not page.locator('.rv-risk').first.evaluate('(node)=>node.open'),
+                f'{label} {w}: only one finding expanded at a time')
+        if not page.locator('.rv-risk').first.evaluate('(node)=>node.open'):
+          page.locator('.rv-risk summary').first.click()
         detail=page.locator('.rv-risk').first
         check(detail.evaluate('(el)=>el.open') and
               detail.locator('.rv-risk-fact').count()==4,

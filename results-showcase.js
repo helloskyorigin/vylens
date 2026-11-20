@@ -22,6 +22,7 @@
   const add=(parent,...children)=>{for(const el of children)if(el)parent.append(el);return parent;};
   const icons={
     arrow:'<path d="M20 12H4m7-7-7 7 7 7"/>',
+    forward:'<path d="M4 12h16m-7-7 7 7-7 7"/>',
     target:'<circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="4"/><path d="m13 11 8-8m-5 0h5v5"/>',
     people:'<circle cx="9" cy="8" r="3"/><path d="M2.5 20v-2.5A4.5 4.5 0 0 1 7 13h4a4.5 4.5 0 0 1 4.5 4.5V20M17 6a3 3 0 0 1 0 6m1.5 2c2.2.3 3.5 2 3.5 4v2"/>',
     lightning:'<path d="M13 2 5 13h6l-1 9 9-12h-6l0-8Z"/>',
@@ -100,6 +101,25 @@
   };
   const issueKey=item=>clean(item.findingId||item.id||item.fingerprint||
     [item.stage,item.title,item.location].join('|'),230).toLowerCase();
+  // Connect separate sections to the *same* inspected finding.
+  // This avoids five unrelated cards and preserves the underlying evidence.
+  const riskNodes=[];
+  const openFinding=(key,index=0)=>{
+    const chosen=riskNodes.find(x=>key&&x.key===key)||riskNodes[index]||riskNodes[0];
+    if(!chosen)return;
+    for(const x of riskNodes)if(x!==chosen)x.node.open=false;
+    chosen.node.open=true;
+    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    chosen.node.scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'});
+    chosen.node.querySelector('summary')?.focus({preventScroll:true});
+  };
+  const jump=(label,key,index=0)=>{
+    const control=make('button','rv-jump');
+    control.type='button';
+    control.append(make('span','',label),icon('forward'));
+    control.addEventListener('click',()=>openFinding(key,index));
+    return control;
+  };
 
   const result=make('section','rv-report');
   result.id='rvReport';
@@ -172,7 +192,8 @@
   if(headingCount&&clean(findings[0]?.fix)){
     const priority=make('div','rv-first-action');
     add(priority,make('span','rv-first-label','START HERE'),
-      make('strong','',clean(findings[0].fix,170)));
+      make('strong','',clean(findings[0].fix,170)),
+      jump('View top finding',issueKey(findings[0]),0));
     copy.append(priority);
   }
   overviewLeft.append(target,copy);
@@ -226,6 +247,7 @@
       }
       body.append(make('small','rv-hypothesis-note',
         'Possible hesitation, not observed customer behavior.'));
+      body.append(jump('See evidence and fix',issueKey(item),i));
       node.append(summary,body);reasonList.append(node);
     });
   }else reasonList.append(add(make('div','rv-quiet-state'),
@@ -244,6 +266,11 @@
       intelligence.biggestSalesKillers:findings;
     killers.slice(0,4).forEach((item,i)=>{
       const node=make('details','rv-risk');
+      node.id='rv-finding-'+(i+1);
+      riskNodes.push({key:issueKey(item),node});
+      node.addEventListener('toggle',()=>{
+        if(node.open)for(const other of riskNodes)if(other.node!==node)other.node.open=false;
+      });
       const row=make('summary','rv-risk-summary');
       add(row,make('span','rv-risk-number',String(i+1)),
         make('strong','rv-risk-name',clean(item.title,96)),
@@ -258,7 +285,8 @@
         if(clean(value))body.append(add(make('div','rv-risk-fact'),
           make('b','',label),make('p','',value)));
       }
-      if(clean(item.location))body.append(make('small','',clean(item.location,110)));
+      if(clean(item.location))body.append(make('span','rv-issue-location',
+        'Affected: '+clean(item.location,110)));
       node.append(body);riskList.append(node);
     });
   }else riskList.append(add(make('div','rv-quiet-state'),
@@ -309,6 +337,11 @@
     why.append(make('p','',item.why||'Evidence does not establish this buying criterion.'));
     if(clean(item.evidence))why.append(make('small','','Evidence: '+clean(item.evidence,260)));
     if(clean(item.fix))why.append(make('small','','Suggested change: '+clean(item.fix,260)));
+    if(state==='review'&&finding&&
+       (riskNodes.some(x=>x.key===issueKey(finding))||
+        findings.indexOf(finding)<riskNodes.length))
+      why.append(jump('View related issue',issueKey(finding),
+        Math.max(0,findings.indexOf(finding))));
     row.append(why);needList.append(row);
   });
   needs.append(needList);
@@ -355,6 +388,9 @@
         proof.append(make('summary','','View evidence & verification'),detail);
         line.append(proof);
       }
+      if((clean(x.findingId)||clean(x.id))&&riskNodes.some(r=>r.key===issueKey(x))){
+        line.append(jump('See original finding',issueKey(x),0));
+      }
       list.append(line);
     });
     col.append(list);
@@ -391,6 +427,7 @@
   const nextInstruction=clean(findings[0]?.verify||decisionData?.nextTest||
     'Ask someone unfamiliar with the offer to find its price and next step, without completing payment.',350);
   next.append(nextSummary,make('p','',nextInstruction));
+  if(findings.length)next.append(jump('Inspect the reported issue',issueKey(findings[0]),0));
   test.append(next);
 
   content.append(reasons,risks,needs,actions,test);
