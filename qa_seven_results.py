@@ -29,9 +29,14 @@ with sync_playwright() as p:
   check(page.locator(".rv-card").count()==5,f"Exactly five cards {width}px")
   check(page.locator(".rv-risk").count()==4,f"Four top ranked entries {width}px")
   check(page.locator(".rv-reason").count()==3,f"Three buyer concerns {width}px")
-  check(page.locator(".rv-change-col").count()==3,f"Change Remove Improve columns {width}px")
-  check(page.locator(".rv-confidence-ring strong").inner_text()=="—",
-       f"No invented confidence percent {width}px")
+  check(1<=page.locator(".rv-change-col").count()<=3,
+        f"Only actionable Change Remove Improve groups at {width}px")
+  check(page.locator(".rv-change-none").count()==0,
+        f"No empty change/remove/improve placeholders at {width}px")
+  check(page.locator(".rv-signal-grid .rv-signal").count()==4,
+       f"Evidence coverage shown as observed/unverified signals at {width}px")
+  check(page.locator(".rv-confidence-ring").count()==0,
+       f"No false buyer-confidence donut at {width}px")
   check(not page.locator(".nav-actions").is_visible(),f"No profile/notification toolbar {width}px")
   bounds=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
   check(max(bounds[1:])<=bounds[0]+4,f"No horizontal overflow {width}px")

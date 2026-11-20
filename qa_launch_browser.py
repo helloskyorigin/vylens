@@ -81,8 +81,9 @@ with sync_playwright() as playwright:
           not page.locator('#fiveReport').is_visible(),
           'No top extra icons, sidebar or old report sections')
     check(page.locator('.rv-overview').is_visible() and
-          page.locator('.rv-confidence-ring strong').inner_text()=='—',
-          'Buyer assessment presented without invented confidence score')
+          page.locator('.rv-signal-grid .rv-signal').count()==4 and
+          not page.locator('.rv-confidence-ring').count(),
+          'Buyer evidence shown without invented buyer confidence score')
     check(page.locator('.rv-risk').count()>=1,
           'Real product TODO issue appears among prioritized blockers')
     first=page.locator('.rv-risk').first
@@ -91,8 +92,9 @@ with sync_playwright() as playwright:
           'The affected product evidence is visible on expansion')
     check(first.locator('.rv-risk-fact').count()==4,
           'Evidence, buyer concern, change and verification visible')
-    check(page.locator('.rv-change-col').count()==3,
-          'Change / Remove / Improve are three separate columns')
+    check(1<=page.locator('.rv-change-col').count()<=3 and
+          page.locator('.rv-change-none').count()==0,
+          'Only evidence-backed Change / Remove / Improve groups appear')
     check(page.locator('#rvDownload').is_visible() and
           page.locator('#rvNewCheck').is_visible(),
           'Only two primary report actions')

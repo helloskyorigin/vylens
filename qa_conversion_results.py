@@ -72,14 +72,34 @@ with sync_playwright() as p:
       check(not page.locator('#navActions').is_visible(),f'{label} {w}: no top extra actions')
       check(not page.locator('.rv-sidebar,.rv-notification,.rv-profile').count(),
             f'{label} {w}: no sidebar, notification or profile')
-      check(page.locator('.rv-confidence-ring').get_attribute('aria-label')==
-            'Buying confidence not measured from public pages',
-            f'{label} {w}: no fabricated buying confidence')
+      check(page.locator('.rv-signal-grid .rv-signal').count()==4 and
+            not page.locator('.rv-confidence-ring').count(),
+            f'{label} {w}: four evidence states, no fake buying confidence ring')
+      check('conversion rate' in page.locator('.rv-evidence-note').inner_text().lower(),
+            f'{label} {w}: public signals explicitly not conversion results')
       check(page.locator('.rv-risk').count()==min(n,4),
             f'{label} {w}: risk list derives from recorded blockers')
       if n:
         check(page.locator('.rv-overview h2').inner_text().startswith(str(n)),
               f'{label} {w}: summary uses real count')
+        check(page.locator('.rv-reason-head').count()==min(n,3),
+              f'{label} {w}: buyer-facing explanations distinct from findings')
+        check(page.locator('.rv-reason-head strong').first.inner_text()!=
+              page.locator('.rv-risk-name').first.inner_text(),
+              f'{label} {w}: buyer consequence is not duplicate technical finding')
+        check(page.locator('.rv-first-action').count()==1,
+              f'{label} {w}: top recommended action immediately visible')
+        page.locator('.rv-reason-head').first.click()
+        check(page.locator('.rv-reason-body').first.is_visible() and
+              'Observed public-page signal' in page.locator('.rv-reason-body').first.inner_text(),
+              f'{label} {w}: buyer-facing concern expands to actual observed evidence')
+        check(page.locator('.rv-need-head').count()==4,
+              f'{label} {w}: all four decision criteria present')
+        check(page.locator('.rv-test-question').count()==1,
+              f'{label} {w}: skeptical-buyer question replaces generic repeated summary')
+        check(page.locator('.rv-change-col').count()>=1 and
+              page.locator('.rv-change-none').count()==0,
+              f'{label} {w}: actionable categories only; empty headings hidden')
         page.locator('.rv-risk summary').first.click()
         detail=page.locator('.rv-risk').first
         check(detail.evaluate('(el)=>el.open') and
@@ -91,10 +111,11 @@ with sync_playwright() as p:
         check(page.locator('.rv-risk-list .rv-quiet-state').count()==1 and
               not page.locator('.rv-overview h2').inner_text().startswith('3'),
               f'{label} {w}: honest zero-findings state')
-        check('No removal supported' in page.locator('.rv-change-card').inner_text(),
-              f'{label} {w}: no invented fixes')
+        check(page.locator('.rv-change-card .rv-quiet-state').count()==1 and
+              page.locator('.rv-change-col').count()==0,
+              f'{label} {w}: one empty action state, no artificial Change/Remove/Improve')
       if limited:
-        check('Limited' in page.locator('.rv-overview h2').inner_text(),
+        check('incomplete' in page.locator('.rv-overview h2').inner_text().lower(),
               f'{label} {w}: partial evidence is acknowledged')
       check(not errors,f'{label} {w}: no unhandled JavaScript errors {errors}')
       dims=page.evaluate('()=>({w:innerWidth,b:document.body.scrollWidth,d:document.documentElement.scrollWidth})')

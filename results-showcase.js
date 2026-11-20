@@ -66,6 +66,40 @@
   const intelligence=data.buyerIntelligence?.version===1?data.buyerIntelligence:null;
   const overview=intelligence?.overview||null;
   const depth=overview?.observed||null;
+  const buyerView=(item)=>{
+    const title=clean(item.heading||item.title,190).toLowerCase();
+    const concern=clean(item.buyerQuestion||item.concern||item.buyerConcern,180);
+    if(/mobile.*(?:buy|purchase|cta|button)|(?:buy|purchase|cta|button).*mobile|extends beyond|off.screen|clipped.*button/i.test(title))
+      return {hesitation:'Phone visitors may struggle to reach the buy button',
+        need:'A fully visible, tappable purchase button on mobile',
+        question:'Can I actually use the buy button on my phone?'};
+    if(/(?:low|poor) contrast|readab|hard to read/i.test(title))
+      return {hesitation:'Important offer details may be difficult to read',
+        need:'Clear, readable pricing and offer text',
+        question:'Can I read the details before deciding?'};
+    if(/pric|payment term|refund|cancell|billing/i.test(title))
+      return {hesitation:'The price or buying terms may raise questions',
+        need:'Clear prices and purchase conditions',
+        question:'Do I understand exactly what I will pay?'};
+    if(/trust|proof|testimonial|review|credib/i.test(title))
+      return {hesitation:'Buyers may want more support for the offer claims',
+        need:'Credible evidence that supports the offer',
+        question:'What gives me a reason to trust this offer?'};
+    if(/headlin|vague|offer.*unclear|value|benefit|description/i.test(title))
+      return {hesitation:'The value of the offer may not be clear enough',
+        need:'A clear outcome and value proposition',
+        question:'What exactly will I get from this offer?'};
+    if(/action|cta|link|button|next step|checkout|navigation/i.test(title))
+      return {hesitation:'The next step may be unclear or hard to follow',
+        need:'An obvious, usable next step',
+        question:'Can I easily find how to get started?'};
+    return {hesitation:concern&&concern.length<=115?concern:
+        'A buyer may hesitate at this part of the offer',
+      need:clean(item.fix,100)||'A clearer buying experience',
+      question:'Can I complete the next step with confidence?'};
+  };
+  const issueKey=item=>clean(item.findingId||item.id||item.fingerprint||
+    [item.stage,item.title,item.location].join('|'),230).toLowerCase();
 
   const result=make('section','rv-report');
   result.id='rvReport';
@@ -127,56 +161,71 @@
   const h2=make('h2');
   if(headingCount){
     h2.append(make('span','rv-accent',String(headingCount)));
-    h2.append(document.createTextNode(' potential buying blocker'+(headingCount===1?'':'s')+' found'));
-  }else h2.append(make('span','',limited?'Limited buying evidence collected':'No buying blockers confirmed'));
+    h2.append(document.createTextNode(' buying concern'+(headingCount===1?'':'s')+' to review'));
+  }else h2.append(make('span','',limited?'Buying evidence is incomplete':'No specific blocker detected'));
+  copy.append(h2);
   const dek=make('p','',headingCount?
-    'These concerns are drawn from observed public evidence. Review the highest-priority ones first.':
-    limited?'The scan could not fully assess the buying journey. A clean result is not confirmed.':
-    'No specific blocker was detected in the assessed areas. Real purchases were not tested.');
-  copy.append(h2,dek);
+    'Start with the concern most likely to interfere with the buying path.':
+    limited?'Some important parts of the public buying journey were not verified.':
+    'Nothing specific was flagged in the areas assessed. Real purchases were not tested.');
+  copy.append(dek);
+  if(headingCount&&clean(findings[0]?.fix)){
+    const priority=make('div','rv-first-action');
+    add(priority,make('span','rv-first-label','START HERE'),
+      make('strong','',clean(findings[0].fix,170)));
+    copy.append(priority);
+  }
   overviewLeft.append(target,copy);
-  const score=make('div','rv-confidence');
-  const ring=make('div','rv-confidence-ring');
-  ring.setAttribute('role','img');
-  ring.setAttribute('aria-label',signalCount!==null?
-    signalCount+' of four public buying signals observed, not a conversion score':
-    'Buying confidence not measured from public pages');
-  if(signalCount!==null&&Number(depth.commercialPages)>0){
-    ring.style.setProperty('--rv-evidence-progress',String(signalCount*25)+'%');
-    ring.append(make('strong','',signalCount+'/4'));
-  }else ring.append(make('strong','','—'));
+  const score=make('div','rv-confidence rv-evidence-summary');
   const scoreText=make('div','rv-confidence-copy');
-  add(scoreText,make('h3','','Buying Confidence'),
-    make('span','rv-confidence-pill',signalCount!==null&&Number(depth.commercialPages)>0?
-      signalCount+' public signals observed':'Not measured'),
-    make('p','',headingCount?
-      'Prioritized concerns were detected. Buyer confidence and purchase probability remain unmeasured.':
-      'Public-page scanning does not establish actual buyer confidence.'));
-  add(score,ring,scoreText);
+  add(scoreText,make('span','rv-eyebrow'),
+    make('h3','','Buyer-facing evidence'));
+  scoreText.querySelector('.rv-eyebrow').textContent='WHAT WAS OBSERVED';
+  const coverageText=Number(depth?.commercialPages)>0&&signalCount!==null?
+    signalCount+' of 4 public signals observed':'Evidence coverage limited';
+  scoreText.append(make('p','rv-confidence-count',coverageText));
+  const signalGrid=make('div','rv-signal-grid');
+  for(const [field,label] of [
+    ['visibleHeadings','Offer'],['visiblePrices','Pricing'],
+    ['visibleProof','Proof'],['visibleNextSteps','Next step']
+  ]){
+    const observed=Number(depth?.[field])>0;
+    const tile=make('span','rv-signal '+(observed?'is-observed':'is-unverified'));
+    add(tile,icon(observed?'check':'clock'),
+      make('span','',label));
+    tile.setAttribute('title',observed?label+' detected from rendered evidence':
+      label+' was not verified in the scan');
+    signalGrid.append(tile);
+  }
+  score.append(scoreText,signalGrid);
+  score.append(make('p','rv-evidence-note',
+    'Signals found ≠ buyer confidence or conversion rate.'));
   add(feature,overviewLeft,score);
   result.append(feature);
 
   const content=make('div','rv-content-grid');
   // Card 1: concerns, never invented reasons.
-  const reasons=card('people','Why People Aren’t Buying',
-    'Potential reasons for hesitation, based on the inspected offer.');
+  const reasons=card('people','Why Buyers May Hesitate',
+    'What these findings could mean to a real buyer.');
   const reasonList=make('div','rv-reasons');
   if(findings.length){
     const reasonsData=Array.isArray(intelligence?.whyNotBuying)&&intelligence.whyNotBuying.length?
       intelligence.whyNotBuying:findings;
     reasonsData.slice(0,3).forEach((item,i)=>{
-      const label=clean(item.heading||item.title,145);
+      const view=buyerView(item);
       const node=make('details','rv-reason rv-reason-detail');
       const summary=add(make('summary','rv-reason-head'),
-        make('span','rv-concern-index',String(i+1)),make('strong','',label),icon('chevron'));
+        make('span','rv-concern-index',String(i+1)),
+        make('strong','',view.hesitation),icon('chevron'));
       const body=make('div','rv-reason-body');
-      body.append(make('b','','Possible buyer concern'));
-      body.append(make('p','',item.buyerQuestion||item.concern||item.buyerConcern||
-        'A buyer may have a related question. This was not directly measured.'));
+      body.append(make('b','','What a buyer might wonder'));
+      body.append(make('p','',view.question));
       if(clean(item.evidence)){
-        body.append(make('b','','Observed evidence'));
+        body.append(make('b','','Why this is flagged'));
         body.append(make('p','',item.evidence));
       }
+      body.append(make('small','rv-hypothesis-note',
+        'Possible hesitation, not observed customer behavior.'));
       node.append(summary,body);reasonList.append(node);
     });
   }else reasonList.append(add(make('div','rv-quiet-state'),
@@ -188,7 +237,7 @@
 
   // Card 2: top ranked blockers, each expanding in-place to grounded evidence/fixes.
   const risks=card('lightning','Biggest Sales Killers',
-    'Highest-priority observed issues to review.');
+    'Actual findings, ranked by priority and evidence.');
   const riskList=make('div','rv-risk-list');
   if(findings.length){
     const killers=Array.isArray(intelligence?.biggestSalesKillers)&&intelligence.biggestSalesKillers.length?
@@ -220,7 +269,7 @@
 
   // Card 3: show buyer needs tied to findings, or neutral review criteria.
   const needs=card('heart','What Buyers Actually Need',
-    'What may help buyers feel ready to purchase.');
+    'Specific requirements suggested by the findings.');
   const needList=make('div','rv-needs');
   const stageNeeds={
     clarity:'A clear, easy-to-understand offer',
@@ -237,20 +286,29 @@
       why:affected.includes(stage)?'A relevant finding needs review.':
         'This stage was not established as effective from the available evidence.'
     }));
-  needsData.forEach(item=>{
+  const prioritizedNeeds=[
+    ...needsData.filter(x=>x.status==='review'),
+    ...needsData.filter(x=>x.status==='unverified'),
+    ...needsData.filter(x=>x.status==='observed')
+  ].slice(0,4);
+  prioritizedNeeds.forEach(item=>{
     const state=['review','observed'].includes(item.status)?item.status:'unverified';
+    const finding=findings.find(x=>x.stage===item.stage);
+    const view=finding?buyerView(finding):null;
+    const headline=state==='review'&&view?view.need:
+      (stageNeeds[item.stage]||item.need);
     const row=make('details','rv-need rv-need-'+state);
     const summary=add(make('summary','rv-need-head'),
       add(make('span','rv-need-icon '+state),
         state==='observed'?icon('check'):make('span','',state==='review'?'!':'?')),
-      make('strong','',stageNeeds[item.stage]||item.need),
+      make('strong','',headline),
       make('span','rv-need-review rv-need-status-'+state,
-        state==='review'?'Review':state==='observed'?'Observed':'Unverified'));
+        state==='review'?'Needs review':state==='observed'?'Observed':'Not verified'));
     row.append(summary);
     const why=make('div','rv-need-detail');
-    why.append(make('p','',item.why||'See the supported findings.'));
+    why.append(make('p','',item.why||'Evidence does not establish this buying criterion.'));
     if(clean(item.evidence))why.append(make('small','','Evidence: '+clean(item.evidence,260)));
-    if(clean(item.fix))why.append(make('small','','Action: '+clean(item.fix,260)));
+    if(clean(item.fix))why.append(make('small','','Suggested change: '+clean(item.fix,260)));
     row.append(why);needList.append(row);
   });
   needs.append(needList);
@@ -271,54 +329,68 @@
     Remove:findings.filter(x=>/placeholder|draft|unfinished|unnecessary|duplicate|vague|remove/i.test((x.title||'')+' '+(x.fix||''))),
     Improve:findings.filter(x=>x.stage==='trust'||/improve|support|evidence/i.test((x.title||'')+' '+(x.fix||'')))
   };
-  // Do not duplicate the same item across three action buckets.
+  // Show only actionable groups. Empty Change/Remove/Improve columns are clutter.
   const assigned=new Set();
   for(const [type,cls] of [['Change','change'],['Remove','remove'],['Improve','improve']]){
+    const choices=categorized[type].filter(x=>!assigned.has(issueKey(x))).slice(0,3);
+    if(!choices.length)continue;
     const col=make('section','rv-change-col');
     const strip=add(make('h3','rv-change-strip rv-'+cls),
-      icon(type==='Change'?'layers':type==='Remove'?'alert':'target'),make('span','',type));
+      icon(type==='Change'?'layers':type==='Remove'?'alert':'target'),
+      make('span','',type));
     col.append(strip);
-    const list=make('ul','rv-change-list');
-    const choices=categorized[type].filter(x=>!assigned.has(x.findingId||x.id||x)).slice(0,2);
-    choices.forEach(x=>{
-      assigned.add(x.findingId||x.id||x);
+    const list=make('ol','rv-change-list');
+    choices.forEach((x,i)=>{
+      assigned.add(issueKey(x));
       const line=make('li','rv-change-item');
-      const title=make('span','',clean(x.fix||x.title,176));
-      line.append(title);
-      if(clean(x.evidence)){
+      const label=add(make('div','rv-action-title'),
+        make('span','rv-action-number',String(i+1).padStart(2,'0')),
+        make('strong','',clean(x.fix||x.title,180)));
+      line.append(label);
+      if(clean(x.evidence)||clean(x.verify)){
         const proof=make('details','rv-change-proof');
-        proof.append(make('summary','','Why this change?'),
-          make('p','',clean(x.evidence,370)));
+        const detail=make('div','rv-action-detail');
+        if(clean(x.evidence))add(detail,make('b','','Evidence'),make('p','',x.evidence));
+        if(clean(x.verify))add(detail,make('b','','Verify'),make('p','',x.verify));
+        proof.append(make('summary','','View evidence & verification'),detail);
         line.append(proof);
       }
       list.append(line);
     });
-    if(!choices.length)list.append(make('li','rv-change-none',
-      type==='Remove'?'No removal supported by the scan.':
-      type==='Improve'?'No additional improvement verified.':'No change supported by the scan.'));
     col.append(list);
     actionGrid.append(col);
   }
+  if(!actionGrid.children.length){
+    actionGrid.append(add(make('div','rv-quiet-state'),
+      make('strong','','No evidence-backed edits recommended'),
+      make('p','','A complete action plan needs a verified finding first.')));
+  }
+  actionGrid.classList.toggle('rv-change-single',actionGrid.children.length===1);
   actions.append(actionGrid);
 
   // Card 5: cautious skeptical-buyer test: observed concerns, not simulated purchases.
   const test=card('cart','Purchase Decision Test',
-    'Would a skeptical buyer purchase based on the page today?','rv-decision-card');
+    'The question most worth checking with a real buyer.','rv-decision-card');
   const decisionData=intelligence?.purchaseDecisionTest;
   const decision=make('div','rv-decision-banner'+(findings.length?'':' rv-decision-neutral'));
   add(decision,icon(findings.length?'alert':'clock'),
-    make('strong','',clean(decisionData?.headline||(
-      findings.length?'Potential hesitation before buying':'Purchase decision unverified'),175)));
-  const issueLead=findings.slice(0,2).map(x=>clean(x.title,80).toLowerCase()).join(' and ');
-  const explanation=make('p','rv-decision-copy',decisionData?.explanation||(
-    findings.length?'A skeptical buyer might pause over '+issueLead+
-      '. These are possible concerns, not observed customer behavior.':
-      'Available inspection did not establish real buyer hesitation or completed purchases.'));
-  test.append(decision,explanation);
+    make('strong','',findings.length?'A buyer may pause here':'Buyer decision not verified'));
+  test.append(decision);
+  if(findings.length){
+    const concern=buyerView(findings[0]);
+    const buyerQuestion=make('div','rv-test-question');
+    buyerQuestion.append(make('span','rv-test-label','SKEPTICAL BUYER QUESTION'));
+    buyerQuestion.append(make('strong','',concern.question));
+    test.append(buyerQuestion);
+    test.append(make('p','rv-decision-copy',
+      'This is a possible hesitation based on inspected evidence, not a recorded buyer response.'));
+  }else test.append(make('p','rv-decision-copy',
+    'A completed purchase or real buyer response was not tested by the scan.'));
   const next=make('details','rv-test-next');
-  const nextSummary=make('summary','','How to validate the purchase decision');
-  next.append(nextSummary,make('p','',decisionData?.nextTest||
-    'Have a real prospective buyer review the offer and identify its price and next step; no payment is needed.'));
+  const nextSummary=make('summary','','Try a quick buying-path check');
+  const nextInstruction=clean(findings[0]?.verify||decisionData?.nextTest||
+    'Ask someone unfamiliar with the offer to find its price and next step, without completing payment.',350);
+  next.append(nextSummary,make('p','',nextInstruction));
   test.append(next);
 
   content.append(reasons,risks,needs,actions,test);
