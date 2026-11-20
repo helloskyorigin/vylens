@@ -104,9 +104,11 @@
   // Connect separate sections to the *same* inspected finding.
   // This avoids five unrelated cards and preserves the underlying evidence.
   const riskNodes=[];
+  let revealAllRisks=null;
   const openFinding=(key,index=0)=>{
     const chosen=riskNodes.find(x=>key&&x.key===key)||riskNodes[index]||riskNodes[0];
     if(!chosen)return;
+    if(chosen.node.hidden&&revealAllRisks)revealAllRisks(true);
     for(const x of riskNodes)if(x!==chosen)x.node.open=false;
     chosen.node.open=true;
     const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -185,7 +187,7 @@
   }else h2.append(make('span','',limited?'Buying evidence is incomplete':'No specific blocker detected'));
   copy.append(h2);
   const dek=make('p','',headingCount?
-    'Start with the concern most likely to interfere with the buying path.':
+    'Start with the highest-priority finding, then check the supporting evidence.':
     limited?'Some important parts of the public buying journey were not verified.':
     'Nothing specific was flagged in the areas assessed. Real purchases were not tested.');
   copy.append(dek);
@@ -200,10 +202,10 @@
   const score=make('div','rv-confidence rv-evidence-summary');
   const scoreText=make('div','rv-confidence-copy');
   add(scoreText,make('span','rv-eyebrow'),
-    make('h3','','Buyer-facing evidence'));
-  scoreText.querySelector('.rv-eyebrow').textContent='WHAT WAS OBSERVED';
+    make('h3','','What we could inspect'));
+  scoreText.querySelector('.rv-eyebrow').textContent='PUBLIC PAGE SIGNALS';
   const coverageText=Number(depth?.commercialPages)>0&&signalCount!==null?
-    signalCount+' of 4 public signals observed':'Evidence coverage limited';
+    signalCount+' of 4 areas detected':'Limited page evidence';
   scoreText.append(make('p','rv-confidence-count',coverageText));
   const signalGrid=make('div','rv-signal-grid');
   for(const [field,label] of [
@@ -220,7 +222,7 @@
   }
   score.append(scoreText,signalGrid);
   score.append(make('p','rv-evidence-note',
-    'Signals found ≠ buyer confidence or conversion rate.'));
+    'Found means visible, not proven effective. Missing means not verified; no sales data measured.'));
   add(feature,overviewLeft,score);
   result.append(feature);
 
@@ -258,15 +260,22 @@
   reasons.append(reasonList);
 
   // Card 2: top ranked blockers, each expanding in-place to grounded evidence/fixes.
-  const risks=card('lightning','Biggest Sales Killers',
-    'Actual findings, ranked by priority and evidence.');
+  const risks=card('lightning','Top Buying Obstacles',
+    'Potential problems spotted on inspected pages. Open one to see proof and a fix.');
   const riskList=make('div','rv-risk-list');
   if(findings.length){
     const killers=Array.isArray(intelligence?.biggestSalesKillers)&&intelligence.biggestSalesKillers.length?
       intelligence.biggestSalesKillers:findings;
-    killers.slice(0,4).forEach((item,i)=>{
+    const seenRiskKeys=new Set();
+    const allRiskItems=[...killers,...findings].filter(item=>{
+      const key=issueKey(item);
+      if(seenRiskKeys.has(key))return false;
+      seenRiskKeys.add(key);return true;
+    });
+    allRiskItems.forEach((item,i)=>{
       const node=make('details','rv-risk');
       node.id='rv-finding-'+(i+1);
+      if(i>=4)node.hidden=true;
       // Native named details guarantee that just one finding can stay open.
       // The click handler also covers browsers with older details support.
       node.setAttribute('name','rv-exclusive-findings');
@@ -280,8 +289,9 @@
       });
       add(row,make('span','rv-risk-number',String(i+1)),
         make('strong','rv-risk-name',clean(item.title,96)),
-        make('span','rv-risk-priority '+(item.priority==='high'?'is-high':'is-review'),
-          item.priority==='high'?'High':'Review'),
+        make('span','rv-risk-priority '+(item.priority==='high'?'is-high':
+          item.priority==='low'?'is-low':'is-review'),
+          item.priority==='high'?'High':item.priority==='low'?'Lower':'Review'),
         icon('chevron','rv-risk-chevron'));
       node.append(row);
       const body=make('div','rv-risk-detail');
@@ -296,14 +306,26 @@
       node.append(body);riskList.append(node);
     });
   }else riskList.append(add(make('div','rv-quiet-state'),
-    make('strong','','No confirmed sales blockers'),
+    make('strong','','No specific issue found'),
     make('p','',limited?'The current scan had incomplete buying-page evidence.':
       'No supported high-impact concern was found in the assessed pages.')));
   risks.append(riskList);
+  if(riskNodes.length>4){
+    const more=make('button','rv-show-all','Show all '+riskNodes.length+' findings');
+    more.type='button';more.setAttribute('aria-expanded','false');
+    const toggle=(expand)=>{
+      riskNodes.slice(4).forEach(item=>{item.node.hidden=!expand;});
+      more.textContent=expand?'Show top 4':'Show all '+riskNodes.length+' findings';
+      more.setAttribute('aria-expanded',String(expand));
+    };
+    revealAllRisks=toggle;
+    more.addEventListener('click',()=>toggle(more.getAttribute('aria-expanded')!=='true'));
+    risks.append(more);
+  }
 
   // Card 3: show buyer needs tied to findings, or neutral review criteria.
-  const needs=card('heart','What Buyers Actually Need',
-    'Specific requirements suggested by the findings.');
+  const needs=card('heart','What Buyers Need to See',
+    'Buying details to review, based on available evidence—not customer interviews.');
   const needList=make('div','rv-needs');
   const stageNeeds={
     clarity:'A clear, easy-to-understand offer',
@@ -411,8 +433,8 @@
   actions.append(actionGrid);
 
   // Card 5: cautious skeptical-buyer test: observed concerns, not simulated purchases.
-  const test=card('cart','Purchase Decision Test',
-    'The question most worth checking with a real buyer.','rv-decision-card');
+  const test=card('cart','Purchase Clarity Check',
+    'One practical question to test with a potential buyer.','rv-decision-card');
   const decisionData=intelligence?.purchaseDecisionTest;
   const decision=make('div','rv-decision-banner'+(findings.length?'':' rv-decision-neutral'));
   add(decision,icon(findings.length?'alert':'clock'),
@@ -421,7 +443,7 @@
   if(findings.length){
     const concern=buyerView(findings[0]);
     const buyerQuestion=make('div','rv-test-question');
-    buyerQuestion.append(make('span','rv-test-label','SKEPTICAL BUYER QUESTION'));
+    buyerQuestion.append(make('span','rv-test-label','QUESTION TO VALIDATE'));
     buyerQuestion.append(make('strong','',concern.question));
     test.append(buyerQuestion);
     test.append(make('p','rv-decision-copy',
