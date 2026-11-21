@@ -324,3 +324,81 @@ body.signal-ui #signalReport .signal-bottom-actions a{
   body.signal-ui #signalReport .signal-card-content{display:block!important}
   body.signal-ui #signalReport .signal-detail-card{break-inside:avoid}
 }
+
+/* Incomplete scan: explain failure instead of presenting five fake empty results. */
+body.signal-ui #signalReport .signal-diagnostic-panel{
+  border:1px solid #efd9b0;border-radius:20px;
+  padding:25px 27px;background:#fffdf8;margin:22px 0 16px
+}
+body.signal-ui #signalReport .signal-diagnostic-kicker{
+  font-size:10.5px;font-weight:900;letter-spacing:.12em;color:#986b28;
+  margin-bottom:12px
+}
+body.signal-ui #signalReport .signal-diagnostic-panel h2{
+  color:#222b21;font:800 clamp(20px,3vw,26px)/1.32 Manrope,'DM Sans',sans-serif;
+  letter-spacing:-.04em;margin:0 0 9px
+}
+body.signal-ui #signalReport .signal-diagnostic-panel>p{
+  color:#62715f;line-height:1.7;font-size:13px;max-width:660px;
+  overflow-wrap:anywhere
+}
+body.signal-ui #signalReport .signal-diagnostic-stats{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;margin:20px 0 2px
+}
+body.signal-ui #signalReport .signal-diagnostic-stats>div{
+  display:flex;flex-direction:column;gap:4px;border:1px solid #ebe9e0;
+  border-radius:14px;padding:14px;background:#fff
+}
+body.signal-ui #signalReport .signal-diagnostic-stats strong{
+  color:#273327;font:800 26px/1.1 Manrope,'DM Sans',sans-serif
+}
+body.signal-ui #signalReport .signal-diagnostic-stats span{
+  font-size:11.5px;line-height:1.5;color:#70806d;font-weight:700
+}
+body.signal-ui #signalReport .signal-diagnostic-reasons{
+  margin-top:19px;border-top:1px solid #ede6d6;padding-top:14px;
+  color:#63715e
+}
+body.signal-ui #signalReport .signal-diagnostic-reasons summary{
+  cursor:pointer;font-size:12px;font-weight:800;line-height:1.6
+}
+body.signal-ui #signalReport .signal-diagnostic-reasons p{
+  font-size:11.5px;line-height:1.6;padding:8px 0;overflow-wrap:anywhere
+}
+body.signal-ui #signalReport .signal-diagnostic-source{
+  margin-top:17px;padding-top:17px;border-top:1px solid #ede6d6
+}
+body.signal-ui #signalReport .signal-diagnostic-source h3{
+  font-size:14px;font-weight:850;margin:0 0 8px
+}
+body.signal-ui #signalReport .signal-diagnostic-source strong{
+  display:block;font-size:12px;margin-top:12px;color:#253225
+}
+body.signal-ui #signalReport .signal-diagnostic-source p{
+  color:#687866;font-size:11.5px;line-height:1.65;margin-top:5px
+}
+body.signal-ui #signalReport .signal-diagnostic-actions{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  flex-wrap:wrap;margin:25px 0 16px
+}
+body.signal-ui #signalReport .signal-diagnostic-actions .signal-download{
+  cursor:pointer;background:#c7f36a;border:0;border-radius:11px;
+  padding:13px 19px;min-height:45px;color:#1b2817;
+  font:850 12.5px 'DM Sans',sans-serif
+}
+body.signal-ui #signalReport .signal-diagnostic-actions a{
+  color:#4c6844;font:800 12.5px/1.5 'DM Sans',sans-serif;
+  text-underline-offset:3px
+}
+body.signal-ui #signalReport .signal-no-data-foot{
+  margin:0 0 20px;color:#879386;font-size:11.5px;line-height:1.65;
+  text-align:center
+}
+@media(max-width:620px){
+  body.signal-ui #signalReport .signal-diagnostic-panel{
+    padding:20px 17px;border-radius:17px
+  }
+  body.signal-ui #signalReport .signal-diagnostic-stats{gap:9px}
+  body.signal-ui #signalReport .signal-diagnostic-stats>div{padding:12px}
+}
