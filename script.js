@@ -303,7 +303,8 @@
     closingVisible = entries[0].isIntersecting;
     syncDock();
   }, {threshold:0.05});
-  closeWatch.observe($('.closing-section'));
+  const closingSection=$('.closing-section');
+  if(closingSection)closeWatch.observe(closingSection);
   window.addEventListener('resize', syncDock, {passive:true});
   [reportDialog, noticeDialog].forEach(dialog => dialog.addEventListener('close', syncDock));
   $('#mobileDockButton').addEventListener('click', () => {
