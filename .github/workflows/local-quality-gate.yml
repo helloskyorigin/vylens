@@ -29,6 +29,7 @@ jobs:
           node --check lib/action-intent.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/conversion-engine.mjs
+          node --check lib/offer-intelligence.mjs
           node --check lib/report-assessment.mjs
           node --check lib/buyer-intelligence.mjs
           node --check results-showcase.js
@@ -43,6 +44,8 @@ jobs:
         run: node qa_conversion_engine.mjs
       - name: Test evidence-based report scoring
         run: node qa_report_assessment.mjs
+      - name: Benchmark structured offer understanding across different website scenarios
+        run: node qa_offer_intelligence.mjs
       - name: Test five-card buyer intelligence and evidence controls
         run: node qa_buyer_intelligence.mjs
       - name: Test contextual CTA action classifier
