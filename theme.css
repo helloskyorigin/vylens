@@ -1,0 +1,253 @@
+/* VYLENS — coherent dark-first theme, user-switchable from every screen */
+:root{color-scheme:dark}
+html[data-theme="light"]{color-scheme:light}
+.theme-toggle{
+  order:9;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  flex:0 0 auto;white-space:nowrap;min-height:38px;
+  padding:8px 12px;border:1px solid #dfe7dc;border-radius:999px;
+  background:#f7faf5;color:#344432;
+  font:800 11.5px/1.2 'DM Sans',system-ui,sans-serif;
+  cursor:pointer;transition:background .16s ease,border-color .16s ease
+}
+.theme-toggle:hover{background:#edf6e8}
+.theme-toggle:focus-visible{outline:3px solid #9dce58;outline-offset:2px}
+.theme-toggle-glyph{font-size:17px;line-height:1;font-weight:400}
+.page-header .theme-toggle{margin-left:auto}
+.analysis-header .theme-toggle{margin-left:12px}
+@media(max-width:620px){
+ .theme-toggle{padding:8px 10px;min-height:35px;font-size:11px}
+ .theme-toggle-label{display:none}
+ .analysis-header .theme-toggle{margin-left:3px}
+ .page-header .theme-toggle{margin-left:auto}
+}
+html[data-theme="dark"]{
+ --ink:#edf2e9;--ink-soft:#e2e9dd;--muted:#a7b3a4;--quiet:#9caa99;
+ --line:#333f34;--line-dark:#354533;--white:#141b15;
+ --surface:#151d16;--lime-soft:#27381c;
+ --shadow:0 12px 40px rgba(0,0,0,.17);
+ --shadow-strong:0 22px 55px rgba(0,0,0,.25);
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] body.signal-ui,
+html[data-theme="dark"] body.analysis-page,
+html[data-theme="dark"] body.workspace-body,
+html[data-theme="dark"] body.results-body{
+ background:#101511!important;color:#eaf1e8!important;
+}
+html[data-theme="dark"] .nav-wrap .site-nav,
+html[data-theme="dark"] .page-header .floating-nav,
+html[data-theme="dark"] .analysis-nav,
+html[data-theme="dark"] .workspace-nav,
+html[data-theme="dark"] .page-header{
+ background:#171f18!important;border-color:#344534!important;
+ box-shadow:0 13px 42px #080d0842;color:#ecf3ea!important;
+}
+html[data-theme="dark"] .nav-wrap .site-nav{backdrop-filter:blur(18px)}
+html[data-theme="dark"] .theme-toggle{
+ background:#253027;color:#d9ead2;border-color:#455747;
+}
+html[data-theme="dark"] .theme-toggle:hover{background:#304033}
+html[data-theme="dark"] :is(h1,h2,h3,h4,p,strong,a,summary,label,span){text-shadow:none}
+html[data-theme="dark"] .hero-copy h1,
+html[data-theme="dark"] .section-head h2,
+html[data-theme="dark"] .faq-heading h2,
+html[data-theme="dark"] .feature-intro h2,
+html[data-theme="dark"] .legal-header h1,
+html[data-theme="dark"] .closing-card h2,
+html[data-theme="dark"] .analysis-copy h1,
+html[data-theme="dark"] .brand,
+html[data-theme="dark"] .desktop-nav-links a,
+html[data-theme="dark"] .legal-article h2,
+html[data-theme="dark"] .legal-contact-box h3,
+html[data-theme="dark"] .signal-title{
+ color:#f2f7ee!important;
+}
+html[data-theme="dark"] :is(.hero-description,.section-head p,.step p,.check-desc,
+ .feature-lead p,.feature-tile p,.finding-desc,.faq-list details p,.footer-main>span,
+ .footer-bottom,.legal-lead,.legal-article p,.legal-article li,.analysis-copy p){
+ color:#bac7b6!important;
+}
+html[data-theme="dark"] :is(.hero-kicker,.eyebrow,.step-number,
+ .signal-eyebrow){color:#add77b!important}
+html[data-theme="dark"] :is(.audit-switch,.field-frame,.upload-zone,.optional-fields,
+ .step,.check-card,.feature-lead,.feature-tile,.finding-card,
+ .faq-list details,.legal-toc,.legal-contact-box,.contact-method,
+ .report-dialog-inner,.notice-content,.report-detail,.report-explanation,
+ .closing-card,.preview-panel,.results-panel,.subject-panel,
+ .analysis-subject,.analysis-error,.workspace-panel){
+ background:#19231b!important;border-color:#354638!important;
+ color:#eaf1e7!important;
+}
+html[data-theme="dark"] :is(.audit-switch-option,.check-card,.finding-card,
+ .faq-list summary,.legal-toc a,.footer-links a,.contact-method strong,
+ .step h3,.check-top strong,.feature-lead h3,.feature-tile h3,
+ .finding-title,.faq-heading,.check-card strong,.finding-card strong){
+ color:#ecf3e9!important;
+}
+html[data-theme="dark"] :is(.audit-switch-option.is-active,.button-lime,
+ .hero-submit,.nav-cta,.theme-toggle.is-lime){
+ background:#c7f36a!important;color:#142013!important;
+}
+html[data-theme="dark"] .button-lime *,
+html[data-theme="dark"] .audit-switch-option.is-active *{color:#142013!important}
+html[data-theme="dark"] :is(.field-frame input,.optional-fields input,.url-field input){
+ color:#f0f5ee!important;background:#1b281e!important;
+}
+html[data-theme="dark"] :is(input,textarea,select){
+ color:#f0f5ee;background:#1b281e;border-color:#40523f;
+}
+html[data-theme="dark"] input::placeholder{color:#9caa98!important}
+html[data-theme="dark"] :is(.check-tags span,.feature-status-visual span,
+ .feature-impact-visual span,.severity,.legal-meta,.form-assurance,
+ .report-score,.faq-toggle,.optional-toggle,.site-footer,.inspection-shell,
+ .report-status,.closing-decoration){
+ color:#d0dbca!important;border-color:#425142!important;
+}
+html[data-theme="dark"] :is(.footer,.footer-links,.footer-bottom,
+ .step-connector,.feature-footnote,.faq-list details,.legal-grid,.legal-article,
+ .legal-meta,.legal-toc,.legal-header){border-color:#354438!important}
+html[data-theme="dark"] :is(.feature-impact-visual span,.feature-status-visual span,
+ .check-tags span,.faq-toggle,.optional-toggle,.notice-icon){
+ background:#253026!important;color:#c7d8bb!important;
+ border-color:#455746!important;
+}
+html[data-theme="dark"] :is(.button-outline,.mobile-menu-button,.nav-back,
+ .analysis-exit,.workspace-back,.text-link){background:#263127!important;
+ border-color:#435744!important;color:#e8f0e4!important}
+html[data-theme="dark"] .legal-main,
+html[data-theme="dark"] .analysis-main{color:#e9f1e6!important}
+html[data-theme="dark"] .legal-article :is(strong,h3,h4),
+html[data-theme="dark"] .legal-meta strong,
+html[data-theme="dark"] .legal-toc strong,
+html[data-theme="dark"] .faq-list summary{color:#edf4e9!important}
+html[data-theme="dark"] :is(.legal-contact-box,.legal-toc,.contact-method) a:not(.button),
+html[data-theme="dark"] .footer-support{color:#c7f36a!important}
+html[data-theme="dark"] :is(.notice-content,.report-dialog-inner) :is(h2,h3,strong,p){
+ color:#f0f4ee!important;
+}
+html[data-theme="dark"] :is(.report-dialog,.notice-dialog)::backdrop{background:#030703cb}
+html[data-theme="dark"] .page-header .floating-nav :is(.brand,.brand strong,.nav-current){color:#f0f6ec!important}
+/* The five signal lines should remain semantic, not all electric-lime. */
+html[data-theme="dark"] body.signal-ui #signalReport :is(h1,h2,h3,strong){color:#f0f5ed}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-score,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-score-center,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-detail-card,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-panel,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-stats>div{
+ background:#19231b!important;border-color:#3c4c3d!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-score-center strong{color:#f0f7eb}
+html[data-theme="dark"] body.signal-ui #signalReport :is(
+ .signal-score-copy p,.signal-item-note,.signal-subject,.signal-section-note,
+ .signal-card-title p,.signal-mini-text p,.signal-mini-text small,
+ .signal-fix-body small,.signal-step-copy small,.signal-disclaimer,
+ .signal-no-data-foot,.signal-empty){color:#b1c0ac!important}
+html[data-theme="dark"] body.signal-ui #signalReport :is(
+ .signal-score-heading,.signal-score-center span,.signal-score-copy h2,
+ .signal-item-value,.signal-item h3,.signal-card-title h3,
+ .signal-mini-text strong,.signal-fix-body strong,.signal-step-copy strong){
+ color:#e9f3e4!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-score-ring{
+ background:conic-gradient(from -90deg,var(--accent) 0 var(--score-fill),
+ #39463b var(--score-fill) 100%);
+}
+html[data-theme="dark"] body.signal-ui #signalReport :is(.signal-bar){background:#354137!important}
+html[data-theme="dark"] body.signal-ui #signalReport :is(
+ .signal-item,.signal-report-cards,.signal-card-content,
+ .signal-mini-row,.signal-fix-row,.signal-step-row,
+ .signal-diagnostic-source,.signal-diagnostic-reasons){
+ border-color:#344436!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport :is(
+ .signal-coverage-note,.signal-rewrite-row,.signal-diagnostic-reasons){
+ color:#c6dbc0!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-coverage-note{background:#213023!important;border-color:#425a40!important}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-card-chevron{
+ background:#253129!important;color:#d5e3ce!important;border-color:#415141!important}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-detail-card[open] .signal-card-chevron{
+ background:var(--soft)!important;color:var(--accent-text)!important
+}
+html[data-theme="dark"] body.signal-ui #signalReport :is(.signal-copy,.signal-show-more){
+ background:#304a27!important;color:#dbf9c1!important;border-color:#567e4c!important
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-panel h2{
+ color:#edf5e9!important}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-panel p{
+ color:#b8c7b4!important}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-download,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-actions .signal-download{
+ background:#c7f36a!important;color:#162410!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-bottom-actions a,
+html[data-theme="dark"] body.signal-ui #signalReport .signal-diagnostic-actions a{
+ color:#c7f36a!important;
+}
+html[data-theme="dark"] :is(.analysis-status-row,.analysis-subject,.analysis-copy,
+ .analysis-running,.analysis-error-actions,.analysis-footer){
+ color:#e9f2e5!important;
+}
+html[data-theme="dark"] .analysis-copy p{color:#b5c5b0!important}
+html[data-theme="dark"] .analysis-subject{background:#1c2820!important;border-color:#425542!important}
+html[data-theme="dark"] .workspace-brand,
+html[data-theme="dark"] .workspace-nav-center{color:#eaf3e4!important}
+/* Landing buyer-signal preview: actual audit scores live on the results screen. */
+.buyer-signals-preview{display:grid;gap:10px;max-width:880px;margin:31px auto 0}
+.buyer-signal-preview{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+ gap:10px 16px;background:#fff;border:1px solid #e2e9dd;border-radius:17px;
+ padding:19px 22px;min-width:0;
+}
+.buyer-signal-preview .buyer-signal-heading{font:800 16px/1.35 Manrope,system-ui,sans-serif;color:#253224}
+.buyer-signal-preview .buyer-signal-short{
+ display:block;margin-top:4px;font-size:12px;line-height:1.55;color:#6f7d6e
+}
+.buyer-signal-preview .buyer-signal-label{
+ font:800 11px/1.2 'DM Sans',system-ui,sans-serif;
+ display:inline-flex;justify-self:end;align-items:center;gap:7px;
+ padding:7px 11px;border:1px solid #e3ebdf;border-radius:100px;
+ color:#496745;background:#f2f7f0;white-space:nowrap
+}
+.buyer-signal-preview .buyer-signal-label::before{
+ content:"";display:block;width:7px;height:7px;border-radius:50%;background:#65aa78
+}
+.buyer-signal-preview .buyer-signal-rule{
+ grid-column:1/-1;height:5px;background:#e9eee6;border-radius:99px;
+ margin-top:3px;overflow:hidden
+}
+.buyer-signal-preview .buyer-signal-rule span{
+ display:block;height:100%;background:#65aa78;border-radius:99px
+}
+.buyer-signal-preview:nth-child(2) .buyer-signal-rule span,
+.buyer-signal-preview:nth-child(2) .buyer-signal-label::before{background:#d6a44b}
+.buyer-signal-preview:nth-child(3) .buyer-signal-rule span,
+.buyer-signal-preview:nth-child(3) .buyer-signal-label::before{background:#d96865}
+.buyer-signal-preview:nth-child(4) .buyer-signal-rule span,
+.buyer-signal-preview:nth-child(4) .buyer-signal-label::before{background:#d6a44b}
+.buyer-signal-preview:nth-child(5) .buyer-signal-rule span,
+.buyer-signal-preview:nth-child(5) .buyer-signal-label::before{background:#65aa78}
+.buyer-signals-footnote{max-width:900px;margin:20px auto 0;
+ font-size:12px;color:#71806c;text-align:center;line-height:1.55}
+html[data-theme="dark"] .buyer-signal-preview{
+ background:#19231b;border-color:#374937
+}
+html[data-theme="dark"] .buyer-signal-preview .buyer-signal-heading{color:#eef6ec}
+html[data-theme="dark"] .buyer-signal-preview .buyer-signal-short,
+html[data-theme="dark"] .buyer-signals-footnote{color:#b5c5b2}
+html[data-theme="dark"] .buyer-signal-preview .buyer-signal-label{
+ background:#253227;color:#c9dfc4;border-color:#435747
+}
+html[data-theme="dark"] .buyer-signal-preview .buyer-signal-rule{background:#314134}
+@media(max-width:620px){
+ .buyer-signal-preview{padding:16px 15px;gap:8px 10px;border-radius:14px}
+ .buyer-signal-preview .buyer-signal-heading{font-size:14px}
+ .buyer-signal-preview .buyer-signal-short{font-size:11px}
+ .buyer-signal-preview .buyer-signal-label{font-size:10px;padding:6px 8px}
+}
+/* Align the results navbar precisely with the result report, not the viewport. */
+body.signal-ui .page-header{max-width:870px;margin:0 auto;padding:15px 22px 0!important}
+body.signal-ui .floating-nav{max-width:none;width:100%;min-width:0}
+@media(max-width:620px){
+ body.signal-ui .page-header{padding:10px 16px 0!important}
+}
