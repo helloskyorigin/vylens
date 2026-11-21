@@ -76,31 +76,35 @@ with sync_playwright() as playwright:
     check(page.locator('#signalReport').is_visible(),
           'New short buyer-signal Results is visible on production')
     check(page.locator('#signalReport .signal-item').count()==5,
-          'Five signal lines appear in the free preview')
-    check(page.locator('.signal-unlock').count()==0,
-          'No paid box or purchase promotion in the free report')
-    check(page.locator('.signal-unlock-cta').count()==0,
-          'No disabled checkout CTA')
-    check(page.locator('.signal-finding').count()>=1,
-          'Real product findings are shown for free')
-    check(page.locator('.signal-change').count()>=1,
-          'Each relevant product issue has an actionable fix')
-    check(page.locator('.signal-plan-step').count()>=1,
-          'Priority plan is available for free')
+          'Five colored buyer signals appear below the circular score')
+    check(page.locator('.signal-score-ring').is_visible(),
+          'Score is displayed inside a progress ring')
+    check(page.locator('.signal-detail-card').count()==5 and
+          page.locator('.signal-detail-card[open]').count()==0,
+          'Exactly five report cards are closed by default')
+    check(page.locator('.signal-unlock').count()==0 and
+          page.locator('.signal-unlock-cta').count()==0,
+          'No paid box or checkout action')
     check(not page.locator('#rvReport').is_visible() and
           not page.locator('#fiveReport').is_visible(),
-          'No duplicate old dashboard sections')
-    check(page.locator('.signal-score-number strong').inner_text()=='—',
-          'File-only inspection does not invent a conversion score')
+          'Old cluttered sections are hidden')
+    check(page.locator('.signal-score-center strong').inner_text()=='—',
+          'File-only inspection does not invent a buying score')
     check(all(v=='—' for v in page.locator('.signal-item-value').all_inner_texts()),
-          'File-only inspection does not invent buyer ratings')
+          'Unverified buyer signals are not rated')
     check(not page.locator('#rvDownload').is_visible() and
           not page.locator('#navDownload').is_visible(),
-          'Legacy PDF actions are hidden in favor of one free download')
+          'Old PDF actions are hidden')
     check(page.evaluate("() => JSON.parse(sessionStorage.getItem('vylens:result')).conversion.blockers.some(x => String(x.evidence||'').includes('TODO'))"),
-          'The original product evidence remains intact')
-    check(page.locator('.signal-finding').first.locator('.signal-finding-body').is_visible(),
-          'The first recorded problem is expanded')
+          'Original evidence remains intact')
+    page.locator('.signal-detail-card').first.locator('summary').click()
+    check(page.locator('.signal-detail-card').first.locator('.signal-mini-row').count()>=1,
+          'Product problems are presented only in the first card')
+    page.locator('.signal-detail-card').nth(2).locator('summary').click()
+    check(page.locator('.signal-detail-card').nth(2).locator('.signal-fix-row').count()>=1,
+          'Specific fixes are available in the third card')
+    check(page.locator('.signal-detail-card[open]').count()==1,
+          'Opening another card automatically closes the old card')
     with page.expect_download(timeout=16000) as download_event:
         page.locator('.signal-download').click()
     downloaded=download_event.value
