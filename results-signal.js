@@ -42,7 +42,7 @@
     const title = tidy([item.title,item.heading].join(' '),270).toLowerCase();
     if (/refund|return policy|cancel|purchase terms|billing|delivery|fulfil|fulfill|what happens after|privacy|payment terms|download access|buying conditions/i.test(title))
       return 'purchase';
-    if (['clarity','value','trust','action'].includes(item.stage)) return item.stage;
+    if (['clarity','value','trust','action','purchase'].includes(item.stage)) return item.stage;
     if (/price|value|benefit|offer worth|cost|expensive/.test(title)) return 'value';
     if (/trust|proof|review|testimonial|credib|guarantee|policy/.test(title)) return 'trust';
     if (/button|checkout|purchase link|buying action|next step|sign.?up|action label|tap/.test(title)) return 'action';
@@ -128,9 +128,9 @@
       overall<75?'Needs work':'Looking good'),
     el('h2','',verdict),
     el('p','',overall===null?
-      (report.mode==='product'?
+      (assessment?.explanation || (report.mode==='product'?
         'We checked the file, but could not confirm how its sales page looks to buyers.':
-        'There was not enough visible information to give a fair score.') :
+        'There was not enough visible information to give a fair score.')) :
       isLimited?'This is based on the parts we could check, not actual purchases.':
         'A quick assessment of the offer, not your actual sales rate.'));
   add(scoreBody,circle,scoreCopy);
