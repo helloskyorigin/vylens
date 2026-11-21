@@ -27,6 +27,7 @@ jobs:
           node --check conversion-results.js
           node --check results-lime.js
           node --check lib/conversion-engine.mjs
+          node --check lib/report-assessment.mjs
           node --check lib/buyer-intelligence.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/action-intent.mjs
@@ -43,6 +44,8 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion-blocker analysis, evidence and false positives
         run: node qa_conversion_engine.mjs
+      - name: Verify buyer signal score evidence and coverage
+        run: node qa_report_assessment.mjs
       - name: Test five-card buyer intelligence and evidence controls
         run: node qa_buyer_intelligence.mjs
       - name: Test Buyer Journey Replay and Conversion Fix Kit
