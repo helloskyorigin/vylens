@@ -60,7 +60,10 @@ def fixture(kind="website",situation="findings"):
     return {
         "mode":kind,"url":"https://example.org/shop",
         "subject":"example.org" if kind=="website" else "my-guide.pdf",
-        "issues":[],"checks":[{"name":"Sample check","status":"passed"}],
+        "issues":[{"category":"Metadata","severity":"note","title":"Reference scan finding",
+                   "location":"/home","evidence":"A real extra page check was recorded.",
+                   "fix":"Review the page metadata.","verify":"Open the public page."}],
+        "checks":[{"name":"Sample check","status":"passed"}],
         "coverage":{"complete":situation!="limited","discovered":3,"inspected":1},
         "conversion":conversion
     }
@@ -159,6 +162,8 @@ with sync_playwright() as p:
                       label+" PDF preserves actual current buyer findings")
                 check(b"Why People May Hesitate" in pdf and b"Better Copy and Rewrites" in pdf,
                       label+" PDF matches the new five-card report content")
+                check(b"Reference scan finding" in pdf and b"Sample check" in pdf,
+                      label+" PDF appendix keeps the other recorded scanner findings and checks")
             dims=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
             check(max(dims[1:])<=dims[0]+3,label+f" avoids horizontal overflow {dims}")
             check(not errors,label+" has no browser errors: "+str(errors))
