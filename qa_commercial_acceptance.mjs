@@ -94,6 +94,18 @@ try{
     heading:'Access denied to the premium package?',
     visibleText:'Our course gives buyers practical steps to access a paid guide and full library.'
   }),false,'ordinary product descriptions must not be confused with a challenge');
+  const hindi=await scenario('Hindi public offer copy',
+    '<h1>खरीदारी आसान बनाएँ</h1>'+
+    '<p>इस उत्पाद से छोटे व्यवसाय अपने ग्राहकों के लिए बेहतर खरीदारी अनुभव बना सकते हैं।</p>'+
+    '<p>₹199</p><a href="/checkout">Buy now</a>');
+  assert.equal(hindi.desktop.heading,'खरीदारी आसान बनाएँ',
+    'real Hindi text is not rejected as filler');
+  const chinese=await scenario('Chinese public offer copy',
+    '<h1>清晰了解产品服务</h1>'+
+    '<p>帮助小型企业改善购买体验，了解客户会遇到哪些问题。</p>'+
+    '<p>¥199</p><a href="/checkout">Buy now</a>');
+  assert.equal(chinese.desktop.heading,'清晰了解产品服务',
+    'real multilingual offers remain readable');
   const gibberish=await scenario('repeated filler does not become proof',
     '<h1>y y y y</h1><p>y y y y y y y y y y y y y y y</p>'+
     '<p>$19</p><a href="/checkout">Buy now</a>');
@@ -124,5 +136,5 @@ try{
     {coverage:{complete:true}});
   assert.ok(review.blockers.some(x=>x.title.includes('covered by another element')));
 
-  console.log('PASS commercial acceptance: 9 real Chromium offer cases, mobile/desktop evidence and false-positive controls');
+  console.log('PASS commercial acceptance: 11 real Chromium offer cases, mobile/desktop evidence and false-positive controls');
 }finally{await browser.close();}
