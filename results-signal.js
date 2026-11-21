@@ -78,284 +78,282 @@
       warning:'Buyers may have questions about terms, access or what happens after paying.',
       good:'Some purchase details were available to review.'}
   };
+
   const root = el('section','signal-report');
   root.id = 'signalReport';
-  root.setAttribute('aria-label','Your VYLENS results');
+  root.setAttribute('aria-label','VYLENS buyer report');
+  const smartTone=value=>value===null?'unknown':value<50?'red':value<75?'yellow':'green';
+  const priorityTone=item=>item.priority==='high'?'red':item.priority==='low'?'green':'yellow';
+  const plainTitle=item=>tidy(item.title||item.heading||'Buying concern',150);
+  const small=(text,max=180)=>tidy(text,max);
+  const isLimited=report.mode==='product'||report.coverage?.complete===false||!rendered;
+  const remark=el('div','signal-topline');
+  add(remark,el('span','signal-eyebrow','YOUR CONVERSION REPORT'),
+    el('span','signal-top-mark',report.mode==='website'?'Website Audit':'Digital Product Audit'));
+  root.append(remark);
+  root.append(el('h1','signal-title',"Here's what may be holding buyers back."));
+  root.append(el('p','signal-subject',tidy(report.subject||report.url||'Your offer',100)));
 
-  const strap = el('div','signal-topline');
-  add(strap,el('span','signal-eyebrow','YOUR REPORT'),
-    el('span','signal-top-mark',report.mode === 'website' ? 'Website Audit' : 'Digital Product Audit'));
-  root.append(strap);
-  const heading = el('h1','signal-title',"Your buyers' first impression.");
-  root.append(heading);
-  const subject = tidy(report.subject || report.url || 'Your offer',110);
-  root.append(el('p','signal-subject',subject));
-
-  const scoreBox = el('section','signal-score');
-  const scoreTitle = el('div','signal-score-heading');
-  add(scoreTitle,el('span','','OVERALL CONVERSION SCORE'),
-    el('span','signal-score-type','Offer assessment'));
-  scoreBox.append(scoreTitle);
-  const scoreBody = el('div','signal-score-body');
-  const scoreFigure = el('div','signal-score-number');
-  add(scoreFigure,el('strong','',overall === null ? '—' : String(overall)),
-    el('span','','/100'));
-  const scoreText = el('div','signal-score-copy');
-  const verdict = overall === null ? 'Not enough to score' :
-    overall < 50 ? 'Your offer needs attention' :
-    overall < 75 ? 'Some buying doubts need a closer look' : 'Promising signals found';
-  add(scoreText,el('strong','',verdict),
-    el('p','',overall === null ?
-      (report.mode === 'product' ?
-        'We checked your file, but a public sales page is needed to assess buying decisions.' :
-        'We could not check enough of the offer to give a fair score.') :
-      'A quick review of what buyers can see, not a measure of actual sales.'));
-  add(scoreBody,scoreFigure,scoreText);
+  // One visual score, only when enough buyer-facing evidence exists.
+  const scoreBox=el('section','signal-score');
+  scoreBox.setAttribute('aria-label','Overall conversion score');
+  scoreBox.append(el('div','signal-score-heading','OVERALL CONVERSION SCORE'));
+  const scoreBody=el('div','signal-score-body');
+  const circle=el('div','signal-score-ring signal-tone-'+smartTone(overall));
+  circle.style.setProperty('--score-fill',(overall===null?0:overall)+'%');
+  circle.setAttribute('role','img');
+  circle.setAttribute('aria-label',overall===null?
+    'Not enough evidence for an offer score':overall+' out of 100, offer assessment');
+  const center=el('div','signal-score-center');
+  add(center,el('strong','',overall===null?'—':String(overall)),
+    el('span','',overall===null?'Not rated':'/ 100'));
+  circle.append(center);
+  const scoreCopy=el('div','signal-score-copy');
+  const verdict=overall===null?'Not enough to score':
+    overall<50?'Buyers may face major obstacles':
+    overall<75?'Some buying doubts need attention':'Promising signals found';
+  const tone=smartTone(overall);
+  add(scoreCopy,el('span','signal-score-status signal-tone-'+tone,
+      overall===null?'Limited review':overall<50?'Needs attention':
+      overall<75?'Needs work':'Looking good'),
+    el('h2','',verdict),
+    el('p','',overall===null?
+      (report.mode==='product'?
+        'We checked the file, but could not confirm how its sales page looks to buyers.':
+        'There was not enough visible information to give a fair score.') :
+      isLimited?'This is based on the parts we could check, not actual purchases.':
+        'A quick assessment of the offer, not your actual sales rate.'));
+  add(scoreBody,circle,scoreCopy);
   scoreBox.append(scoreBody);
   root.append(scoreBox);
 
-  const signals = el('section','signal-signals');
+  // Keep the five compact, visually meaningful signal lines.
+  const signals=el('section','signal-signals');
   add(signals,el('h2','','Your Buyer Signals'),
-    el('p','signal-section-note','The strongest and weakest parts of your buying experience.'));
-  const items = el('div','signal-items');
-  const keys = ['clarity','value','trust','action','purchase'];
-  for (const key of keys) {
-    const matches = uniqueIssues.filter(x => stage(x) === key);
-    const positive = strengths.some(x => stage(x) === key);
-    const value = !rendered || (!matches.length && !positive) ? null :
-      matches.some(x => x.priority === 'high') ? 20 : matches.length ? 55 : 85;
-    const label = value === null ? 'Not checked' :
-      value < 50 ? 'Weak' : value < 75 ? 'Needs work' : 'Looking good';
-    const tone = value === null ? 'unknown' :
-      value < 50 ? 'weak' : value < 75 ? 'review' : 'good';
-    const description = value === null ?
-      'We could not check this part properly, so no judgment was made.' :
-      matches.length ? modes[key].warning : modes[key].good;
-    const item = el('article','signal-item signal-'+tone);
-    const top = el('div','signal-item-top');
+    el('p','signal-section-note','See what looks strong and what needs work.'));
+  const items=el('div','signal-items');
+  for(const key of ['clarity','value','trust','action','purchase']){
+    const found=uniqueIssues.filter(x=>stage(x)===key);
+    const positive=strengths.some(x=>stage(x)===key);
+    const value=!rendered||(!found.length&&!positive)?null:
+      found.some(x=>x.priority==='high')?20:found.length?55:85;
+    const hue=smartTone(value);
+    const status=value===null?'Not checked':
+      hue==='red'?'Weak':hue==='yellow'?'Needs work':'Looking good';
+    const explanation=value===null?
+      'We could not check this well enough to rate it.':
+      found.length?modes[key].warning:modes[key].good;
+    const item=el('article','signal-item signal-tone-'+hue);
+    const top=el('div','signal-item-top');
     add(top,el('h3','',modes[key].title),
       add(el('div','signal-item-right'),
-        el('span','signal-item-value',value === null ? '—' : String(value)),
-        el('span','signal-status',label)));
-    const bar = el('div','signal-bar');
-    bar.setAttribute('role','img');
-    bar.setAttribute('aria-label',modes[key].title + ': ' +
-      (value === null ? 'Not checked' : 'Assessment '+value+' out of 100, '+label));
-    const fill = el('span','signal-bar-fill');
-    fill.style.width = (value === null ? 0 : value) + '%';
-    bar.append(fill);
-    add(item,top,bar,el('p','signal-item-note',description));
+        el('span','signal-item-value',value===null?'—':String(value)),
+        el('span','signal-status',status)));
+    const line=el('div','signal-bar');
+    line.setAttribute('role','img');
+    line.setAttribute('aria-label',modes[key].title+': '+status+
+      (value===null?'':', '+value+' out of 100'));
+    const fill=el('span','signal-bar-fill');
+    fill.style.width=(value===null?0:value)+'%';
+    line.append(fill);
+    add(item,top,line,el('p','signal-item-note',explanation));
     items.append(item);
   }
   signals.append(items);
   root.append(signals);
+  root.append(el('p','signal-disclaimer',
+    'These are possible concerns based on what we could check, not recorded buyer behavior.'));
 
-  const reminder = el('p','signal-disclaimer',
-    'These are possible buying concerns from what we could check, not recorded customer behavior.');
-  root.append(reminder);
-
-  // Full results are open while the purchase system is being refined.
-  // A finding is described only once; other sections link back to its evidence.
-  const section = (className,title,description) => {
-    const node=el('section',className);
-    add(node,el('h2','signal-full-heading',title),
-      el('p','signal-section-note',description));
-    return node;
-  };
-  const info = (parent,label,value) => {
-    if (!tidy(value)) return;
-    const item=el('div','signal-fact');
-    add(item,el('strong','',label),el('p','',tidy(value,1200)));
-    parent.append(item);
-  };
-  const priority = item => item.priority === 'high'?'High priority':
-    item.priority === 'low'?'Low priority':'Review';
-  const readLabel = item => tidy(item.title || item.heading || 'Possible issue',180);
-  const findingRefs = [];
-  const findings = section('signal-full-section signal-findings',
-    report.mode === 'product'?'Problems Found in Your Product':"What's Stopping Buyers?",
-    uniqueIssues.length?
-      'All '+uniqueIssues.length+' recorded '+(uniqueIssues.length===1?'finding':'findings')+
-      ', starting with the most important. Tap a finding to see the details.' :
-      'No specific problem was found in the checks completed. This does not prove that every buyer will purchase.');
-  findings.id='signalFindings';
-  if (uniqueIssues.length) {
-    const stack=el('div','signal-finding-list');
-    uniqueIssues.forEach((item,index)=>{
-      const row=el('details','signal-finding');
-      row.id='signalFinding'+index;
-      if(index===0) row.open=true;
-      const head=el('summary','signal-finding-summary');
-      const heading=el('span','signal-finding-name');
-      add(heading,el('strong','',readLabel(item)),
-        el('small','',priority(item)));
-      add(head,el('span','signal-count',String(index+1).padStart(2,'0')),
-        heading,el('span','signal-expand-icon','+'));
-      const body=el('div','signal-finding-body');
-      info(body,'What we found',item.evidence);
-      info(body,'Where to look',item.location);
-      info(body,'How to check it',item.verify);
-      if (!body.children.length) body.append(el('p','signal-empty','No further details were recorded.'));
-      row.append(head,body);
-      stack.append(row);
-      findingRefs.push(row);
+  const cardsRoot=el('section','signal-report-cards');
+  add(cardsRoot,el('h2','',"Your Full Report"),
+    el('p','signal-section-note','Tap a card to explore. Everything is free.'));
+  const cards=[];
+  const card=(title,hint,count,tone,render)=>{
+    const details=el('details','signal-detail-card signal-tone-'+tone);
+    const summary=el('summary','signal-card-head');
+    const mark=el('span','signal-card-mark');
+    mark.setAttribute('aria-hidden','true');
+    const copy=el('div','signal-card-title');
+    add(copy,el('h3','',title),el('p','',count+' · '+hint));
+    add(summary,mark,copy,el('span','signal-card-chevron','⌄'));
+    const contents=el('div','signal-card-content');
+    render(contents);
+    details.append(summary,contents);
+    details.addEventListener('toggle',()=>{
+      if(details.open)cards.forEach(other=>{if(other!==details)other.open=false;});
     });
-    findings.append(stack);
-  } else {
-    findings.append(el('p','signal-empty','Nothing specific was flagged in the areas checked.'));
-  }
-  root.append(findings);
-
-  const questions = section('signal-full-section signal-questions',
-    'Why People Might Hesitate',
-    'Possible buyer questions suggested by the findings — not actual customer feedback.');
-  const questionList=el('div','signal-question-list');
-  const questionsSeen=new Set();
-  uniqueIssues.forEach((item,index)=>{
-    const question=tidy(item.buyerQuestion||item.buyerConcern||item.concern,260);
-    if (!question || questionsSeen.has(question.toLowerCase())) return;
-    questionsSeen.add(question.toLowerCase());
-    const line=el('div','signal-question');
-    add(line,el('span','signal-question-mark','?'),el('p','',question));
-    const view=el('button','signal-text-link','See finding '+(index+1));
-    view.type='button';
-    view.addEventListener('click',()=>focusFinding(index));
-    line.append(view);
-    questionList.append(line);
-  });
-  if (!questionList.children.length)
-    questionList.append(el('p','signal-empty',
-      'We could not identify a specific buyer question from the available evidence.'));
-  questions.append(questionList);
-  root.append(questions);
-
-  const focusFinding = index => {
-    const target=findingRefs[index];
-    if(!target)return;
-    target.open=true;
-    target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',
-      block:'center'});
-    target.querySelector('summary')?.focus({preventScroll:true});
+    cards.push(details);
+    cardsRoot.append(details);
+    return details;
   };
+  const toneForFindings=uniqueIssues.some(x=>x.priority==='high')?'red':
+    uniqueIssues.length?'yellow':rendered?'green':'unknown';
+  const issueCounter=uniqueIssues.length+' '+(uniqueIssues.length===1?'problem':'problems')+' found';
 
-  const changes = section('signal-full-section signal-changes',
-    'Exactly What to Change',
-    'Clear fixes for the problems found. You can copy each suggestion.');
-  changes.id='signalChanges';
-  const changeRefs=new Map();
-  const changeList=el('div','signal-change-list');
-  uniqueIssues.forEach((item,index)=>{
-    const fix=tidy(item.fix,1300);
-    if(!fix)return;
-    const card=el('article','signal-change');
-    card.id='signalChange'+index;
-    card.tabIndex=-1;
-    const head=el('div','signal-change-top');
-    add(head,el('span','signal-count',String(index+1).padStart(2,'0')),
-      el('strong','',readLabel(item)));
-    const copy=el('button','signal-copy','Copy fix');
-    copy.type='button';
-    copy.addEventListener('click',async()=>{
-      try{await navigator.clipboard.writeText(fix);copy.textContent='Copied';}
-      catch{copy.textContent='Select the text to copy';}
-    });
-    add(card,head,el('p','',fix),copy);
-    changeList.append(card);
-    changeRefs.set(index,card);
-  });
-  if(!changeList.children.length)
-    changeList.append(el('p','signal-empty','No specific change can be recommended from these results.'));
-  changes.append(changeList);
-
-  // Only show ready-to-use wording actually produced from the inspection.
-  const wording=Array.isArray(data.fixKit)?data.fixKit.filter(x=>x&&tidy(x.content)): [];
-  const directCopy=uniqueIssues
-    .filter(x=>tidy(x.copyTo))
-    .map(x=>({title:readLabel(x),content:tidy(x.copyTo,1000),verify:x.verify||''}));
-  const copyItems=[...wording,...directCopy];
-  if(copyItems.length){
-    const copyBox=el('div','signal-copy-kit');
-    copyBox.append(el('h3','','Suggested Wording & Fix Kit'));
-    copyBox.append(el('p','signal-section-note',
-      'Suggestions based on the review. Check that the wording fits what you really offer.'));
-    copyItems.forEach((item,i)=>{
-      const c=el('div','signal-kit-item');
-      add(c,el('strong','',tidy(item.title||item.label||'Suggested change',120)),
-        el('p','',tidy(item.content,1200)));
-      info(c,'How to verify',item.verify);
-      const button=el('button','signal-copy','Copy');
-      button.type='button';
-      button.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(tidy(item.content,1200));button.textContent='Copied';}
-        catch{button.textContent='Select the text to copy';}
+  const addMore=(parent,rows,limit=5)=>{
+    rows.forEach((row,i)=>{if(i>=limit)row.hidden=true;parent.append(row);});
+    if(rows.length>limit){
+      let expanded=false;
+      const more=el('button','signal-show-more','Show all '+rows.length+' items');
+      more.type='button';
+      more.setAttribute('aria-expanded','false');
+      more.addEventListener('click',()=>{
+        expanded=!expanded;
+        rows.forEach((row,i)=>{row.hidden=!expanded&&i>=limit;});
+        more.textContent=expanded?'Show fewer':'Show all '+rows.length+' items';
+        more.setAttribute('aria-expanded',String(expanded));
       });
-      c.append(button);copyBox.append(c);
+      parent.append(more);
+    }
+  };
+  const createRow=(tone,headline,detail='',foot='')=>{
+    const row=el('div','signal-mini-row signal-tone-'+tone);
+    add(row,el('span','signal-mini-dot'),
+      add(el('div','signal-mini-text'),
+        el('strong','',headline),
+        detail?el('p','',detail):null,
+        foot?el('small','',foot):null));
+    return row;
+  };
+  card("What's Stopping Buyers?",'Most important concerns',issueCounter,
+    toneForFindings,(body)=>{
+      if(!uniqueIssues.length){
+        body.append(el('p','signal-empty',rendered?
+          'No specific buying blocker was flagged in the areas checked.':
+          'We could not inspect enough of the offer to identify blockers.'));
+        return;
+      }
+      const rows=uniqueIssues.map(item=>
+        createRow(priorityTone(item),plainTitle(item),
+          small(item.evidence,190),
+          item.location?'Found at '+small(item.location,85):''));
+      addMore(body,rows,5);
     });
-    changes.append(copyBox);
-  }
-  root.append(changes);
 
-  const plan = section('signal-full-section signal-action-plan',
-    'Your Priority Action Plan',
-    'Work through the highest-priority problems first. Each step opens its suggested fix.');
-  const planList=el('ol','signal-plan-list');
-  uniqueIssues.forEach((item,index)=>{
-    if(!changeRefs.has(index))return;
-    const li=el('li','');
-    const step=el('button','signal-plan-step');
-    step.type='button';
-    add(step,el('span','signal-count',String(index+1).padStart(2,'0')),
-      add(el('span','signal-plan-label'),el('strong','',readLabel(item)),
-        el('small','',priority(item))),
-      el('span','signal-plan-arrow','↗'));
-    step.addEventListener('click',()=>{
-      const target=changeRefs.get(index);
-      target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',
-        block:'center'});
-      target.focus({preventScroll:true});
-    });
-    li.append(step);planList.append(li);
+  const questionItems=[];
+  const seenQuestions=new Set();
+  uniqueIssues.forEach(item=>{
+    const question=small(item.buyerQuestion||item.buyerConcern||item.concern,220);
+    if(!question||seenQuestions.has(question.toLowerCase()))return;
+    seenQuestions.add(question.toLowerCase());
+    questionItems.push({question,tone:priorityTone(item)});
   });
-  if(!planList.children.length)
-    planList.append(el('li','signal-empty','Review the available information before making changes.'));
-  plan.append(planList);
-  root.append(plan);
-
-  if(strengths.length){
-    const strengthsSection=section('signal-full-section signal-strengths',
-      "What's Already Working",
-      'Positive things noticed during the checks — not proof of conversion success.');
-    const strengthsList=el('div','signal-strength-list');
-    strengths.forEach(item=>{
-      const line=el('div','signal-strength');
-      add(line,el('span','signal-strength-mark','✓'),
-        add(el('div',''),el('strong','',tidy(item.title,180)),
-          el('p','',tidy(item.evidence,800))));
-      strengthsList.append(line);
+  card('Why People Hesitate','Possible buyer doubts',
+    questionItems.length+' '+(questionItems.length===1?'concern':'concerns'),
+    questionItems.some(q=>q.tone==='red')?'yellow':
+      questionItems.length?'yellow':'unknown',(body)=>{
+      if(!questionItems.length){
+        body.append(el('p','signal-empty',
+          'No specific buyer doubt could be supported by the available findings.'));
+        return;
+      }
+      const rows=questionItems.map(q=>createRow(q.tone,q.question));
+      addMore(body,rows,5);
     });
-    strengthsSection.append(strengthsList);root.append(strengthsSection);
-  }
 
-  if(Array.isArray(data.unverified) && data.unverified.length){
-    const limits=el('details','signal-limits');
-    limits.append(el('summary','','What we could not check'));
-    const body=el('div','signal-limits-body');
-    data.unverified.filter(Boolean).slice(0,25).forEach(note=>body.append(el('p','',tidy(note,450))));
-    limits.append(body);root.append(limits);
-  }
+  const fixItems=uniqueIssues.filter(item=>small(item.fix));
+  const copyButton=(value)=>{
+    const btn=el('button','signal-copy','Copy');
+    btn.type='button';
+    btn.addEventListener('click',async()=>{
+      try{
+        await navigator.clipboard.writeText(value);
+        btn.textContent='Copied';
+      }catch{
+        btn.textContent='Select text to copy';
+      }
+    });
+    return btn;
+  };
+  card('Exactly What to Change','Specific, practical fixes',
+    fixItems.length+' '+(fixItems.length===1?'fix':'fixes')+' ready',
+    fixItems.length?'green':'unknown',(body)=>{
+      if(!fixItems.length){
+        body.append(el('p','signal-empty',
+          'We need clearer evidence before suggesting a change.'));
+        return;
+      }
+      const rows=fixItems.map((item,i)=>{
+        const row=el('div','signal-fix-row signal-tone-'+priorityTone(item));
+        add(row,el('span','signal-fix-index',String(i+1).padStart(2,'0')),
+          add(el('div','signal-fix-body'),
+            el('strong','',small(item.fix,600)),
+            item.location?el('small','','Where: '+small(item.location,115)):null,
+            copyButton(small(item.fix,1100))));
+        return row;
+      });
+      addMore(body,rows,5);
+    });
 
-  const bottom = el('div','signal-bottom-actions');
+  // Only real suggested wording belongs here. Other technical fixes stay in card 3.
+  const wording=[];
+  const usedWording=new Set();
+  const offerCopy=(title,value,why)=>{
+    const phrase=small(value,1100);
+    if(!phrase||usedWording.has(phrase.toLowerCase()))return;
+    usedWording.add(phrase.toLowerCase());
+    wording.push({title:small(title,90)||'Suggested wording',value:phrase,why:small(why,140)});
+  };
+  uniqueIssues.forEach(item=>{
+    if(item.copyTo)offerCopy('Suggested button wording',item.copyTo,'Check it matches the real next step.');
+  });
+  if(Array.isArray(data.fixKit))data.fixKit.forEach(item=>{
+    if(!item||typeof item!=='object')return;
+    // A checklist/action is not a copy rewrite.
+    if(!/^(copy|rewrite|headline|cta|messaging)$/i.test(String(item.kind||'')))return;
+    offerCopy(item.title||item.label,item.content,'Only use wording that accurately describes your offer.');
+  });
+  card('Better Copy & Rewrites','Only suggestions backed by the scan',
+    wording.length?wording.length+' copy '+(wording.length===1?'suggestion':'suggestions'):'No rewrite needed yet',
+    wording.length?'green':'unknown',(body)=>{
+      if(!wording.length){
+        body.append(el('p','signal-empty',
+          'No useful copy rewrite was supported this time. Fix the issues shown above first.'));
+        return;
+      }
+      const rows=wording.map(item=>{
+        const row=el('div','signal-rewrite-row');
+        add(row,el('span','signal-rewrite-tag',item.title),
+          el('p','',item.value),
+          el('small','',item.why),
+          copyButton(item.value));
+        return row;
+      });
+      addMore(body,rows,5);
+    });
+
+  card('Your Priority Action Plan','Start with the biggest issues',
+    fixItems.length?fixItems.length+' steps in order':'No steps yet',
+    fixItems.length?'yellow':'unknown',(body)=>{
+      if(!fixItems.length){
+        body.append(el('p','signal-empty','No specific action plan can be made from this scan.'));
+        return;
+      }
+      const rows=fixItems.map((item,index)=>{
+        const row=el('div','signal-step-row');
+        add(row,el('span','signal-step-num',String(index+1).padStart(2,'0')),
+          add(el('div','signal-step-copy'),
+            el('strong','',small(item.fix,150)),
+            item.verify?el('small','','Check: '+small(item.verify,135)):null));
+        return row;
+      });
+      addMore(body,rows,5);
+    });
+
+  root.append(cardsRoot);
+  const actions=el('div','signal-bottom-actions');
   const pdf=el('button','signal-download','Download Full PDF');
   pdf.type='button';
   pdf.addEventListener('click',()=>{
     if(window.VylensPdfDownload?.save)window.VylensPdfDownload.save();
     else document.getElementById('savePdf')?.click();
   });
-  const again = el('a','','Scan another website or product');
-  again.href = './index.html#audit-tool';
-  bottom.append(pdf,again);
-  root.append(bottom);
+  const again=el('a','','Scan another website or product');
+  again.href='./index.html#audit-tool';
+  add(actions,pdf,again);
+  root.append(actions);
+
   main.prepend(root);
   document.body.classList.add('signal-ui');
-  // Existing report DOM stays available for the full PDF download.
+  // The original complete report remains available to the existing PDF builder.
 })();
