@@ -111,58 +111,122 @@ body.signal-ui #signalReport .signal-item-note{
 body.signal-ui #signalReport .signal-disclaimer{
   font-size:11.5px;color:#869084;line-height:1.65;margin:21px 0 33px!important
 }
-body.signal-ui #signalReport .signal-unlock{
-  background:#111712;color:#f6f8f4;border:1px solid #283327;border-radius:25px;
-  padding:clamp(24px,4vw,39px)
+/* Complete report — readable detail without paywalls or repeated dashboards. */
+body.signal-ui #signalReport .signal-full-section{margin:31px 0 0;padding-top:24px;border-top:1px solid #e8ede6}
+body.signal-ui #signalReport .signal-full-heading{
+  font:800 clamp(20px,3.4vw,27px)/1.32 Manrope,'DM Sans',sans-serif;
+  letter-spacing:-.045em;color:#171d17
 }
-body.signal-ui #signalReport .signal-paid-heading{
-  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px
+body.signal-ui #signalReport .signal-full-section>.signal-section-note{margin:7px 0 15px}
+body.signal-ui #signalReport .signal-finding{
+  border-bottom:1px solid #e6ede4;background:#fff
 }
-body.signal-ui #signalReport .signal-premium-label{
-  display:inline-block;background:#c7f36a;color:#162013;font-size:10px;
-  letter-spacing:.11em;font-weight:900;padding:9px 12px;border-radius:30px
+body.signal-ui #signalReport .signal-finding:first-child{border-top:1px solid #e6ede4}
+body.signal-ui #signalReport .signal-finding-summary{
+  display:flex;align-items:center;gap:15px;cursor:pointer;
+  list-style:none;min-height:72px;padding:15px 2px
 }
-body.signal-ui #signalReport .signal-one-time{
-  color:#afb9ac;font-size:10px;letter-spacing:.08em;font-weight:700
+body.signal-ui #signalReport .signal-finding-summary::-webkit-details-marker{display:none}
+body.signal-ui #signalReport .signal-count{
+  font-size:11px;font-weight:800;color:#54852d;min-width:24px;
+  font-variant-numeric:tabular-nums;flex-shrink:0
 }
-body.signal-ui #signalReport .signal-unlock h2{
-  font:800 clamp(25px,4.2vw,35px)/1.24 Manrope,'DM Sans',sans-serif;
-  letter-spacing:-.05em;color:#f7f9f4;max-width:630px
+body.signal-ui #signalReport .signal-finding-name{display:grid;gap:3px;min-width:0;flex:1}
+body.signal-ui #signalReport .signal-finding-name strong{font-size:13.5px;line-height:1.45;color:#202920}
+body.signal-ui #signalReport .signal-finding-name small{font-size:11px;color:#818c7f}
+body.signal-ui #signalReport .signal-expand-icon{flex-shrink:0;font-size:18px;color:#667762;font-weight:500}
+body.signal-ui #signalReport .signal-finding[open] .signal-expand-icon{transform:rotate(45deg)}
+body.signal-ui #signalReport .signal-finding-body{
+  margin:0 0 15px 38px;background:#f8faf6;border:1px solid #e9eee7;
+  border-radius:12px;padding:16px 18px
 }
-body.signal-ui #signalReport .signal-paid-intro{
-  color:#aebbb0;margin-top:13px!important;max-width:610px;
-  line-height:1.65;font-size:13px
+body.signal-ui #signalReport .signal-fact+.signal-fact{margin-top:14px}
+body.signal-ui #signalReport .signal-fact strong{font-size:11px;color:#465a43}
+body.signal-ui #signalReport .signal-fact p{
+  color:#647063;font-size:12.5px;line-height:1.65;margin-top:4px!important;overflow-wrap:anywhere
 }
-body.signal-ui #signalReport .signal-perks{
-  padding:0;margin:23px 0 24px;list-style:none
+body.signal-ui #signalReport .signal-question-list{display:grid;gap:10px}
+body.signal-ui #signalReport .signal-question{
+  display:flex;align-items:center;flex-wrap:wrap;gap:12px;
+  padding:13px 14px;background:#f8faf7;border:1px solid #e9eee7;border-radius:12px
 }
-body.signal-ui #signalReport .signal-perk{
-  display:flex;gap:17px;padding:14px 0;border-bottom:1px solid #303c30
+body.signal-ui #signalReport .signal-question-mark{
+  font:800 15px 'DM Sans',sans-serif;color:#4b7d2c;flex-shrink:0
 }
-body.signal-ui #signalReport .signal-perk:first-child{border-top:1px solid #303c30}
-body.signal-ui #signalReport .signal-perk-num{
-  width:28px;flex:0 0 28px;padding-top:2px;color:#c7f36a;font:800 12px 'DM Sans',sans-serif;
-  font-variant-numeric:tabular-nums
+body.signal-ui #signalReport .signal-question p{
+  flex:1 1 240px;color:#263326;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere
 }
-body.signal-ui #signalReport .signal-perk-copy{min-width:0}
-body.signal-ui #signalReport .signal-perk-copy strong{
-  color:#f4f8f1;font-size:14px;line-height:1.35;font-weight:800
+body.signal-ui #signalReport .signal-text-link{
+  background:none;border:0;padding:5px 0;color:#47762d;
+  font:700 11.5px 'DM Sans',sans-serif;cursor:pointer;text-align:left
 }
-body.signal-ui #signalReport .signal-perk-copy p{
-  color:#b5c0b3;margin-top:5px!important;font-size:12.5px;line-height:1.6
+body.signal-ui #signalReport .signal-change-list{display:grid;gap:12px}
+body.signal-ui #signalReport .signal-change{
+  background:#f9fbf7;border:1px solid #e4ebe0;border-radius:14px;
+  padding:18px 18px 15px;scroll-margin-top:80px
 }
-body.signal-ui #signalReport .signal-unlock-cta{
-  display:flex;min-height:55px;width:100%;align-items:center;justify-content:center;
-  background:#c7f36a;border-radius:14px;color:#111912!important;
-  padding:13px 16px;text-decoration:none!important;text-align:center;
-  font:900 15px/1.4 'DM Sans',sans-serif;transition:background .15s ease,transform .15s ease
+body.signal-ui #signalReport .signal-change:focus{outline:2px solid #a5cc6c;outline-offset:2px}
+body.signal-ui #signalReport .signal-change-top{display:flex;align-items:flex-start;gap:13px}
+body.signal-ui #signalReport .signal-change-top strong{
+  color:#253224;font-size:13.5px;line-height:1.5;flex:1
 }
-body.signal-ui #signalReport .signal-unlock-cta:hover{background:#d6fa96;transform:translateY(-1px)}
-body.signal-ui #signalReport .signal-unlock-cta:active{transform:translateY(0)}
-body.signal-ui #signalReport .signal-checkout-state{
-  color:#aebbad;text-align:center;margin-top:11px!important;font-size:11.5px;line-height:1.6
+body.signal-ui #signalReport .signal-change>p{
+  padding-left:37px;font-size:12.5px;line-height:1.7;color:#536350;
+  margin:8px 0 10px!important;overflow-wrap:anywhere
 }
-body.signal-ui #signalReport .signal-bottom-actions{text-align:center;padding-top:23px}
+body.signal-ui #signalReport .signal-copy{
+  margin-left:37px;min-height:34px;background:#e9f4da;color:#376421;
+  border:1px solid #d7e9c7;border-radius:9px;font-weight:800;
+  font-family:'DM Sans',sans-serif;font-size:11px;padding:7px 12px;cursor:pointer
+}
+body.signal-ui #signalReport .signal-copy:hover{background:#e2f1cf}
+body.signal-ui #signalReport .signal-copy-kit{
+  border:1px solid #e5ede0;border-radius:15px;padding:19px;margin-top:20px
+}
+body.signal-ui #signalReport .signal-copy-kit h3{font-size:15px;font-weight:800}
+body.signal-ui #signalReport .signal-kit-item{padding:14px 0;border-bottom:1px solid #edf0eb}
+body.signal-ui #signalReport .signal-kit-item:last-child{border-bottom:0}
+body.signal-ui #signalReport .signal-kit-item>strong{font-size:13px}
+body.signal-ui #signalReport .signal-kit-item>p{
+  font-size:12.5px;color:#586755;line-height:1.7;
+  margin-top:6px!important;white-space:pre-wrap;overflow-wrap:anywhere
+}
+body.signal-ui #signalReport .signal-kit-item .signal-copy{margin:10px 0 0}
+body.signal-ui #signalReport .signal-plan-list{margin:0;padding:0;list-style:none}
+body.signal-ui #signalReport .signal-plan-list li{list-style:none}
+body.signal-ui #signalReport .signal-plan-step{
+  display:flex;align-items:center;gap:15px;width:100%;text-align:left;
+  padding:14px 3px;background:transparent;border:0;border-bottom:1px solid #e8ede6;
+  font-family:'DM Sans',sans-serif;cursor:pointer
+}
+body.signal-ui #signalReport .signal-plan-step:hover{background:#f9fcf5}
+body.signal-ui #signalReport .signal-plan-label{flex:1;display:grid;gap:4px;min-width:0}
+body.signal-ui #signalReport .signal-plan-label strong{font-size:12.5px;line-height:1.5;color:#253124}
+body.signal-ui #signalReport .signal-plan-label small{font-size:10.5px;color:#778474}
+body.signal-ui #signalReport .signal-plan-arrow{font-size:15px;color:#71916a;flex-shrink:0}
+body.signal-ui #signalReport .signal-strength-list{display:grid;gap:10px}
+body.signal-ui #signalReport .signal-strength{display:flex;gap:13px;align-items:flex-start;padding:12px 3px}
+body.signal-ui #signalReport .signal-strength-mark{color:#418b52;font-weight:900}
+body.signal-ui #signalReport .signal-strength strong{font-size:13px;color:#273527}
+body.signal-ui #signalReport .signal-strength p{font-size:12px;line-height:1.65;color:#6a7969;margin-top:4px!important}
+body.signal-ui #signalReport .signal-limits{
+  margin-top:24px;border-top:1px solid #e7eee3;padding:14px 0;color:#5d6e59
+}
+body.signal-ui #signalReport .signal-limits summary{
+  cursor:pointer;font-size:12.5px;font-weight:700;list-style:revert
+}
+body.signal-ui #signalReport .signal-limits-body{padding:12px 0}
+body.signal-ui #signalReport .signal-limits-body p{font-size:12px;line-height:1.7;color:#677763;margin:6px 0!important}
+body.signal-ui #signalReport .signal-empty{
+  font-size:12.5px;line-height:1.7;color:#687967;padding:16px 0;overflow-wrap:anywhere
+}
+body.signal-ui #signalReport .signal-download{
+  min-height:47px;border:0;background:#c7f36a;color:#172313;
+  font:800 13.5px 'DM Sans',sans-serif;border-radius:12px;
+  padding:13px 22px;cursor:pointer;max-width:100%
+}
+body.signal-ui #signalReport .signal-download:hover{background:#b8e958}
+body.signal-ui #signalReport .signal-bottom-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:16px;padding-top:25px}
 body.signal-ui #signalReport .signal-bottom-actions a{
   color:#606d5d;font-size:13px;font-weight:700;text-underline-offset:4px
 }
@@ -180,8 +244,6 @@ body.signal-ui #signalReport .signal-bottom-actions a{
   body.signal-ui #signalReport .signal-item h3{font-size:14px}
   body.signal-ui #signalReport .signal-item{padding:16px 0 16px}
   body.signal-ui #signalReport .signal-item-note{font-size:12px}
-  body.signal-ui #signalReport .signal-unlock{border-radius:20px;padding:23px 18px}
-  body.signal-ui #signalReport .signal-unlock h2{font-size:25px}
 }
 @media(max-width:365px){
   body.rv-ui.signal-ui #main{padding:0 12px 30px!important}
@@ -189,17 +251,12 @@ body.signal-ui #signalReport .signal-bottom-actions a{
   body.signal-ui #signalReport .signal-score-number{padding-right:0;border-right:none}
   body.signal-ui #signalReport .signal-item-right{gap:6px}
   body.signal-ui #signalReport .signal-status{padding:5px 7px;font-size:10px}
-  body.signal-ui #signalReport .signal-paid-heading{align-items:flex-start;flex-direction:column}
-}
-@media(prefers-reduced-motion:reduce){
-  body.signal-ui #signalReport .signal-unlock-cta{transition:none}
 }
 @media print{
   body.rv-ui.signal-ui #main>:not(#signalReport){display:none!important}
   body.rv-ui.signal-ui #main>#signalReport{display:block!important}
   body.rv-ui.signal-ui #main{max-width:none!important;padding:0!important}
   body.signal-ui .page-header{display:none!important}
-  body.signal-ui #signalReport .signal-unlock,
   body.signal-ui #signalReport .signal-bottom-actions{display:none!important}
   body.signal-ui #signalReport{padding:0}
 }
