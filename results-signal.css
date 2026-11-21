@@ -4,6 +4,7 @@ body.signal-ui{background:#fff;color:#141914}
 body.signal-ui #main>:not(#signalReport){display:none!important}
 body.signal-ui #main>#signalReport{display:block!important}
 body.signal-ui #main{max-width:900px!important;margin:0 auto!important}
+body.signal-ui .page-header .nav-actions{display:none!important}
 
 body.rv-ui.signal-ui #main{max-width:900px!important;padding:0 22px 65px!important;margin:0 auto!important}
 body.rv-ui.signal-ui #main>:not(#signalReport){display:none!important}
