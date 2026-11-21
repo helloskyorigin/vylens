@@ -77,29 +77,39 @@ with sync_playwright() as playwright:
           'New short buyer-signal Results is visible on production')
     check(page.locator('#signalReport .signal-item').count()==5,
           'Five signal lines appear in the free preview')
-    check(page.locator('#signalReport .signal-perk').count()==5,
-          'Five full-report benefits without a long dashboard')
+    check(page.locator('.signal-unlock').count()==0,
+          'No paid box or purchase promotion in the free report')
+    check(page.locator('.signal-unlock-cta').count()==0,
+          'No disabled checkout CTA')
+    check(page.locator('.signal-finding').count()>=1,
+          'Real product findings are shown for free')
+    check(page.locator('.signal-change').count()>=1,
+          'Each relevant product issue has an actionable fix')
+    check(page.locator('.signal-plan-step').count()>=1,
+          'Priority plan is available for free')
     check(not page.locator('#rvReport').is_visible() and
           not page.locator('#fiveReport').is_visible(),
-          'Old detailed report is not shown to free visitors')
+          'No duplicate old dashboard sections')
     check(page.locator('.signal-score-number strong').inner_text()=='—',
           'File-only inspection does not invent a conversion score')
     check(all(v=='—' for v in page.locator('.signal-item-value').all_inner_texts()),
           'File-only inspection does not invent buyer ratings')
-    check(page.locator('.signal-unlock-cta').is_visible() and
-          '$9' in page.locator('.signal-unlock-cta').inner_text(),
-          'Full digital-product report offer shows the correct price')
     check(not page.locator('#rvDownload').is_visible() and
           not page.locator('#navDownload').is_visible(),
-          'Full PDF is not exposed through free download actions')
+          'Legacy PDF actions are hidden in favor of one free download')
     check(page.evaluate("() => JSON.parse(sessionStorage.getItem('vylens:result')).conversion.blockers.some(x => String(x.evidence||'').includes('TODO'))"),
-          'The original product evidence remains intact for future delivery')
-    page.locator('.signal-unlock-cta').click()
-    check('Nothing has been charged' in page.locator('.signal-checkout-state').inner_text(),
-          'Unavailable checkout is explained without pretending to charge')
-    pdf=page.evaluate("() => {const r=window.VylensPdfDownload?.build();return r ? {length:r.bytes.length,header:Array.from(r.bytes.slice(0,5))} : null}")
-    check(pdf and pdf['length']>1800 and pdf['header']==[37,80,68,70,45],
-          'Underlying report PDF generation still works')
+          'The original product evidence remains intact')
+    check(page.locator('.signal-finding').first.locator('.signal-finding-body').is_visible(),
+          'The first recorded problem is expanded')
+    with page.expect_download(timeout=16000) as download_event:
+        page.locator('.signal-download').click()
+    downloaded=download_event.value
+    pdf=Path(downloaded.path()).read_bytes()
+    check(downloaded.suggested_filename.endswith('.pdf') and
+          pdf.startswith(b'%PDF') and b'%%EOF' in pdf[-40:] and len(pdf)>1800,
+          'Full PDF is a working free download')
+    check(b'Buyer Journey Review' in pdf or b'CONVERSION REPORT' in pdf,
+          'PDF retains the full report content')
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
     page.locator('.signal-bottom-actions a').click()
     page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
