@@ -68,6 +68,23 @@ try{
   const spaResult=await compare('Hydrated public API and service CTA',spa);
   assert.equal(spaResult.blockers.length,0);
   assert.ok(spaResult.strengths.some(x=>x.stage==='action'&&x.evidence.includes('Check My Website Free')),JSON.stringify({actions:spa.commerce.actions,strengths:spaResult.strengths}));
+  // Regression: page loaded successfully but framework mounted its real
+  // offer outside an empty semantic <main>. It MUST not become 0 findings
+  // and five "Not checked" ratings solely because main was empty.
+  const outsideMain=await scan('/offer/outside-main',
+    '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>'+
+    '<body><main></main><section class="offer"><h1>Find the issues making it hard for customers to buy</h1>'+
+    '<p>Our website review helps founders understand real offer weaknesses and improve the path to purchasing.</p>'+
+    '<p>$29 one-time</p><a href="/checkout">Buy now</a></section></body></html>',
+    {freshMobile:false});
+  assert.equal(outsideMain.commerce?.heading,
+    'Find the issues making it hard for customers to buy',
+    'DOM extraction must recover visible sales copy outside empty main');
+  assert.equal(outsideMain.commerce?.hasPrice,true,
+    'out-of-main product price must not be lost');
+  const outsideReport=await compare('Real offer outside empty main',outsideMain);
+  assert.ok(outsideReport.inspectedOfferPages>0,
+    'mounted public offer must actually reach buyer analysis');
 
   const hidden=await scan('/offer',frame(offer+'<section class="pricing"><p class="desktop">$19 one-time</p>'+
     '<a class="desktop" href="/purchase/basic">Buy now</a><p>All sales final.</p></section>',
