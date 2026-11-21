@@ -648,6 +648,14 @@ function evaluateRenderedSignals(signals,path){
     path+' · page structure','Inspect the page accessibility landmarks.');
   return {issues,checks};
 }
+function blockedOrChallenge(commerce){
+  const heading=String(commerce?.heading||'').trim().toLowerCase();
+  const text=String(commerce?.visibleText||'').slice(0,1800).toLowerCase();
+  if(!heading&&!text)return false;
+  const title=/(?:^just a moment\b|^checking your browser\b|^access denied\b|^one more step\b|^attention required\b|^please enable javascript\b|^verify you are human\b)/i.test(heading);
+  const marker=/(?:checking (?:if )?(?:the )?(?:site connection|browser)|verify (?:that )?you are human|challenge-platform|cloudflare ray id|attention required.*cloudflare|request blocked.*security rules|captcha verification required|javascript is required to continue.*verify)/i.test(text);
+  return (title&&marker)||/cloudflare ray id[\s\S]{0,160}(?:access denied|verification)/i.test(text);
+}
 async function waitForContent(page,timeout){
   const ready=await page.waitForFunction(()=>{
     const content=document.querySelector('main,[role="main"],article,#root,#__next,#app')||document.body;
@@ -686,7 +694,9 @@ async function rendered(session,url,{freshMobile=true}={}){
     const visibleText=commerce.visibleText;
     const resourceGap=state.resourceGaps.length?
       'Some rendering assets were unavailable: '+state.resourceGaps.join(', ')+'.':'';
+    const challenge=blockedOrChallenge(commerce);
     const renderGap=!ready?'The browser did not reach a readable public content state.':
+      challenge?'The website showed an access verification screen instead of its offer.':
       state.capped?'Browser resource limit was reached.':'';
     const desktopCapped=state.capped;
     const measureMobile=view=>view.evaluate(()=>{
@@ -781,7 +791,7 @@ async function rendered(session,url,{freshMobile=true}={}){
       renderGap,mobileGap,resourceGap
     };
     return {status,html,links,mobile,narrow,visibleText,signals,
-      commerce:ready?combinedCommerce:null,renderGap,mobileGap,resourceGap,mobileMode,
+      commerce:ready&&!challenge?combinedCommerce:null,renderGap,mobileGap,resourceGap,mobileMode,
       headers:response.headers(),browser:true,errors};
 
   }finally{page.off('pageerror',onError);}
@@ -1237,4 +1247,4 @@ function streamScan(url){
     'x-content-type-options':'nosniff','x-accel-buffering':'no'}});
 }
 export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
-export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion,rendered,browserResource,waitForContent};
+export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion,rendered,browserResource,waitForContent,blockedOrChallenge};
