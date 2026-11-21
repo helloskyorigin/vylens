@@ -7,6 +7,13 @@ root=Path(__file__).parent
 errors=[]
 for f in ['index.html','inspect.html','results.html','privacy.html','terms.html','refunds.html','cookies.html','contact.html','disclaimer.html']:
   soup=BeautifulSoup((root/f).read_text(), 'html.parser')
+  if soup.html and soup.html.get('data-theme')!='dark': errors.append(f'{f}: dark default missing')
+  if not soup.select('link[href^="./theme.css"]'): errors.append(f'{f}: theme stylesheet missing')
+  if not soup.select('script[src^="./theme.js"]'): errors.append(f'{f}: theme switch missing')
+  if f in ['privacy.html','terms.html','refunds.html','cookies.html','contact.html','disclaimer.html']:
+    source=(root/f).read_text()
+    if 'hello.skyworking@gmail.com' not in source: errors.append(f'{f}: new business email missing')
+    if 'hello.skyorigin@gmail.com' in source: errors.append(f'{f}: outdated business email')
   ids=[x.get('id') for x in soup.select('[id]')]
   if len(ids)!=len(set(ids)): errors.append(f'{f}: duplicate IDs')
   for el in soup.select('[href],[src]'):
@@ -15,12 +22,12 @@ for f in ['index.html','inspect.html','results.html','privacy.html','terms.html'
       dest=(root/f).parent/loc.split('#')[0].split('?')[0]
       if not dest.exists():errors.append(f'{f}: missing {loc}')
   print(f'{f}: {len(ids)} IDs, {len(soup.select("a"))} links')
-for f in ['styles.css','inspect.css','analysis.css','report.css']:
+for f in ['styles.css','inspect.css','analysis.css','report.css','theme.css']:
   css=tinycss2.parse_stylesheet((root/f).read_text(), skip_whitespace=True,skip_comments=True)
   failures=[c for c in css if c.type=='error']
   if failures:errors.append(f'{f}: parse errors {failures}')
   print(f'{f}: {len(css)} CSS rules')
-for f in ['script.js','analysis.js','audit-core.js','results.js','api/inspect.mjs']:
+for f in ['script.js','analysis.js','audit-core.js','results.js','theme.js','api/inspect.mjs']:
   p=subprocess.run(['node','--check',str(root/f)],capture_output=True,text=True)
   if p.returncode:errors.append(f'{f}: {p.stderr[:250]}')
   print(f'{f}:', 'JavaScript syntax OK' if not p.returncode else 'FAILED')
