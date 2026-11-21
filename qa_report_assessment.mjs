@@ -12,7 +12,12 @@ const sample={kind:'website',pages:[site],coverage:{complete:true},
   renderedPages:1,inspectedOfferPages:1};
 const none=buildReportAssessment({...sample,blockers:[],strengths:[]});
 assert.equal(none.overall,null,'no evidence must not produce a fake score');
-assert.ok(none.signals.every(x=>x.score===null),'unknown must stay unknown');
+assert.ok(none.signals.filter(x=>x.score!==null).every(x=>x.key==='action'),
+  'a visibly labelled buying action may be assessed, but unrelated dimensions remain unknown');
+const nothingObservable=buildReportAssessment({...sample,pages:[{...site,
+  commerce:{heading:'Welcome',hasPrice:false,actions:[]}}]});
+assert.ok(nothingObservable.signals.every(x=>x.score===null),
+  'without any assessed findings or visible evidence all signals stay unknown');
 const price=buildReportAssessment({...sample,blockers:[],
   strengths:[{stage:'value',title:'Price information is visible',evidence:'$29 on /pricing'}]});
 assert.ok(price.signals.find(x=>x.key==='value').score<75,'visible price is not proof of good value');
