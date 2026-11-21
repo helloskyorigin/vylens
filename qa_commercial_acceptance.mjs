@@ -86,6 +86,14 @@ try{
   assert.ok(clipped.report.blockers.some(x=>x.title.includes('extends beyond the screen')),
     'mobile geometry finds a clipped purchase control');
 
+  assert.equal(scanner.blockedOrChallenge({
+    heading:'Just a moment...',
+    visibleText:'Checking if the site connection is secure. Verify you are human. Cloudflare Ray ID.'
+  }),true,'bot verification must never be treated as offer evidence');
+  assert.equal(scanner.blockedOrChallenge({
+    heading:'Access denied to the premium package?',
+    visibleText:'Our course gives buyers practical steps to access a paid guide and full library.'
+  }),false,'ordinary product descriptions must not be confused with a challenge');
   const gibberish=await scenario('repeated filler does not become proof',
     '<h1>y y y y</h1><p>y y y y y y y y y y y y y y y</p>'+
     '<p>$19</p><a href="/checkout">Buy now</a>');
