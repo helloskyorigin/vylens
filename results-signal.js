@@ -175,6 +175,16 @@
     items.append(item);
   }
   signals.append(items);
+  // A small coverage receipt explains how many pages were actually reviewed,
+  // without dumping dozens of technical checks into the five-card experience.
+  if(report.mode==='website'&&Number(report.coverage?.inspected)>0){
+    const inspected=Math.max(0,Math.floor(Number(report.coverage.inspected)));
+    const received=Math.max(0,Math.floor(Number(report.coverage?.rendered||0)));
+    const note=inspected+' '+(inspected===1?'page':'pages')+' checked'+
+      (received<inspected?' · some pages could not be fully viewed':'')+
+      ' · '+uniqueIssues.length+' buyer '+(uniqueIssues.length===1?'concern':'concerns')+' found';
+    signals.append(el('p','signal-coverage-note',note));
+  }
   root.append(signals);
   root.append(el('p','signal-disclaimer',
     'These are possible concerns based on what we could check, not recorded buyer behavior.'));
