@@ -43,8 +43,19 @@ with sync_playwright() as playwright:
     check(response is not None and response.status==200,'Landing page HTTP 200')
     check('VYLENS' in page.title(),'Landing page title')
     check(page.locator('#websiteTab').get_attribute('aria-pressed')=='true','Website mode initially selected')
-    check(page.locator('#features .feature-tile').count()==6 and
-          page.locator('#features .feature-lead').count()==2,'Exactly eight capabilities listed')
+    check(page.locator('main > section').count()==5,'Landing contains five focused sections')
+    check(page.locator('.buyer-signal-preview').count()==5,'Five buyer signals are visible')
+    check(page.locator('#faq details').count()==5,'FAQ has five concise answers')
+    check(page.locator('#features').count()==0,'Old repetitive feature grid was removed')
+    check(page.locator('html').get_attribute('data-theme')=='dark',
+          'Dark mode is the default')
+    check(page.locator('.theme-toggle').is_visible(),'Theme toggle is visible')
+    page.locator('.theme-toggle').click()
+    check(page.locator('html').get_attribute('data-theme')=='light',
+          'Theme toggle switches to light mode')
+    page.locator('.theme-toggle').click()
+    check(page.locator('html').get_attribute('data-theme')=='dark',
+          'Theme toggle switches back to dark mode')
     check(page.locator('#hero-title').is_visible() and page.locator('#audit-tool').is_visible(),'Hero and audit input visible')
     assert_no_overflow(page,'Desktop landing')
     page.screenshot(path=str(CAPTURE/'landing-desktop.png'),full_page=True,animations='disabled')
@@ -114,6 +125,12 @@ with sync_playwright() as playwright:
           'Full PDF is a working free download')
     check(b'Buyer Journey Review' in pdf or b'CONVERSION REPORT' in pdf,
           'PDF retains the full report content')
+    check(page.locator('html').get_attribute('data-theme')=='dark',
+          'Dark preference persists from landing to report')
+    nav_width=page.locator('.floating-nav').bounding_box()['width']
+    report_width=page.locator('#signalReport').bounding_box()['width']
+    check(abs(nav_width-report_width)<12,
+          'Results navbar matches report width')
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
     page.locator('.signal-bottom-actions a').click()
     page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
@@ -124,8 +141,8 @@ with sync_playwright() as playwright:
     page.locator('#faq').scroll_into_view_if_needed()
     page.locator('#faq details').first.locator('summary').click()
     faq_text=page.locator('#faq').inner_text()
-    check('rendered DOM' in faq_text and '24 pages' in faq_text,
-          'FAQ describes current browser and page limits')
+    check('24 discovered pages' in faq_text and 'buying' in faq_text.lower(),
+          'FAQ explains buyer audit and current page limits')
 
     # Responsive smoke: detect horizontal overflows on all major breakpoints.
     for width in [320,360,390,620,768,1024,1440]:
