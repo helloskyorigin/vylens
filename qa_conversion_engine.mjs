@@ -185,4 +185,43 @@ assert.ok(bounded.evidence.length<=565&&bounded.evidence.endsWith('…'),
 const excerpt=bounded.evidence.slice(0,-1);
 assert.ok([' ','.','!','?',''].includes(lengthy[excerpt.length]||''),
   'bounded evidence ends at a word or sentence boundary');
+
+// Existing page checks must be evaluated, not silently thrown away.
+const narrowOffer=analyzeWebsiteConversion([page('/pricing',offer())],{
+  coverage:{complete:true},
+  issues:[{category:'Mobile experience',severity:'note',title:'Layout overflows on narrow phones',
+    location:'/pricing · 320px viewport',evidence:'Document extends 44px beyond the 320px phone viewport.',
+    fix:'Make the offer responsive.',verify:'View the page at 320px.'}]
+});
+assert.ok(narrowOffer.blockers.some(x=>x.title==='The offer layout extends beyond a phone screen'),
+  'an observed offer-page mobile problem must reach the buyer report');
+assert.ok(narrowOffer.assessment&&narrowOffer.assessment.version===1,
+  'backend delivers an evidence-based report assessment');
+assert.ok(narrowOffer.assessment.signals.some(x=>x.key==='value'&&x.score<=68),
+  'mere price visibility is not strong value-for-money evidence');
+const unrelatedLayout=analyzeWebsiteConversion([page('/pricing',offer())],{
+  coverage:{complete:true},
+  issues:[{category:'Mobile setup',severity:'note',title:'Possible horizontal overflow on mobile',
+    location:'/blog/how-to-start · mobile 390px',
+    evidence:'The blog article is too wide.',fix:'Resize the blog content.',verify:'Check at 390px.'}]
+});
+assert.ok(!unrelatedLayout.blockers.some(x=>x.title==='The offer layout extends beyond a phone screen'),
+  'unrelated blog layouts are not invented conversion blockers');
+const actualPolicy=analyzeWebsiteConversion([page('/pricing',offer())],{
+  coverage:{complete:true},
+  issues:[{category:'Policy content',severity:'note',title:'Policy page may contain placeholder copy',
+    location:'/refund-policy',evidence:'TODO appears on the public refund policy.',
+    fix:'Publish accurate refund terms.',verify:'Reload the refund policy.'}]
+});
+assert.ok(actualPolicy.blockers.some(x=>x.title==='Published purchase policy details need review'),
+  'an unfinished public refund policy contributes relevant buyer risk');
+const duplicates=analyzeWebsiteConversion([
+  page('/',offer({heading:'Welcome',intro:'Hi.'})),
+  page('/product',offer({heading:'Welcome',intro:'Hi.'}))
+],{coverage:{complete:true}});
+assert.equal(duplicates.blockers.filter(x=>x.title==='The main headline is too generic to explain the offer').length,1,
+  'the same offer problem on two pages is summarized once');
+assert.equal(duplicates.blockers.find(x=>x.title==='The main headline is too generic to explain the offer').affectedPages.length,2,
+  'repeated findings retain their affected page locations');
+
 console.log('PASS conversion engine: bounded readable evidence, geometry and price parity');
