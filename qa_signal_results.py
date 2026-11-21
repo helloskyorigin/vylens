@@ -33,7 +33,7 @@ def fixture(kind="website",situation="findings"):
         issues=[]
         strengths=[{"stage":x,"title":"Positive observation","evidence":"Observed."}
                    for x in ("clarity","value","trust","action")]
-    if situation=="limited":
+    if situation in ("limited","capturefailed"):
         issues=[]
         strengths=[]
     if situation=="many":
@@ -45,12 +45,24 @@ def fixture(kind="website",situation="findings"):
         issues[0]["copyTo"]="See exactly how the product helps"
     conversion={
       "version":1,"kind":kind,
-      "renderedPages":0 if situation=="limited" else 1,
-      "inspectedOfferPages":0 if situation=="limited" else 1,
+      "renderedPages":0 if situation in ("limited","capturefailed") else 1,
+      "inspectedOfferPages":0 if situation in ("limited","capturefailed") else 1,
       "blockers":issues,"strengths":strengths,
       "journey":[{"id":s,"status":"review"} for s in ("clarity","value","trust","action")],
       "unverified":["Actual purchases were not measured."]
     }
+    if situation=="capturefailed":
+        conversion["scanDiagnostic"]={
+          "status":"insufficient-offer-evidence",
+          "reason":"Pages opened, but usable offer content was not captured.",
+          "openedPages":7,"offerEvidencePages":0,"unreadableRendered":7,
+          "sourcesOnly":0,
+          "examples":[{"page":"/","reason":"Verification screen instead of offer"}]
+        }
+        conversion["sourcePreview"]={
+          "observations":[{"title":"Sales-page HTML contains a primary heading",
+                           "evidence":"Source heading: Example Sales Offer"}]
+        }
     if situation=="rewrite":
         conversion["fixKit"]=[{"kind":"copy","title":"Suggested CTA",
                                "content":"View plans and pricing",
@@ -64,7 +76,10 @@ def fixture(kind="website",situation="findings"):
                    "location":"/home","evidence":"A real extra page check was recorded.",
                    "fix":"Review the page metadata.","verify":"Open the public page."}],
         "checks":[{"name":"Sample check","status":"passed"}],
-        "coverage":{"complete":situation!="limited","discovered":3,"inspected":1},
+        "coverage":{"complete":situation not in ("limited","capturefailed"),
+                    "discovered":7 if situation=="capturefailed" else 3,
+                    "inspected":7 if situation=="capturefailed" else 1,
+                    "rendered":7 if situation=="capturefailed" else 0},
         "conversion":conversion
     }
 
@@ -75,6 +90,7 @@ def check(value,message):
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,args=["--no-sandbox"])
     cases=[("website","findings"),("website","zero"),("website","limited"),
+           ("website","capturefailed"),
            ("website","many"),("website","rewrite"),("product","findings")]
     for width in (320,390,768,1280):
         for mode,situation in cases:
@@ -89,6 +105,29 @@ with sync_playwright() as p:
             label=f"{mode}/{situation} @ {width}px"
             check(response.status==200,label+" serves report")
             check(page.locator("#signalReport").is_visible(),label+" shows signal report")
+            if mode=="website" and situation in ("limited","capturefailed"):
+                check(page.locator(".signal-diagnostic-panel").is_visible(),
+                      label+" shows actionable incomplete-scan diagnosis")
+                check(page.locator(".signal-detail-card").count()==0,
+                      label+" never claims five empty cards are a full report")
+                check(page.locator(".signal-score-ring").count()==0,
+                      label+" does not invent a score")
+                check(page.locator(".signal-download").count()==1 and
+                      page.locator(".signal-download").inner_text()=="Try this scan again",
+                      label+" replaces misleading full PDF with a retry")
+                if situation=="capturefailed":
+                    check("7" in page.locator(".signal-diagnostic-stats").inner_text() and
+                          "0" in page.locator(".signal-diagnostic-stats").inner_text(),
+                          label+" distinguishes pages opened from offer pages analyzed")
+                    check("Sales-page HTML contains" in page.locator(".signal-diagnostic-source").inner_text(),
+                          label+" shares limited source observations honestly")
+                    if width==390:
+                        page.screenshot(path=str(CAPTURES/"incomplete-scan-mobile.png"),full_page=True)
+                dims=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
+                check(max(dims[1:])<=dims[0]+3,label+" avoids overflow")
+                check(not errors,label+" has no browser errors: "+str(errors))
+                page.close()
+                continue
             check(page.locator(".signal-score-ring").count()==1,label+" shows circular score")
             score=page.locator(".signal-score-center strong").inner_text()
             if mode=="product" or situation=="limited":
