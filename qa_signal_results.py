@@ -1,4 +1,4 @@
-"""Buyer-signal result screen regression: short evidence-led preview and five-point offer."""
+"""VYLENS full free report: buyer signals, complete findings, PDF and responsive QA."""
 import json
 import os
 from pathlib import Path
@@ -9,30 +9,42 @@ CAPTURES=Path("qa-captures")
 CAPTURES.mkdir(exist_ok=True)
 
 def fixture(kind="website", situation="findings"):
-    findings = [
-        {"id":"a","stage":"clarity","priority":"high","title":"The main headline is too generic to explain the offer",
-         "evidence":"The heading only says 'Everything, simplified'.","fix":"Describe the real customer outcome."},
-        {"id":"b","stage":"trust","priority":"high","title":"Supporting proof is not clear near the offer",
-         "evidence":"No proof appeared in inspected sections.","fix":"Show authentic evidence."},
-        {"id":"c","stage":"action","priority":"review","title":"The buying action label may be unclear",
-         "evidence":"Button is labelled 'Continue'.","fix":"Use an accurate action label."},
-        {"id":"d","stage":"trust","priority":"review","title":"Purchase terms may be hard to find",
-         "evidence":"The buying page did not show terms nearby.","fix":"Link to real purchase terms."},
-        {"id":"d","stage":"trust","priority":"review","title":"Purchase terms may be hard to find",
-         "evidence":"Duplicate occurrence.","fix":"Link to purchase terms."}
+    findings=[
+        {"id":"a","stage":"clarity","priority":"high",
+         "title":"The main headline is too generic to explain the offer",
+         "evidence":"The heading only says Everything, simplified.","fix":"Describe the real customer outcome.",
+         "buyerQuestion":"What does this product help me do?"},
+        {"id":"b","stage":"trust","priority":"high",
+         "title":"Supporting proof is not clear near the offer",
+         "evidence":"No proof appeared in inspected sections.","fix":"Show authentic evidence.",
+         "buyerQuestion":"Can I trust these claims?"},
+        {"id":"c","stage":"action","priority":"review",
+         "title":"The buying action label may be unclear",
+         "evidence":"Button is labelled Continue.","fix":"Use an accurate action label.",
+         "buyerQuestion":"What happens when I click Continue?"},
+        {"id":"d","stage":"trust","priority":"review",
+         "title":"Purchase terms may be hard to find",
+         "evidence":"The buying page did not show terms nearby.","fix":"Link to real purchase terms.",
+         "buyerQuestion":"What are the purchase conditions?"},
+        {"id":"d","stage":"trust","priority":"review",
+         "title":"Purchase terms may be hard to find",
+         "evidence":"Duplicate occurrence.","fix":"Link to real purchase terms.",
+         "buyerQuestion":"What are the purchase conditions?"}
     ]
     good=[{"stage":"value","title":"Price information is visible","evidence":"$29 price shown."}]
     if situation=="zero":
         findings=[]
-        good=[{"stage":k,"title":"Positive observation","evidence":"Visible on the public page."}
-              for k in ["clarity","value","trust","action"]]
+        good=[{"stage":k,"title":"Positive observation","evidence":"Visible on the page."}
+              for k in ("clarity","value","trust","action")]
     if situation=="limited":
         findings=[]
         good=[]
     if situation=="many":
-        findings += [{"id":str(i),"stage":"value" if i%2 else "clarity","priority":"review",
-                      "title":"Offer concern "+str(i),"evidence":"A real observation.",
-                      "fix":"Check the public page."} for i in range(30)]
+        findings += [
+            {"id":str(i),"stage":"value" if i%2 else "clarity","priority":"review",
+             "title":"Offer concern "+str(i),"evidence":"An actual observation.",
+             "fix":"Check the offer presentation."}
+            for i in range(30)]
     return {
         "mode":kind,"url":"https://example.org/shop",
         "subject":"example.org" if kind=="website" else "my-guide.pdf",
@@ -43,8 +55,8 @@ def fixture(kind="website", situation="findings"):
             "inspectedOfferPages":0 if situation=="limited" else 1,
             "blockers":findings,"strengths":good,
             "journey":[{"id":key,"status":"review","detail":"Visible offer checked."}
-                       for key in ["clarity","value","trust","action"]],
-            "unverified":["We did not watch real visitors or test purchases."]
+                       for key in ("clarity","value","trust","action")],
+            "unverified":["We did not observe real purchases."]
         }
     }
 
@@ -54,63 +66,78 @@ def verify(value,message):
 
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,args=["--no-sandbox"])
-    for width in [320,390,768,1280]:
-        for mode,situation in [
-            ("website","findings"),("website","zero"),("website","limited"),
-            ("website","many"),("product","findings")
-        ]:
+    cases=[("website","findings"),("website","zero"),("website","limited"),
+           ("website","many"),("product","findings")]
+    for width in (320,390,768,1280):
+        for mode,situation in cases:
             page=browser.new_page(viewport={"width":width,"height":850},
                                   reduced_motion="reduce",accept_downloads=True)
             errors=[]
-            page.on("pageerror",lambda err:errors.append(str(err)))
-            data=fixture(mode,situation)
+            page.on("pageerror",lambda error:errors.append(str(error)))
+            report=fixture(mode,situation)
             page.add_init_script("sessionStorage.setItem('vylens:result',"+
-                                 json.dumps(json.dumps(data))+");")
+                                 json.dumps(json.dumps(report))+");")
             response=page.goto(BASE+"/results.html",wait_until="load",timeout=50000)
             label=f"{mode}/{situation} @ {width}px"
-            verify(response.status==200,label+" serves HTML")
-            root=page.locator("#signalReport")
-            verify(root.is_visible(),label+" shows the new signal report")
-            verify(page.locator("#rvReport").count()==0 or not page.locator("#rvReport").is_visible(),
-                   label+" does not show the old report")
-            verify(not page.locator("#fiveReport").is_visible(),label+" hides detailed report")
-            verify(page.locator(".signal-item").count()==5,label+" has five signal bars")
-            verify(page.locator(".signal-perk").count()==5,label+" has exactly five paid benefits")
-            verify(page.locator("#fullReport").is_visible(),label+" shows full-report offer")
-            verify(page.locator(".signal-unlock-cta").is_visible(),label+" has a visible CTA")
-            verify(not page.locator("#navDownload").is_visible(),label+" hides free PDF action")
-            verify(not page.locator("#rvDownload").is_visible(),label+" hides legacy PDF action")
-            price="$9" if mode=="product" else "$19"
-            verify(price in page.locator(".signal-unlock-cta").inner_text(),label+" uses correct price")
+            verify(response.status==200,label+" serves results")
+            verify(page.locator("#signalReport").is_visible(),label+" shows signal result")
+            verify(page.locator(".signal-item").count()==5,label+" has five signals")
+            verify(page.locator(".signal-unlock").count()==0 and
+                   page.locator(".signal-unlock-cta").count()==0,
+                   label+" has no paid box or checkout button")
+            verify("PREVIEW" not in page.locator(".signal-eyebrow").inner_text(),
+                   label+" offers the full report")
+            count=34 if situation=="many" else (0 if situation in ("zero","limited") else 4)
+            verify(page.locator(".signal-finding").count()==count,
+                   label+f" preserves {count} unique findings")
+            verify(page.locator(".signal-change").count()==count,
+                   label+" shows all specific fixes")
+            verify(page.locator(".signal-plan-step").count()==count,
+                   label+" shows each priority task")
+            verify(page.locator(".signal-question").count()==(0 if count==0 else 4),
+                   label+" includes only recorded distinct buyer questions")
+            verify(page.locator(".signal-download").is_visible(),
+                   label+" allows the full PDF")
+            verify(not page.locator("#rvReport").is_visible() and
+                   not page.locator("#fiveReport").is_visible(),
+                   label+" hides old duplicate dashboard")
             score=page.locator(".signal-score-number strong").inner_text()
             if mode=="product" or situation=="limited":
-                verify(score=="—",label+" avoids an unsupported score")
+                verify(score=="—",label+" does not invent a score")
                 verify(page.locator(".signal-item-value").all_inner_texts()==["—"]*5,
                        label+" avoids unsupported signal ratings")
             else:
-                verify(score.isdigit(),label+" shows a backed editorial score")
-            if situation=="findings" and mode=="website":
-                verify(page.locator(".signal-item.signal-weak").count()==2,
-                       label+" maps high-priority issues to weak signals")
-                verify(page.locator(".signal-item.signal-review").count()==2,
-                       label+" keeps a different terms concern separate")
-                verify(page.locator(".signal-item.signal-good").count()==1,
-                       label+" marks observed positive signal")
-            if situation=="many":
-                verify(page.locator(".signal-perk").count()==5,
-                       label+" keeps the interface compact despite 30+ findings")
-            verify(page.locator(".signal-checkout-state").is_visible(),
-                   label+" states that checkout isn't connected")
-            before=page.url
-            page.locator(".signal-unlock-cta").click()
-            verify(page.url==before,label+" doesn't invent a checkout")
-            verify("Nothing has been charged" in page.locator(".signal-checkout-state").inner_text(),
-                   label+" explains why payment cannot proceed")
-            bounds=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
-            verify(max(bounds[1:])<=bounds[0]+3,label+f" has no horizontal overflow: {bounds}")
+                verify(score.isdigit(),label+" uses evidence-based editorial score")
+            if count:
+                first=page.locator(".signal-finding").first
+                verify(first.evaluate("(node)=>node.open"),
+                       label+" initially opens first finding")
+                verify("Everything, simplified" in first.inner_text(),
+                       label+" includes the underlying evidence")
+                first.locator("summary").click()
+                verify(not first.evaluate("(node)=>node.open"),
+                       label+" can collapse a finding")
+                first.locator("summary").click()
+                verify(first.evaluate("(node)=>node.open"),
+                       label+" can expand a finding")
+                page.locator(".signal-plan-step").last.click()
+                verify(page.locator(".signal-change").last.evaluate(
+                    "(node)=>document.activeElement===node"),
+                    label+" plan navigates to the right fix")
+            if situation=="findings" and mode=="website" and width==390:
+                with page.expect_download(timeout=15000) as event:
+                    page.locator(".signal-download").click()
+                pdf=Path(event.value.path()).read_bytes()
+                verify(pdf.startswith(b"%PDF") and len(pdf)>1800,
+                       label+" downloads a real full PDF")
+                page.screenshot(path=str(CAPTURES/"signal-full-390.png"),full_page=True)
+            if situation=="findings" and mode=="website" and width==1280:
+                page.screenshot(path=str(CAPTURES/"signal-full-1280.png"),full_page=True)
+            dimensions=page.evaluate(
+                "()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
+            verify(max(dimensions[1:])<=dimensions[0]+3,
+                   label+f" has no horizontal overflow: {dimensions}")
             verify(not errors,label+" has no browser errors: "+str(errors))
-            if situation=="findings" and mode=="website" and width in (390,1280):
-                page.screenshot(path=str(CAPTURES/f"signal-report-{width}.png"),full_page=True)
             page.close()
     browser.close()
-print("PASS: all signal-preview scenarios")
+print("PASS: complete free VYLENS report in all scenarios")
