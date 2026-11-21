@@ -202,8 +202,8 @@
       (assessment?.explanation || (report.mode==='product'?
         'We checked the file, but could not confirm how its sales page looks to buyers.':
         'There was not enough visible information to give a fair score.')) :
-      isLimited?'This is based on the parts we could check, not actual purchases.':
-        'A quick assessment of the offer, not your actual sales rate.'));
+       isLimited?'Based on the sections we could check.':
+        'A quick assessment of the offer, not actual sales.'));
   add(scoreBody,circle,scoreCopy);
   scoreBox.append(scoreBody);
   root.append(scoreBox);
@@ -260,12 +260,11 @@
     signals.append(el('p','signal-coverage-note',note));
   }
   root.append(signals);
-  root.append(el('p','signal-disclaimer',
-    'These are possible concerns based on what we could check, not recorded buyer behavior.'));
+
 
   const cardsRoot=el('section','signal-report-cards');
   add(cardsRoot,el('h2','',"Your Full Report"),
-    el('p','signal-section-note','Tap a card to explore. Everything is free.'));
+    el('p','signal-section-note','Open a card for the problems, reasons and fixes that matter.'));
   const cards=[];
   const card=(title,hint,count,tone,render)=>{
     const details=el('details','signal-detail-card signal-tone-'+tone);
@@ -404,14 +403,14 @@
     if(!item||typeof item!=='object')return;
     // A checklist/action is not a copy rewrite.
     if(!/^(copy|rewrite|headline|cta|messaging)$/i.test(String(item.kind||'')))return;
-    offerCopy(item.title||item.label,item.content,'Only use wording that accurately describes your offer.');
+    offerCopy(item.title||item.label,item.content,'Check this wording against your real offer.');
   });
-  card('Better Copy & Rewrites','Only suggestions backed by the scan',
+  card('Better Copy & Rewrites','Ready-to-use wording when available',
     wording.length?wording.length+' copy '+(wording.length===1?'suggestion':'suggestions'):'No rewrite suggested',
     wording.length?'green':'unknown',(body)=>{
       if(!wording.length){
         body.append(el('p','signal-empty',
-          'No useful copy rewrite was supported this time. Fix the issues shown above first.'));
+          'No clear rewrite was needed from the findings. Start with the fixes above.'));
         return;
       }
       const rows=wording.map(item=>{
