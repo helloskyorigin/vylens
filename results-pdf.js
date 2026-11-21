@@ -106,6 +106,28 @@
         {size:13,bold:true,gap:9});
       paragraph('A review of available offer evidence, NOT recorded sales or buyer behavior.',
         {size:9,gap:10});
+      // Preserve the substantive offer context used by the current evaluator.
+      // All descriptions below are excerpts from the inspected public pages.
+      const understood=data.offerUnderstanding?.version===1?data.offerUnderstanding:null;
+      if(understood){
+        section('What We Could Understand About This Offer');
+        if(understood.headline)paragraph('Headline: '+understood.headline,{size:9.5,gap:8});
+        if(understood.prices?.length)paragraph('Visible price: '+understood.prices.join(' / '),{size:9.5,gap:8});
+        const facts=[
+          ['Buyer outcome',understood.outcomeExamples],
+          ['Benefits',understood.benefitExamples],
+          ['Included items',understood.includedExamples]
+        ];
+        for(const [label,items] of facts){
+          if(!Array.isArray(items)||!items.length)continue;
+          paragraph(label+' observed:',{size:10,bold:true,gap:6});
+          items.slice(0,5).forEach(item=>
+            paragraph('- '+String(item.text||'')+' ('+String(item.page||'/')+')',{size:9,gap:7}));
+        }
+        paragraph('Specific offer proof visible: '+(understood.proofSeen?'Yes, proof-like copy was present (authenticity not verified)':'Not confirmed')+
+          '. Purchase conditions near buying action: '+(understood.termsNearAction?'Visible':'Not confirmed')+'.',
+          {size:9,gap:9});
+      }
       const sigNames={clarity:'Offer Clarity',value:'Value for Money',
         trust:'Buyer Trust',action:'Buying Process',purchase:'Purchase Confidence'};
       section('2. Your Buyer Signals');
