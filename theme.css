@@ -251,3 +251,37 @@ body.signal-ui .floating-nav{max-width:none;width:100%;min-width:0}
 @media(max-width:620px){
  body.signal-ui .page-header{padding:10px 16px 0!important}
 }
+
+/* Final alignment and spacious signal labels */
+body.signal-ui #signalReport .signal-item-top{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;
+ align-items:center;column-gap:18px;row-gap:8px;margin-bottom:13px
+}
+body.signal-ui #signalReport .signal-item h3{min-width:0;line-height:1.45}
+body.signal-ui #signalReport .signal-item-right{
+ min-width:0;justify-self:end;flex-wrap:nowrap;gap:11px
+}
+body.signal-ui #signalReport .signal-item-note{
+ margin-top:11px!important;line-height:1.65
+}
+body.signal-ui #signalReport .signal-item{padding:19px 0 20px}
+body.signal-ui #signalReport .signal-bar{height:8px}
+body.signal-ui #signalReport .signal-item-value{min-width:26px;text-align:right}
+body.signal-ui #signalReport .signal-status{padding:7px 11px}
+.analysis-nav{grid-template-columns:auto minmax(0,1fr) auto auto!important}
+.analysis-nav-title{justify-self:center;min-width:0;white-space:nowrap}
+.analysis-header .theme-toggle{justify-self:end;margin:0}
+@media(max-width:620px){
+ body.signal-ui #signalReport .signal-item-top{
+   grid-template-columns:minmax(0,1fr) auto;column-gap:9px;row-gap:8px
+ }
+ body.signal-ui #signalReport .signal-item-right{gap:6px}
+ body.signal-ui #signalReport .signal-item h3{font-size:13px}
+ body.signal-ui #signalReport .signal-status{font-size:10px;padding:6px 8px}
+ .analysis-nav{gap:6px!important}
+ .analysis-nav-title{display:none}
+}
+@media(max-width:340px){
+ body.signal-ui #signalReport .signal-item-top{grid-template-columns:1fr}
+ body.signal-ui #signalReport .signal-item-right{justify-self:start}
+}
