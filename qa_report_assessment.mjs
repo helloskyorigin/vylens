@@ -26,7 +26,8 @@ const problem=buildReportAssessment({...sample,
     {stage:'clarity',title:'The offer is explained in visible copy',evidence:'Clear outcome'}]});
 assert.ok(problem.signals.find(x=>x.key==='action').score<50,'observed high buying blocker is red');
 assert.ok(problem.signals.find(x=>x.key==='clarity').score<75,'concern offsets positive copy');
-assert.ok(Number.isInteger(problem.overall),'three assessed dimensions allow cautious score');
+assert.equal(problem.overall,null,
+  'a few review hypotheses and only one directly observed area cannot yield a precise score');
 const partial=buildReportAssessment({...sample,coverage:{complete:false},
   blockers:[],strengths:[{stage:'clarity',title:'The offer is explained in visible copy',evidence:'The offer helps people'},
     {stage:'value',title:'Price information is visible',evidence:'$29'},
@@ -43,4 +44,26 @@ assert.ok(buying.signals.find(x=>x.key==='purchase').score!==null,
   'explicit visible conditions near a real buying action can be assessed cautiously');
 assert.ok(buying.signals.find(x=>x.key==='purchase').score<75,
   'purchase terms alone cannot confirm checkout success');
+const highQuality=buildReportAssessment({...sample,
+  pages:[{...site,commerce:{...site.commerce,
+    hasProof:true,proofText:'Specific customer feedback',
+    termsNearAction:true,
+    actions:[{label:'Buy now',path:'/checkout'}]}}],
+  strengths:[
+    {stage:'clarity',title:'The offer is explained in visible copy',evidence:'Actual outcome explained'},
+    {stage:'value',title:'Price information is visible',evidence:'$29'},
+    {stage:'trust',title:'Supporting proof is visible',evidence:'Verified customer example'},
+    {stage:'action',title:'A clear next-step label is visible',evidence:'Buy now'}
+  ],
+  offerUnderstanding:{
+    version:1,headline:'Help founders improve their offer',
+    prices:['$29'],outcomeExamples:[{text:'Help founders improve their offer'}],
+    benefitExamples:[{text:'Provides a clear plan for founders'}],
+    proofSeen:true,actions:true,termsNearAction:true
+  }
+});
+assert.ok(Number.isInteger(highQuality.overall),
+  'well-observed clarity, value, trust and purchase conditions allow an editorial offer score');
+assert.ok(highQuality.assessedAreas>=4,'overall requires four independent areas');
+
 console.log('PASS evidence-aware report assessment: buyer signals, risk and coverage honesty');
