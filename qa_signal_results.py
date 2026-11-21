@@ -155,6 +155,10 @@ with sync_playwright() as p:
                 pdf=Path(ev.value.path()).read_bytes()
                 check(pdf.startswith(b"%PDF") and len(pdf)>1800,
                       label+" downloads a valid complete PDF")
+                check(b"Unclear headline" in pdf and b"Proof is hard to find" in pdf,
+                      label+" PDF preserves actual current buyer findings")
+                check(b"Why People May Hesitate" in pdf and b"Better Copy and Rewrites" in pdf,
+                      label+" PDF matches the new five-card report content")
             dims=page.evaluate("()=>[innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth]")
             check(max(dims[1:])<=dims[0]+3,label+f" avoids horizontal overflow {dims}")
             check(not errors,label+" has no browser errors: "+str(errors))
