@@ -69,8 +69,119 @@
       details.filter(Boolean).forEach(s=>paragraph(s,{size:9.5,indent:9,gap:7}));
       y-=5;
     }
-    pageStart();
-    const subject=document.getElementById('reportSubject')?.textContent||'Public offer';
+    let savedReport=null;
+    try{savedReport=JSON.parse(sessionStorage.getItem('vylens:result')||'null');}catch{}
+    const subject=String(savedReport?.subject||
+      document.getElementById('reportSubject')?.textContent||'Public offer');
+    const current=savedReport?.conversion?.version===1&&
+      !!document.getElementById('signalReport');
+    if(current){
+      // The PDF reads exactly the same scan, not an older hidden dashboard.
+      // Keep EVERY supported finding even when the compact UI shows only five.
+      const report=savedReport;
+      const data=report.conversion;
+      const blockers=Array.isArray(data.blockers)?data.blockers.filter(x=>x&&x.title):[];
+      const strengths=Array.isArray(data.strengths)?data.strengths.filter(x=>x&&x.title):[];
+      const fixes=Array.isArray(data.fixKit)?data.fixKit.filter(x=>x&&x.kind==='copy'&&x.content):[];
+      const unverified=Array.isArray(data.unverified)?data.unverified.filter(Boolean):[];
+      const assessment=data.assessment?.version===1?data.assessment:null;
+      const score=assessment?
+        (Number.isFinite(assessment.overall)?assessment.overall:null):
+        null;
+      const unique=[],seen=new Set();
+      blockers.forEach(item=>{
+        const key=String(item.fingerprint||item.id||[item.stage,item.title].join('|')).toLowerCase();
+        if(seen.has(key))return;
+        seen.add(key);unique.push(item);
+      });
+      pageStart();
+      paragraph(subject,{size:11,bold:true,color:'0.34 0.43 0.30'});
+      paragraph('Your Conversion Report',{size:21,bold:true,gap:11,color:'0.08 0.12 0.08'});
+      paragraph('Checked: '+String(report.checkedAt||'Not recorded').slice(0,10)+
+        '   Type: '+(report.mode==='product'?'Digital product':'Website'),
+        {size:9,gap:14,color:'0.38 0.46 0.37'});
+      section('1. Overall Conversion Assessment');
+      paragraph(score===null?'Score: Not enough evidence to assess':
+        'Estimated offer score: '+score+' / 100',
+        {size:13,bold:true,gap:9});
+      paragraph('A review of available offer evidence, NOT recorded sales or buyer behavior.',
+        {size:9,gap:10});
+      const sigNames={clarity:'Offer Clarity',value:'Value for Money',
+        trust:'Buyer Trust',action:'Buying Process',purchase:'Purchase Confidence'};
+      section('2. Your Buyer Signals');
+      if(assessment&&Array.isArray(assessment.signals)){
+        assessment.signals.forEach(item=>{
+          const name=sigNames[item.key]||item.key||'Signal';
+          const value=Number.isFinite(item.score)?item.score+' / 100':'Not checked';
+          entry(name+' - '+value,[String(item.explanation||'').slice(0,260)]);
+        });
+      }else{
+        paragraph('Older report: a score for these areas was not recorded.');
+      }
+      section("3. What's Stopping Buyers?");
+      if(!unique.length)paragraph('No specific buyer obstacle was established in the completed checks.');
+      unique.forEach((item,i)=>{
+        const places=Array.isArray(item.affectedPages)&&item.affectedPages.length?
+          item.affectedPages.slice(0,24).join(', '):item.location||'';
+        entry((i+1)+'. '+item.title,[
+          'Priority: '+String(item.priority||'review'),
+          item.confidence==='observed'?'Seen during inspection':'Possible concern - verify',
+          item.evidence?'Evidence: '+item.evidence:'',
+          places?'Where: '+places:'',
+        ]);
+      });
+      section('4. Why People May Hesitate');
+      const questions=new Set();
+      unique.forEach((item,i)=>{
+        const q=String(item.buyerQuestion||item.buyerConcern||'').trim();
+        if(!q||questions.has(q.toLowerCase()))return;
+        questions.add(q.toLowerCase());
+        paragraph((i+1)+'. '+q,{size:10,gap:8});
+      });
+      if(!questions.size)paragraph('No specific buyer concern was established from the available evidence.');
+      paragraph('These are possible concerns inferred from the website, not quotes from real buyers.',
+        {size:9,gap:9,color:'0.37 0.44 0.34'});
+      section('5. Exactly What to Change');
+      const fixables=unique.filter(item=>item.fix);
+      if(!fixables.length)paragraph('There was not enough evidence to recommend a specific change.');
+      fixables.forEach((item,i)=>entry((i+1)+'. '+item.title,[
+        item.fix?'Change: '+item.fix:'',
+        item.verify?'Check: '+item.verify:''
+      ]));
+      section('6. Better Copy and Rewrites');
+      // Include only grounded copy suggestions, never a technical repair
+      // mislabeled as new marketing wording.
+      const proposed=new Map();
+      unique.forEach(item=>{
+        if(item.copyTo)proposed.set(String(item.copyTo).toLowerCase(),{
+          title:'Suggested button wording',content:item.copyTo});
+      });
+      fixes.forEach(item=>proposed.set(String(item.content).toLowerCase(),item));
+      if(!proposed.size)paragraph('No ready-to-use wording was supported by this scan.');
+      [...proposed.values()].forEach((item,i)=>entry((i+1)+'. '+
+        String(item.title||item.label||'Suggested wording'),[
+          item.content, 'Check that the wording accurately describes the real offer.'
+        ]));
+      section('7. Your Priority Action Plan');
+      if(!fixables.length)paragraph('No evidence-based action plan was available.');
+      fixables.forEach((item,i)=>paragraph((i+1)+'. '+item.fix,{
+        size:9.5,gap:8
+      }));
+      section("8. What's Already Working");
+      if(!strengths.length)paragraph('No positive finding was confirmed in the completed checks.');
+      strengths.forEach((item,i)=>entry((i+1)+'. '+item.title,[
+        item.evidence||'',item.location?'Page: '+item.location:''
+      ]));
+      section('9. What Could Not Be Checked');
+      if(!unverified.length)paragraph('No additional recorded limitations.');
+      unverified.forEach(note=>paragraph('- '+note,{size:9,gap:7}));
+      const coverage=report.coverage||{};
+      paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
+        String(coverage.rendered??0)+' with browser evidence. '+
+        String(coverage.sourceOnly??0)+' with source-only information.',
+        {size:9,gap:9});
+    }else{
+      pageStart();
     paragraph(subject,{size:11,bold:true,color:'0.34 0.43 0.30'});
     paragraph('Your Conversion Report',{size:22,bold:true,gap:14,color:'0.08 0.12 0.08'});
     section('1. Overall Assessment');
@@ -151,6 +262,7 @@
     section("7. What Couldn't Be Verified");
     list('#seven-limitations .seven-limit-body p').forEach(item=>
       paragraph('- '+item.textContent,{size:9.5,gap:9}));
+    }
     pages.push(commands.join('\n'));
     pages.forEach((s,i)=>{
       const footer=['0.87 0.90 0.85 RG 0.6 w '+M+' 47 m '+(W-M)+' 47 l S',
