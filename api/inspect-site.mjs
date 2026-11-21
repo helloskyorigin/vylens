@@ -404,6 +404,17 @@ async function captureCommerceSignals(page){
       const cut=raw.slice(0,max).lastIndexOf(' ');
       return raw.slice(0,cut>max*.55?cut:max).trimEnd()+'…';
     };
+    const meaningfulCopy=value=>{
+      const words=String(value??'').trim().split(/\s+/).filter(Boolean);
+      if(!words.length)return false;
+      // Guard against repeated one-letter placeholder/noise text such as
+      // "y y y y" being interpreted as a convincing offer or trust proof.
+      if(words.length>=3&&words.filter(w=>/^[a-z]$/i.test(w)).length>=words.length*.75)
+        return false;
+      if(words.length>=6&&new Set(words.map(w=>w.toLowerCase())).size<=2)
+        return false;
+      return words.some(w=>/[a-z\u0900-\u097f]{2,}/i.test(w));
+    };
     const visible=el=>{
       if(!el||el.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
       const st=getComputedStyle(el),r=el.getBoundingClientRect();
@@ -422,9 +433,12 @@ async function captureCommerceSignals(page){
       document.querySelector('header a')?.innerText||'',80);
     const h1=[...main.querySelectorAll('h1')].find(visible)||
       [...document.querySelectorAll('h1')].find(visible);
-    const intro=[...main.querySelectorAll('p')].filter(visible)
-      .map(el=>trim(el.innerText||'',280)).find(v=>v.length>=25)||'';
-    const title=trim(h1?.innerText||'',180);
+    const intro=[...main.querySelectorAll('p')].filter(el=>visible(el)&&
+      !el.closest('nav,header,footer,aside,dialog,[role="dialog"],[id*="cookie" i],[class*="cookie" i]'))
+      .map(el=>trim(el.innerText||'',280))
+      .find(v=>v.length>=25&&meaningfulCopy(v))||'';
+    const rawTitle=trim(h1?.innerText||'',180);
+    const title=meaningfulCopy(rawTitle)?rawTitle:'';
     const label=el=>trim(nameOf(el)||el.getAttribute('aria-label')||el.innerText||
       el.getAttribute('value')||el.querySelector('img[alt]')?.alt||el.getAttribute('title')||'',100);
     const purchaseAction=/^(?:(?:buy|purchase)(?:\s+(?:now|this|the|my|your|access|for)\b[^\n]{0,65})?|checkout|check out|pay now|order now|add to cart|subscribe(?:\s+now)?)\s*[.!?›→]*$/i;
@@ -560,7 +574,8 @@ async function captureCommerceSignals(page){
     )].slice(0,45).filter(visible);
     const proofText=proofCandidates.filter(el=>!el.closest('[id*="demo" i],[class*="demo" i]'))
       .map(el=>trim(el.innerText||'',220))
-      .find(t=>t.length>=45&&!/\b(?:no testimonials|no reviews|coming soon|placeholder)\b/i.test(t))||'';
+      .find(t=>t.length>=45&&meaningfulCopy(t)&&
+        !/\b(?:no testimonials|no reviews|coming soon|placeholder)\b/i.test(t))||'';
     const hasProof=!!proofText;
     const forms=[...main.querySelectorAll('form')].filter(visible);
     const form=forms.map(f=>{
