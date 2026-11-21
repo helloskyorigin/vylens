@@ -413,7 +413,7 @@ async function captureCommerceSignals(page){
         return false;
       if(words.length>=6&&new Set(words.map(w=>w.toLowerCase())).size<=2)
         return false;
-      return words.some(w=>/[a-z\u0900-\u097f]{2,}/i.test(w));
+      return words.some(w=>/\p{L}{2,}/u.test(w));
     };
     const visible=el=>{
       if(!el||el.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
