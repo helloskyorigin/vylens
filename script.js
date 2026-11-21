@@ -7,7 +7,7 @@
   const auditData = {
     website: {
       title: 'Looks great.<br>But is it <span class="swoosh-underline" id="heroEmphasis">converting?</span>',
-      description: "Find potential buying blockers in your public website experience—from offer clarity to trust and the next step. Get evidence and practical fixes.",
+      description: "See what might make buyers hesitate—from the offer and price to trust and the next step. Get clear reasons and practical fixes.",
       cta: 'Find My Conversion Leaks',
       mobileTitle: 'Example CTA blends in',
       mobileDescription: 'The sample button needs more contrast.',
@@ -15,12 +15,12 @@
       findings: [
         {title:'CTA blends into the page',description:"The primary action doesn't stand out, making the next step easy to miss.",observation:'The primary action in this fictional example has low contrast compared with the surrounding content, so it may be missed while scanning.',fix:'Use a distinct, high-contrast primary button and a direct action label. Keep the secondary actions visually quieter.',severity:'high'},
         {title:'The offer feels too vague',description:"Visitors can't quickly understand the benefit or who the product is for.",observation:'The example headline says “Everything your team needs to do more” without explaining the specific problem being solved or the intended audience.',fix:'Replace broad language with one specific audience, a concrete outcome and the clearest proof of that outcome.',severity:'note'},
-        {title:'Trust signals are missing',description:'Without credible evidence, buyers have fewer reasons to feel confident.',observation:'The example includes a general “built for ambitious teams” line but no verifiable testimonials, case studies or product evidence.',fix:'Include authentic reviews, demos, use cases or numbers you can substantiate; never invent testimonials or usage claims.',severity:'note'}
+        {title:'Trust signals are missing',description:'Without credible evidence, buyers have fewer reasons to feel confident.',observation:'The example includes a general “built for ambitious teams” line but no verifiable testimonials, case studies or product evidence.',fix:'Use genuine customer evidence, real examples, or a product walkthrough. Avoid unsupported claims.',severity:'note'}
       ]
     },
     product: {
       title: 'Looks good.<br>But not <span class="swoosh-underline" id="heroEmphasis">selling?</span>',
-      description: "Find delivery and value-presentation friction in your digital product. Add a sales-page URL for an extra source-level offer review.",
+      description: "Find what's unclear about your product, what a buyer receives, and how to improve its presentation. Add a sales-page link for more context.",
       cta: 'Find My Sales Blockers',
       mobileTitle: 'The buyer outcome is unclear',
       mobileDescription: 'The benefit is too broad to feel convincing.',
@@ -28,7 +28,7 @@
       findings: [
         {title:'The benefit is unclear',description:"The product promises a broad outcome without showing what the buyer will actually achieve.",observation:'The fictional ebook cover says “Work smarter” but does not identify the particular problem it helps solve or the reader it is for.',fix:'State the specific reader, their problem, and the useful outcome. Keep the language grounded in what the product truly delivers.',severity:'high'},
         {title:'Value is hard to see',description:'The buyer cannot quickly tell what is included or why it is useful.',observation:'The fictional product presents a broad title without showing a table of contents, example pages, deliverables or practical exercises.',fix:'Show a clear contents preview, representative pages, and concrete deliverables so buyers know exactly what they are paying for.',severity:'note'},
-        {title:'The offer lacks proof',description:'The sales presentation gives buyers few reasons to believe the claims.',observation:'The hypothetical offer does not show an authentic example, credible proof or a realistic explanation of how it helps.',fix:'Include a useful real preview, transparent limitations and only evidence you can verify. If you have no reviews yet, show the actual product.',severity:'note'}
+        {title:'The offer lacks proof',description:'The sales presentation gives buyers few reasons to believe the claims.',observation:'The hypothetical offer does not show an authentic example, credible proof or a realistic explanation of how it helps.',fix:'Show a useful preview, an example from the actual product, and claims you can support.',severity:'note'}
       ]
     }
   };
@@ -99,14 +99,14 @@
     const salesPage = $('#salesPageUrl').value.trim();
     $('#noticeTitle').textContent = website ? 'Request your website audit.' : 'Request your product audit.';
     $('#noticeText').textContent = website
-      ? 'Automated auditing is being connected. You can send an email asking VYLENS to review your website; no scan has been run and your URL stays in the browser unless you choose to email it.'
-      : 'Automated file auditing is being connected. Your selected file has not been uploaded. To request a review, open an email and attach the file yourself if you choose.';
+      ? 'The scan could not start from this page. You can retry, or email VYLENS with the website URL and the issue you want reviewed.'
+      : 'Your file could not be checked here. You can retry or email VYLENS; attach the file only if you choose to share it.';
     const details = website
       ? `Website URL: ${rawUrl}\nWhat I want feedback on: `
       : `Product type: ${selectedFile?.name || 'Digital product'}\n${price ? `Product price: ${price}\n` : ''}${salesPage ? `Sales page: ${salesPage}\n` : ''}I'll attach the product file myself if needed.\nWhat I want feedback on: `;
     const subject = `VYLENS ${website ? 'Website' : 'Digital Product'} Audit Request`;
     const emailBody = `Hi VYLENS,\n\nI'd like to request an audit.\n\n${details}\n\nThanks!`;
-    $('#emailAuditRequest').href = `mailto:hello.skyorigin@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+    $('#emailAuditRequest').href = `mailto:hello.skyworking@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
     noticeDialog.showModal();
     syncDock();
   }
