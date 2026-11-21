@@ -58,8 +58,18 @@
     if (!rendered || (!found.length && !good)) return null;
     return found.some(item => item.priority === 'high') ? 20 : found.length ? 55 : 85;
   });
-  const overall = originalStages.every(v => v !== null) ?
+  // Prefer the scanner's evidence-aware assessment for new reports.
+  // Legacy reports retain their earlier calculation rather than losing results.
+  const assessment=data.assessment?.version===1 ? data.assessment : null;
+  const assessedSignals=new Map(
+    (Array.isArray(assessment?.signals)?assessment.signals:[]).filter(x=>
+      x&&['clarity','value','trust','action','purchase'].includes(x.key)&&
+      (x.score===null||(Number.isFinite(x.score)&&x.score>=0&&x.score<=100)))
+      .map(x=>[x.key,x]));
+  const legacyOverall=originalStages.every(v => v !== null) ?
     Math.round(originalStages.reduce((sum,n) => sum+n,0) / 4 / 5) * 5 : null;
+  const overall=assessment ?
+    (Number.isFinite(assessment.overall)?assessment.overall:null) : legacyOverall;
 
   const modes = {
     clarity: {title:'Offer Clarity',
@@ -135,13 +145,18 @@
   for(const key of ['clarity','value','trust','action','purchase']){
     const found=uniqueIssues.filter(x=>stage(x)===key);
     const positive=strengths.some(x=>stage(x)===key);
-    const value=!rendered||(!found.length&&!positive)?null:
-      found.some(x=>x.priority==='high')?20:found.length?55:85;
+    const measured=assessedSignals.get(key);
+    const value=measured?
+      measured.score:(!rendered||(!found.length&&!positive)?null:
+        found.some(x=>x.priority==='high')?20:found.length?55:85);
     const hue=smartTone(value);
     const status=value===null?'Not checked':
       hue==='red'?'Weak':hue==='yellow'?'Needs work':'Looking good';
-    const explanation=value===null?
-      'We could not check this well enough to rate it.':
+    // A brief reason tied to actual observed evidence, not the same generic
+    // promise repeated five times. Never reveal unsupported buyer certainty.
+    const explanation=measured ?
+      tidy(measured.explanation||'Insufficient evidence to judge this area.',178):
+      value===null?'We could not check this well enough to rate it.':
       found.length?modes[key].warning:modes[key].good;
     const item=el('article','signal-item signal-tone-'+hue);
     const top=el('div','signal-item-top');
