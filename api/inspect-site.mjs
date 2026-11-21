@@ -11,7 +11,7 @@ import https from 'node:https';
 import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
 import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
-import {analyzeWebsiteConversion} from '../lib/conversion-engine.mjs';
+import {analyzeWebsiteConversion,analyzeSourceOffer} from '../lib/conversion-engine.mjs';
 import {isDirectAction,isPurchaseAction} from '../lib/action-intent.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
@@ -715,8 +715,17 @@ async function rendered(session,url,{freshMobile=true}={}){
     const resourceGap=state.resourceGaps.length?
       'Some rendering assets were unavailable: '+state.resourceGaps.join(', ')+'.':'';
     const challenge=blockedOrChallenge(commerce);
-    const renderGap=!ready?'The browser did not reach a readable public content state.':
-      challenge?'The website showed an access verification screen instead of its offer.':
+    // A slow but fully rendered offer can miss the initial readiness deadline.
+    // Trust the captured DOM only when it contains concrete offer evidence.
+    const commerceText=String(commerce?.visibleText||'').trim();
+    const usefulContent=commerceText.length>=65&&
+      Boolean(commerce?.heading||commerce?.intro)&&
+      Boolean(commerce?.hasPrice||(commerce?.actions||[]).length||
+        (commerce?.benefitStatements||[]).length);
+    const usableContent=!challenge&&(ready||usefulContent);
+    const renderGap=challenge?
+      'The website showed a verification or access screen instead of the offer.':
+      !usableContent?'The page opened, but its offer did not become readable in the inspection window.':
       state.capped?'Browser resource limit was reached.':'';
     const desktopCapped=state.capped;
     const measureMobile=view=>view.evaluate(()=>{
@@ -811,7 +820,7 @@ async function rendered(session,url,{freshMobile=true}={}){
       renderGap,mobileGap,resourceGap
     };
     return {status,html,links,mobile,narrow,visibleText,signals,
-      commerce:ready&&!challenge?combinedCommerce:null,renderGap,mobileGap,resourceGap,mobileMode,
+      commerce:usableContent?combinedCommerce:null,renderGap,mobileGap,resourceGap,mobileMode,
       headers:response.headers(),browser:true,errors};
 
   }finally{page.off('pageerror',onError);}
@@ -1071,9 +1080,10 @@ async function scanSite(input,progress=()=>{}){
       checks.push(...evaluated.checks);analyses.push({url:item.url,issues:evaluated.issues});
       if(evaluated.title&&evaluated.title!==root.hostname)titles.push({url:item.url,title:str(evaluated.title).toLowerCase()});
       const desktop=!!visit.commerce&&!visit.renderGap,phone=desktop&&!!visit.commerce.mobileCaptured;
+      const buyerCapture=Boolean(visit.browser&&visit.commerce&&!visit.renderGap);
       pages.push({url:item.url,path,type:kind,status:visit.browser?'rendered':'source',findings:evaluated.issues.length,
         desktop,phone,narrow:!!visit.narrow&&phone,phoneMode:phone?visit.mobileMode:undefined,
-        reason:visit.browser?(visit.renderGap||visit.mobileGap||visit.resourceGap||undefined):fallbackReason});
+        buyerCapture,reason:visit.browser?(visit.renderGap||visit.mobileGap||visit.resourceGap||undefined):fallbackReason});
       if(visit.browser&&visit.commerce)commerceSnapshots.push({
         url:item.url,status:'rendered',entry:item.via==='start',commerce:visit.commerce,
         technical:{lowContrast:visit.signals?.lowContrast||[],mobileClipped:visit.mobile?.clipped||[],
@@ -1195,13 +1205,54 @@ async function scanSite(input,progress=()=>{}){
   }
   progress('diagnosing');
   const conversion=analyzeWebsiteConversion(commerceSnapshots,{issues,coverage,destinations});
+  const renderedWithoutContent=pages.filter(p=>p.status==='rendered'&&!p.buyerCapture);
+  const browserEvidencePages=pages.filter(p=>p.buyerCapture).length;
+  const offerEvidencePages=Math.max(0,Number(conversion.inspectedOfferPages)||0);
+  // Opening a page is NOT the same as successfully assessing its buying offer.
+  // Preserve the distinctions through to the UI and downloadable report.
+  coverage.buyerEvidencePages=offerEvidencePages;
+  coverage.browserContentPages=browserEvidencePages;
+  coverage.renderedWithoutContent=renderedWithoutContent.length;
+  coverage.buyerAssessmentComplete=offerEvidencePages>0;
+  const noOfferEvidence=offerEvidencePages===0;
+  if(noOfferEvidence){
+    const sourceReview=analyzeSourceOffer(home.html||'',home.url);
+    conversion.sourcePreview={
+      type:'initial-html-only',
+      url:home.url,
+      observations:(sourceReview.strengths||[]).slice(0,4).map(x=>({
+        title:x.title,evidence:x.evidence
+      })),
+      warning:'Only initial HTML was available for this preview. Dynamic offer and checkout were not verified.'
+    };
+    const examples=pages.filter(p=>p.reason).slice(0,4).map(p=>({
+      page:p.path,reason:String(p.reason||'').slice(0,180)
+    }));
+    const reason=renderedWithoutContent.some(p=>/verification|access screen/i.test(p.reason||''))?
+      'At least one page showed an access-verification screen.':
+      renderedWithoutContent.length?
+      'Pages opened, but usable offer content was not captured.':
+      sourceCount?'The browser could not render a buyer-facing offer; initial HTML is not enough for a full assessment.':
+      'No suitable buyer-facing offer page could be identified in this crawl.';
+    conversion.scanDiagnostic={
+      status:'insufficient-offer-evidence',
+      reason,openedPages:inspected,offerEvidencePages:0,
+      sourcesOnly:sourceCount,unreadableRendered:renderedWithoutContent.length,
+      examples
+    };
+    conversion.unverified.push(reason);
+  }
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     conversion,
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,coverage,
-    summary:inspected+' pages inspected ('+legalCount+' legal); '+issues.length+' types of issues.',
+    summary:noOfferEvidence?
+      inspected+' pages opened; no buyer-facing offer could be verified.':
+      inspected+' pages opened; '+offerEvidencePages+' buyer-facing offer pages analyzed.',
     meta:'Multi-page inspection',coverageLabel:'Public site + mobile browser',
-    scope:renderedCount?'Rendered pages and mobile layout were checked in Playwright where possible. These checks do not establish legal compliance or the cause of sales changes.'
-      :'Playwright was unavailable; only available HTML source was inspected, without visual validation.',
+    scope:noOfferEvidence?
+      'The inspector opened pages but did not obtain usable public offer evidence. This is not a completed buyer assessment.':
+      renderedCount?'Rendered pages and mobile layout were checked in Playwright where possible. These checks do not establish legal compliance or the cause of sales changes.':
+      'Only available HTML source was inspected, without visual validation.',
     issues,checks,checksRun:checks.length,totalDetected:issues.length,
     reportCounts:{
       distinctFindings:issues.length,
@@ -1211,7 +1262,7 @@ async function scanSite(input,progress=()=>{}){
         acc[status]++;return acc;
       },{passed:0,attention:0,observed:0,unverified:0,not_applicable:0})
     },
-    passed:issues.length===0&&complete&&!findingsLimited};
+    passed:!noOfferEvidence&&issues.length===0&&complete&&!findingsLimited};
 }
 export async function POST(request){
   if(!/^application\/json\b/i.test(request.headers.get('content-type')||''))return respond({error:'Send JSON.'},415);
