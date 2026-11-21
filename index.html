@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#111610" />
   <meta name="description" content="VYLENS helps founders identify potential website conversion blockers and digital product delivery friction with evidence-backed, practical fixes." />
   <meta property="og:title" content="VYLENS — Find what your product is missing" />
   <meta property="og:description" content="A sharper look at websites and digital products. Find the blind spots that matter." />
@@ -14,7 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./theme.css?v=1">
   <script src="./script.js" defer></script>
+  <script src="./theme.js?v=1" defer></script>
 </head>
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="svg-defs" aria-hidden="true">
@@ -50,7 +52,7 @@
         <span>VYLENS<span class="brand-period">.</span></span>
       </a>
       <div class="desktop-nav-links">
-        <a href="#how-it-works">How it works</a><a href="#what-we-check">What we check</a><a href="#sample-findings">Sample report</a><a href="#features">Features</a><a href="#faq">FAQ</a>
+        <a href="#how-it-works">How it works</a><a href="#what-we-check">Buyer signals</a><a href="#sample-findings">Example findings</a><a href="#faq">FAQ</a>
       </div>
       <div class="nav-actions">
         <a class="nav-cta button button-lime" href="#audit-tool">Find my blind spots <svg class="icon"><use href="#i-arrow-up-right" /></svg></a>
@@ -58,7 +60,7 @@
       </div>
     </nav>
     <div class="mobile-menu container" id="mobileMenu" hidden>
-      <a href="#how-it-works">How it works</a><a href="#what-we-check">What we check</a><a href="#sample-findings">Sample report</a><a href="#features">Features</a><a href="#faq">FAQ</a>
+      <a href="#how-it-works">How it works</a><a href="#what-we-check">Buyer signals</a><a href="#sample-findings">Example findings</a><a href="#faq">FAQ</a>
     </div>
   </header>
 
@@ -100,67 +102,64 @@
       </div>
     </section>
 
-    <section class="section how-section container" id="how-it-works"><div class="section-head section-head-centered"><p class="eyebrow">THREE STEPS. NO GUESSWORK.</p><h2>How it works<span class="heading-period">.</span></h2><p>One fresh perspective can change what you fix next.</p></div>
-      <div class="steps"><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-link" /></svg></div><div><span class="step-number">01 / START</span><h3>Add a URL or file</h3><p>Share your website or upload a digital product to inspect.</p></div></div><span class="step-connector" aria-hidden="true"><svg class="icon"><use href="#i-arrow-right" /></svg></span><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-search" /></svg></div><div><span class="step-number">02 / DISCOVER</span><h3>See what we can verify</h3><p>Run supported checks and see findings backed by the submitted source.</p></div></div><span class="step-connector" aria-hidden="true"><svg class="icon"><use href="#i-arrow-right" /></svg></span><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-spark" /></svg></div><div><span class="step-number">03 / IMPROVE</span><h3>Get the complete report</h3><p>Review supported findings and keep a copy of your report.</p></div></div></div>
+    <section class="section how-section container" id="how-it-works"><div class="section-head section-head-centered"><p class="eyebrow">THREE STEPS. NO GUESSWORK.</p><h2>How it works<span class="heading-period">.</span></h2><p>See the issue, understand its impact, and know what to change.</p></div>
+      <div class="steps"><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-link" /></svg></div><div><span class="step-number">01 / START</span><h3>Add a URL or file</h3><p>Share your website or upload a digital product to inspect.</p></div></div><span class="step-connector" aria-hidden="true"><svg class="icon"><use href="#i-arrow-right" /></svg></span><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-search" /></svg></div><div><span class="step-number">02 / DISCOVER</span><h3>See what we can verify</h3><p>We inspect the offer, buying steps, and areas that could create doubt.</p></div></div><span class="step-connector" aria-hidden="true"><svg class="icon"><use href="#i-arrow-right" /></svg></span><div class="step"><div class="step-icon"><svg class="icon"><use href="#i-spark" /></svg></div><div><span class="step-number">03 / IMPROVE</span><h3>Get the complete report</h3><p>See the biggest concerns, the evidence, and a practical order of fixes.</p></div></div></div>
     </section>
 
-    <section class="section checks-section container" id="what-we-check"><div class="section-head section-head-centered"><p class="eyebrow">BUILT FOR TWO KINDS OF BUILDERS</p><h2>What we inspect<span class="heading-period">.</span></h2><p>Different products. Different questions. One sharper view.</p></div>
-      <div class="check-grid"><button type="button" class="check-card" data-select-mode="website"><span class="check-icon"><svg class="icon"><use href="#i-monitor" /></svg></span><span class="check-body"><span class="check-top"><strong>Website Audit</strong><svg class="icon"><use href="#i-arrow-up-right" /></svg></span><span class="check-desc">Explore potential blockers across offer clarity, buying actions and customer confidence.</span><span class="check-tags"><span>Offer clarity</span><span>Trust cues</span><span>Next step</span></span></span></button><button type="button" class="check-card" data-select-mode="product"><span class="check-icon"><svg class="icon"><use href="#i-stack" /></svg></span><span class="check-body"><span class="check-top"><strong>Digital Product Audit</strong><svg class="icon"><use href="#i-arrow-up-right" /></svg></span><span class="check-desc">Check real deliverable friction, and optionally inspect public sales-page wording and value signals.</span><span class="check-tags"><span>Delivered value</span><span>Getting started</span><span>Offer evidence</span></span></span></button></div>
-    </section>
-
-    
-    <!-- Eight clear capabilities, not a Free/Paid feature comparison. -->
-    <section class="section feature-section container" id="features" aria-labelledby="features-title">
-      <div class="feature-intro">
-        <p class="eyebrow">MORE THAN A LIST OF ERRORS</p>
-        <h2 id="features-title">Know what's wrong.<br><span>Know what to do next.</span></h2>
-        <p>From the first warning to the next fix, VYLENS gives you a more useful way to understand your website or digital product.</p>
+    <section class="section checks-section container" id="what-we-check">
+      <div class="section-head section-head-centered">
+        <p class="eyebrow">THE FIVE QUESTIONS BEHIND EVERY BUYING DECISION</p>
+        <h2>Good words aren't enough.<br>Make the offer easy to buy<span class="heading-period">.</span></h2>
+        <p>VYLENS looks beyond appearance. It checks what a new visitor can understand, trust, and act on.</p>
       </div>
-      <div class="feature-leads">
-        <article class="feature-lead feature-lead-summary">
-          <div class="feature-lead-heading"><span class="feature-lead-icon"><svg class="icon"><use href="#i-scan" /></svg></span><span class="feature-overline">THE BIG PICTURE</span></div>
-          <h3>See the problems<br>at a glance.</h3>
-          <p>A clear overview of what was detected, grouped by severity. No endless checklist to decode.</p>
-          <div class="feature-status-visual" aria-hidden="true">
-            <span><i class="feature-dot-critical"></i>Critical</span>
-            <span><i class="feature-dot-high"></i>High priority</span>
-            <span><i class="feature-dot-other"></i>Other findings</span>
-          </div>
+      <div class="buyer-signals-preview" aria-label="Five areas VYLENS examines">
+        <article class="buyer-signal-preview">
+          <div><h3 class="buyer-signal-heading">First Impression</h3><span class="buyer-signal-short">Can someone tell what you're offering within seconds?</span></div>
+          <span class="buyer-signal-label">Clarity</span><div class="buyer-signal-rule" aria-hidden="true"><span style="width:78%"></span></div>
         </article>
-        <article class="feature-lead feature-lead-impact">
-          <div class="feature-lead-heading"><span class="feature-lead-icon"><svg class="icon"><use href="#i-eye" /></svg></span><span class="feature-overline">THE WHY BEHIND IT</span></div>
-          <h3>Understand what<br>could be affected.</h3>
-          <p>See the potential impact of detected issues on areas like accessibility, visibility and clarity—without made-up sales claims.</p>
-          <div class="feature-impact-visual" aria-hidden="true"><span>Search visibility</span><span>Accessibility</span><span>Page clarity</span></div>
+        <article class="buyer-signal-preview">
+          <div><h3 class="buyer-signal-heading">Audience</h3><span class="buyer-signal-short">Is it obvious who this is for and why they'd care?</span></div>
+          <span class="buyer-signal-label">Relevance</span><div class="buyer-signal-rule" aria-hidden="true"><span style="width:56%"></span></div>
+        </article>
+        <article class="buyer-signal-preview">
+          <div><h3 class="buyer-signal-heading">Value</h3><span class="buyer-signal-short">Does the buyer see what they'll get for the price?</span></div>
+          <span class="buyer-signal-label">Offer</span><div class="buyer-signal-rule" aria-hidden="true"><span style="width:44%"></span></div>
+        </article>
+        <article class="buyer-signal-preview">
+          <div><h3 class="buyer-signal-heading">Trust</h3><span class="buyer-signal-short">Can visitors find real reasons to believe your claims?</span></div>
+          <span class="buyer-signal-label">Confidence</span><div class="buyer-signal-rule" aria-hidden="true"><span style="width:63%"></span></div>
+        </article>
+        <article class="buyer-signal-preview">
+          <div><h3 class="buyer-signal-heading">Action</h3><span class="buyer-signal-short">Is the next step clear, visible, and easy to use?</span></div>
+          <span class="buyer-signal-label">Next step</span><div class="buyer-signal-rule" aria-hidden="true"><span style="width:84%"></span></div>
         </article>
       </div>
-      <div class="feature-grid" aria-label="More VYLENS capabilities">
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-stack" /></svg></span><h3>Affected areas</h3><p>See which parts of your website or product deserve a closer look.</p></article>
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-alert" /></svg></span><h3>Detailed findings</h3><p>Understand each supported issue in plain language, with clear priority.</p></article>
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-search" /></svg></span><h3>Location & evidence</h3><p>Trace findings to the source or content that triggered them, when available.</p></article>
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-check-circle" /></svg></span><h3>Practical fixes</h3><p>Get recommendations for what to change, based on the issue found.</p></article>
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-scan" /></svg></span><h3>Recheck your changes</h3><p>Scan again to see whether detectable problems still appear.</p></article>
-        <article class="feature-tile"><span class="feature-tile-icon"><svg class="icon"><use href="#i-file" /></svg></span><h3>Take your report</h3><p>Save a printable PDF with your findings and recommendations.</p></article>
-      </div>
-      <div class="feature-footnote"><span><svg class="icon"><use href="#i-shield" /></svg> Evidence-led findings. No invented scores or revenue-loss estimates.</span><a href="#audit-tool">Start your audit <svg class="icon"><use href="#i-arrow-up-right" /></svg></a></div>
+      <p class="buyer-signals-footnote">These lines show the areas we examine, not scores for a particular website. Your report uses evidence from your own scan.</p>
     </section>
 
-    <section class="section findings-section container" id="sample-findings"><div class="section-head split-heading"><div><p class="eyebrow">NOT JUST ANOTHER SCORE</p><h2>Real problems. Clear fixes<span class="heading-period">.</span></h2><p>Here's what an actionable finding looks like.</p></div><button type="button" class="text-link" id="openSample"><span>Explore sample report</span><svg class="icon"><use href="#i-arrow-up-right" /></svg></button></div>
+    <section class="section findings-section container" id="sample-findings"><div class="section-head split-heading"><div><p class="eyebrow">FROM A FINDING TO A FIX</p><h2>Real problems. Clear fixes<span class="heading-period">.</span></h2><p>See how VYLENS turns a real observation into a change you can make.</p></div><button type="button" class="text-link" id="openSample"><span>See an example</span><svg class="icon"><use href="#i-arrow-up-right" /></svg></button></div>
       <div class="finding-grid" id="findingGrid"><button class="finding-card" type="button" data-issue-index="0"><span class="finding-top"><span class="severity high"><svg class="icon"><use href="#i-alert" /></svg> High priority</span><span class="finding-index">01 / 03</span></span><strong class="finding-title">CTA blends into the page</strong><span class="finding-desc">The primary action doesn't stand out, making the next step easy to miss.</span><span class="finding-action"><svg class="icon"><use href="#i-arrow-up-right" /></svg> See the fix</span></button><button class="finding-card" type="button" data-issue-index="1"><span class="finding-top"><span class="severity note"><svg class="icon"><use href="#i-eye" /></svg> Observation</span><span class="finding-index">02 / 03</span></span><strong class="finding-title">The offer feels too vague</strong><span class="finding-desc">Visitors can't quickly understand the benefit or who the product is for.</span><span class="finding-action"><svg class="icon"><use href="#i-arrow-up-right" /></svg> See the fix</span></button><button class="finding-card" type="button" data-issue-index="2"><span class="finding-top"><span class="severity note"><svg class="icon"><use href="#i-eye" /></svg> Observation</span><span class="finding-index">03 / 03</span></span><strong class="finding-title">Trust signals are missing</strong><span class="finding-desc">Without credible evidence, buyers have fewer reasons to feel confident.</span><span class="finding-action"><svg class="icon"><use href="#i-arrow-up-right" /></svg> See the fix</span></button></div>
-      <p class="example-caption"><svg class="icon"><use href="#i-info" /></svg> These are illustrative examples, not findings from a live scan.</p>
+      <p class="example-caption"><svg class="icon"><use href="#i-info" /></svg> The examples above illustrate the report format; your scan uses its own findings.</p>
     </section>
 
-    <section class="section faq-section container" id="faq"><div class="faq-heading"><p class="eyebrow">THE IMPORTANT DETAILS</p><h2>Questions?<br />We've got answers<span class="heading-period">.</span></h2><p>Straight answers about how VYLENS works and what is available.</p></div><div class="faq-list"><details><summary>What's the difference between the two audits?<span class="faq-toggle">+</span></summary><p>Website review uses public rendered DOM and HTML to identify supported offer, CTA, trust and next-step observations (up to 24 pages per scan). Technical accessibility, mobile and metadata checks remain available in the appendix. Digital Product review checks the supplied file locally for buyer-delivery issues, plus optional initial-HTML sales-page observations. Neither review measures actual sales or certifies conversion performance.</p></details><details><summary>What does the audit report include?<span class="faq-toggle">+</span></summary><p>A buyer-journey overview, evidence-backed potential blockers, possible buyer concerns, prioritized improvement plan, supported positives, unverified areas and a printable report. Technical checks are available separately. No visitor conversion rates are inferred.</p></details><details><summary>Does VYLENS create or change my product?<span class="faq-toggle">+</span></summary><p>No. VYLENS is an inspection and feedback product. It identifies issues and suggests improvements; it does not rebuild websites, edit source files or generate replacement products.</p></details><details><summary>Do I need an account or a card to start?<span class="faq-toggle">+</span></summary><p>No account or payment card is needed for the current beta. Payment is not enabled on this site.</p></details><details><summary>Can it tell me exactly why I'm not making sales?<span class="faq-toggle">+</span></summary><p>It can identify observable buying friction and potential buyer objections. It cannot prove why visitors leave without funnel or customer-behavior data. A sales-page URL provides extra context for products, but that optional inspection currently reads initial HTML only.</p></details><details><summary>Can I run an audit right now?<span class="faq-toggle">+</span></summary><p>Yes. Start from the form above. Public website pages are inspected using supported Playwright browser and HTML checks. The report shows incomplete or skipped pages rather than claiming they were fully checked. Supported product files are inspected locally in your browser. For support, email <a href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a>.</p></details></div></section>
-
-    <section class="closing-section container"><div class="closing-card"><div><p class="eyebrow">MAKE THE NEXT CHANGE COUNT</p><h2>Your next improvement<br />starts with a fresh look.</h2><p>Stop guessing where to begin.</p></div><a class="button button-lime" href="#audit-tool">Find my blind spots <svg class="icon"><use href="#i-arrow-up-right" /></svg></a><div class="closing-decoration" aria-hidden="true">V</div></div></section>
+    <section class="section faq-section container" id="faq">
+      <div class="faq-heading"><p class="eyebrow">GOOD QUESTIONS, CLEAR ANSWERS</p><h2>FAQ<span class="heading-period">.</span></h2><p>Everything you need before starting a scan.</p></div>
+      <div class="faq-list">
+        <details><summary>What does VYLENS actually check?<span class="faq-toggle">+</span></summary><p>For websites, VYLENS reviews offer clarity, value, trust signals and buying steps using the pages it can inspect. It also checks mobile issues and keeps supporting observations in the PDF. A scan can review up to 24 discovered pages, but some pages may be blocked or unavailable.</p></details>
+        <details><summary>Why might customers hesitate to buy?<span class="faq-toggle">+</span></summary><p>An unclear benefit, missing product details, weak proof, confusing prices or a difficult purchase step can raise questions. Your report explains concerns supported by the website, rather than guessing what individual visitors thought.</p></details>
+        <details><summary>What will I get after a scan?<span class="faq-toggle">+</span></summary><p>Five buyer signals and a concise report covering possible blockers, buyer questions, exact fixes, useful rewrites when supported, and an action plan. You can download the full PDF. If the site cannot be inspected, VYLENS will explain why instead of making up results.</p></details>
+        <details><summary>Can I audit a digital product too?<span class="faq-toggle">+</span></summary><p>Yes. Upload a supported PDF, image, text file or ZIP. VYLENS reviews the file in your browser. You can also add a sales-page link for extra offer context. It will not edit or publish your product.</p></details>
+        <details><summary>Is it free, and do I need an account?<span class="faq-toggle">+</span></summary><p>Current audits and the full report are free. No signup or payment card is required. Need help? <a href="mailto:hello.skyworking@gmail.com">Email VYLENS</a>.</p></details>
+      </div>
+    </section>
   </main>
 
-  <footer class="footer container"><div class="footer-main"><a class="brand" href="#top"><img src="./assets/vylens-mark.webp" width="34" height="34" alt=""/><span>VYLENS<span class="brand-period">.</span></span></a><span>See what your product is missing.</span><a class="footer-support" href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a></div><div class="footer-links"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./refunds.html">Refunds</a><a href="./cookies.html">Cookies</a><a href="./disclaimer.html">Disclaimer</a><a href="./contact.html">Contact</a></div><div class="footer-bottom"><span>© <span id="year">2026</span> VYLENS</span><span>Built for the details that matter.</span></div></footer>
+  <footer class="footer container"><div class="footer-main"><a class="brand" href="#top"><img src="./assets/vylens-mark.webp" width="34" height="34" alt=""/><span>VYLENS<span class="brand-period">.</span></span></a><span>See what your product is missing.</span><a class="footer-support" href="mailto:hello.skyworking@gmail.com">hello.skyworking@gmail.com</a></div><div class="footer-links"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./refunds.html">Refunds</a><a href="./cookies.html">Cookies</a><a href="./disclaimer.html">Disclaimer</a><a href="./contact.html">Contact</a></div><div class="footer-bottom"><span>© <span id="year">2026</span> VYLENS</span><span>Built for the details that matter.</span></div></footer>
 
   <div class="mobile-dock" id="mobileDock" aria-hidden="true" inert><button class="button button-lime" type="button" id="mobileDockButton"><span id="mobileDockLabel">Find my blind spots</span><svg class="icon"><use href="#i-arrow-up-right" /></svg></button></div>
 
-  <dialog class="report-dialog" id="reportDialog" aria-labelledby="reportDialogTitle"><div class="report-dialog-inner"><div class="dialog-heading"><div class="dialog-brand"><img src="./assets/vylens-mark.webp" width="38" height="38" alt=""/><div><strong>VYLENS</strong><span>EXAMPLE REPORT · NOT A LIVE AUDIT</span></div></div><button class="icon-button close-dialog" type="button" aria-label="Close sample report"><svg class="icon"><use href="#i-x" /></svg></button></div><div class="report-layout"><div class="report-detail"><p class="eyebrow" id="reportAuditType">WEBSITE AUDIT / SAMPLE 01</p><h2 id="reportDialogTitle">Your blind spots,<br />made visible.</h2><div class="report-score"><span>ILLUSTRATIVE FINDINGS</span><strong>03 <small>ISSUES</small></strong></div><div class="issue-pick-list" id="issuePickList"><button type="button" class="issue-pick active" data-pick-issue="0"><span>01</span><strong>CTA blends into the page</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button><button type="button" class="issue-pick" data-pick-issue="1"><span>02</span><strong>The offer feels too vague</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button><button type="button" class="issue-pick" data-pick-issue="2"><span>03</span><strong>Trust signals are missing</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button></div></div><div class="report-explanation"><div class="report-topline"><span class="severity high" id="reportSeverity">High priority</span><span id="reportIssueNumber">FINDING / 01</span></div><h3 id="reportIssueTitle">CTA blends into the page</h3><div class="explanation-block"><span>WHAT WE NOTICED</span><p id="reportObservation">The primary action is low contrast compared with surrounding content, so it's easy to miss when scanning the page.</p></div><div class="explanation-block fix-block"><span><svg class="icon"><use href="#i-spark" /></svg> HOW TO IMPROVE IT</span><p id="reportFix">Give the main button a distinct high-contrast color and use a direct, outcome-focused label. Keep secondary actions visually quieter.</p></div><p class="report-disclaimer">Example findings are hypothetical and demonstrate the report format only.</p></div></div></div></dialog>
+  <dialog class="report-dialog" id="reportDialog" aria-labelledby="reportDialogTitle"><div class="report-dialog-inner"><div class="dialog-heading"><div class="dialog-brand"><img src="./assets/vylens-mark.webp" width="38" height="38" alt=""/><div><strong>VYLENS</strong><span>EXAMPLE REPORT · NOT A LIVE AUDIT</span></div></div><button class="icon-button close-dialog" type="button" aria-label="Close sample report"><svg class="icon"><use href="#i-x" /></svg></button></div><div class="report-layout"><div class="report-detail"><p class="eyebrow" id="reportAuditType">WEBSITE AUDIT / SAMPLE 01</p><h2 id="reportDialogTitle">A closer look at<br />buying blockers.</h2><div class="report-score"><span>ILLUSTRATIVE FINDINGS</span><strong>03 <small>ISSUES</small></strong></div><div class="issue-pick-list" id="issuePickList"><button type="button" class="issue-pick active" data-pick-issue="0"><span>01</span><strong>CTA blends into the page</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button><button type="button" class="issue-pick" data-pick-issue="1"><span>02</span><strong>The offer feels too vague</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button><button type="button" class="issue-pick" data-pick-issue="2"><span>03</span><strong>Trust signals are missing</strong><svg class="icon"><use href="#i-arrow-right" /></svg></button></div></div><div class="report-explanation"><div class="report-topline"><span class="severity high" id="reportSeverity">High priority</span><span id="reportIssueNumber">FINDING / 01</span></div><h3 id="reportIssueTitle">CTA blends into the page</h3><div class="explanation-block"><span>WHAT WE NOTICED</span><p id="reportObservation">The primary action is low contrast compared with surrounding content, so it's easy to miss when scanning the page.</p></div><div class="explanation-block fix-block"><span><svg class="icon"><use href="#i-spark" /></svg> HOW TO IMPROVE IT</span><p id="reportFix">Give the main button a distinct high-contrast color and use a direct, outcome-focused label. Keep secondary actions visually quieter.</p></div><p class="report-disclaimer">Example findings are hypothetical and demonstrate the report format only.</p></div></div></div></dialog>
 
-  <dialog class="notice-dialog" id="noticeDialog" aria-labelledby="noticeTitle"><div class="notice-content"><div class="notice-icon"><svg class="icon"><use href="#i-scan" /></svg></div><p class="eyebrow">YOUR NEXT STEP</p><h2 id="noticeTitle">Request your VYLENS audit.</h2><p id="noticeText">Live automated audits are being connected. For now, you can email a website audit request directly to VYLENS. No scan or upload has taken place.</p><div class="request-info"><svg class="icon"><use href="#i-shield" /></svg><span>We won't charge you through this page. You decide what information to send.</span></div><div class="notice-actions"><a class="button button-lime" id="emailAuditRequest" href="mailto:hello.skyorigin@gmail.com?subject=VYLENS%20audit%20enquiry">Open email request <svg class="icon"><use href="#i-arrow-up-right" /></svg></a><button type="button" class="button button-outline close-notice">Back to VYLENS</button></div><p class="notice-email">Business contact: <a href="mailto:hello.skyorigin@gmail.com">hello.skyorigin@gmail.com</a></p></div></dialog>
+  <dialog class="notice-dialog" id="noticeDialog" aria-labelledby="noticeTitle"><div class="notice-content"><div class="notice-icon"><svg class="icon"><use href="#i-scan" /></svg></div><p class="eyebrow">YOUR NEXT STEP</p><h2 id="noticeTitle">Request your VYLENS audit.</h2><p id="noticeText">Live automated audits are being connected. For now, you can email a website audit request directly to VYLENS. No scan or upload has taken place.</p><div class="request-info"><svg class="icon"><use href="#i-shield" /></svg><span>We won't charge you through this page. You decide what information to send.</span></div><div class="notice-actions"><a class="button button-lime" id="emailAuditRequest" href="mailto:hello.skyworking@gmail.com?subject=VYLENS%20audit%20enquiry">Open email request <svg class="icon"><use href="#i-arrow-up-right" /></svg></a><button type="button" class="button button-outline close-notice">Back to VYLENS</button></div><p class="notice-email">Business contact: <a href="mailto:hello.skyworking@gmail.com">hello.skyworking@gmail.com</a></p></div></dialog>
 </body>
 </html>
