@@ -29,6 +29,7 @@ jobs:
           node --check lib/action-intent.mjs
           node --check lib/buyer-experience.mjs
           node --check lib/conversion-engine.mjs
+          node --check lib/report-assessment.mjs
           node --check lib/buyer-intelligence.mjs
           node --check results-showcase.js
           node --check results-signal.js
@@ -40,6 +41,8 @@ jobs:
         run: node qa_multisite_accuracy.mjs
       - name: Test conversion issue detection and false-positive controls
         run: node qa_conversion_engine.mjs
+      - name: Test evidence-based report scoring
+        run: node qa_report_assessment.mjs
       - name: Test five-card buyer intelligence and evidence controls
         run: node qa_buyer_intelligence.mjs
       - name: Test contextual CTA action classifier
