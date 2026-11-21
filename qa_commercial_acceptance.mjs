@@ -86,6 +86,16 @@ try{
   assert.ok(clipped.report.blockers.some(x=>x.title.includes('extends beyond the screen')),
     'mobile geometry finds a clipped purchase control');
 
+  const gibberish=await scenario('repeated filler does not become proof',
+    '<h1>y y y y</h1><p>y y y y y y y y y y y y y y y</p>'+
+    '<p>$19</p><a href="/checkout">Buy now</a>');
+  assert.equal(gibberish.desktop.heading,'',
+    'repeated one-letter headings must not be interpreted as a convincing offer');
+  assert.equal(gibberish.desktop.intro,'',
+    'repeated filler paragraphs must not become offer evidence');
+  assert.ok(!gibberish.report.strengths.some(x=>x.stage==='clarity'),
+    'filler text must not result in a positive clarity signal');
+
   // Position overlay over the actual center rather than guessing document coordinates.
   await page.setViewportSize({width:390,height:844});
   await page.setContent(head+'<main>'+offer+
@@ -106,5 +116,5 @@ try{
     {coverage:{complete:true}});
   assert.ok(review.blockers.some(x=>x.title.includes('covered by another element')));
 
-  console.log('PASS commercial acceptance: 8 real Chromium offer cases, mobile/desktop evidence and false-positive controls');
+  console.log('PASS commercial acceptance: 9 real Chromium offer cases, mobile/desktop evidence and false-positive controls');
 }finally{await browser.close();}
