@@ -179,6 +179,10 @@
     const contents=el('div','signal-card-content');
     render(contents);
     details.append(summary,contents);
+    // Close siblings before the native <details> opens (no two expanded cards flash).
+    summary.addEventListener('click',()=>{
+      if(!details.open)cards.forEach(other=>{if(other!==details)other.open=false;});
+    });
     details.addEventListener('toggle',()=>{
       if(details.open)cards.forEach(other=>{if(other!==details)other.open=false;});
     });
@@ -304,7 +308,7 @@
     offerCopy(item.title||item.label,item.content,'Only use wording that accurately describes your offer.');
   });
   card('Better Copy & Rewrites','Only suggestions backed by the scan',
-    wording.length?wording.length+' copy '+(wording.length===1?'suggestion':'suggestions'):'No rewrite needed yet',
+    wording.length?wording.length+' copy '+(wording.length===1?'suggestion':'suggestions'):'No rewrite suggested',
     wording.length?'green':'unknown',(body)=>{
       if(!wording.length){
         body.append(el('p','signal-empty',
