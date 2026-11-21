@@ -31,6 +31,7 @@ jobs:
           node --check lib/buyer-experience.mjs
           node --check lib/action-intent.mjs
           node --check results-showcase.js
+          node --check results-signal.js
           node --check results-five.js
           node --check results-pdf.js
           node --check analysis.js
