@@ -588,12 +588,32 @@ async function captureCommerceSignals(page){
           !nameOf(el)&&!el.getAttribute('aria-label')&&!el.getAttribute('title')&&!el.labels?.length)
           .slice(0,6).map(locator)};
     }).sort((a,b)=>b.required-a.required)[0]||null;
+    // Preserve informative value/deliverable copy as separate evidence, not
+    // only the first generic paragraph and price. Exclude UI/navigation,
+    // invisible blocks and repetitive filler before sending it to the reviewer.
+    const buyerSections=[...main.querySelectorAll(
+      'section h2,section h3,article h2,article h3,[id*="pricing" i] h2,'+
+      '[class*="pricing" i] h2,[class*="features" i] h2,[id*="features" i] h2'
+    )].slice(0,90).filter(el=>visible(el)&&!el.closest(
+      'nav,header,footer,aside,[id*="cookie" i],[class*="cookie" i]'))
+      .map(el=>trim(el.innerText||'',210)).filter(t=>t.length>=22&&meaningfulCopy(t));
+    const buyerBullets=[...main.querySelectorAll(
+      'section li,article li,[class*="benefit" i] p,[id*="benefit" i] p,'+
+      '[class*="features" i] li,[class*="pricing" i] li'
+    )].slice(0,250).filter(el=>visible(el)&&!el.closest(
+      'nav,header,footer,aside,[id*="cookie" i],[class*="cookie" i]'))
+      .map(el=>trim(el.innerText||'',240))
+      .filter(t=>t.length>=24&&t.length<=240&&meaningfulCopy(t));
+    const uniqueBuyers=a=>[...new Set(a.map(t=>t.toLowerCase()))]
+      .map(key=>a.find(t=>t.toLowerCase()===key));
+    const offerSections=uniqueBuyers(buyerSections).slice(0,24);
+    const benefitStatements=uniqueBuyers(buyerBullets).slice(0,32);
     const draft=[...main.querySelectorAll('p,h2,h3,li')].slice(0,250).filter(visible)
       .map(el=>trim(el.innerText||'',150))
       .find(text=>/^lorem ipsum\b|^todo\s*:|\[(?:insert|your) (?:company|product|headline|testimonial)[^\]]{0,45}\]/i.test(text))||'';
     return {heading:title,intro,brand,visibleText:content,actions,priceSamples,prices:relevantPrices.slice(0,18),
       hasPrice:priceSamples.length>0,hasPurchaseTerms,termsNearAction,hasProof,policyLinks,draft,
-      proofText,firstViewHeight:window.innerHeight,form};
+      proofText,firstViewHeight:window.innerHeight,form,offerSections,benefitStatements};
   });
 }
 function evaluateRenderedSignals(signals,path){
