@@ -63,6 +63,15 @@ assert.ok(hindiSource.strengths.some(x=>x.stage==='clarity'),
   'source-only fallback must keep meaningful Hindi headings');
 const sourceOnly=analyzeWebsiteConversion([],{coverage:{complete:false}});
 assert.equal(sourceOnly.blockers.length,0,'no visual/browser observation must produce no fabricated blockers');
+const unreadable=analyzeWebsiteConversion([page('/',offer({
+  renderGap:'The site served an access screen instead of usable offer evidence.'
+}))],{coverage:{complete:false}});
+assert.equal(unreadable.inspectedOfferPages,0,
+  'a browser snapshot with an explicit content gap is not an analyzed offer');
+assert.equal(unreadable.blockers.length,0,
+  'unreadable browser captures must not generate invented buyer blockers');
+assert.equal(unreadable.assessment.overall,null,
+  'an unreadable offer cannot receive a score');
 assert.ok(sourceOnly.unverified.some(x=>x.includes('source-only')));
 
 const source=analyzeSourceOffer(
