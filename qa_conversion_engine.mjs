@@ -51,6 +51,16 @@ const irrelevant=analyzeWebsiteConversion([page('/',offer())],{
    location:'HTML head',evidence:'Missing favicon.'}],coverage:{complete:true}
 });
 assert.equal(irrelevant.blockers.length,0,'technical-only metadata is not silently relabeled as lost sales');
+const fillerSource=analyzeSourceOffer(
+ '<html><body><h1>y y y y</h1><p>$19 Buy now</p></body></html>',
+ 'https://example.org/offer');
+assert.ok(!fillerSource.strengths.some(x=>x.stage==='clarity'),
+  'source-only fallback must not treat repeated filler as a real heading');
+const hindiSource=analyzeSourceOffer(
+ '<html><body><h1>खरीदारी आसान बनाएँ</h1><p>Buy now</p></body></html>',
+ 'https://example.org/offer');
+assert.ok(hindiSource.strengths.some(x=>x.stage==='clarity'),
+  'source-only fallback must keep meaningful Hindi headings');
 const sourceOnly=analyzeWebsiteConversion([],{coverage:{complete:false}});
 assert.equal(sourceOnly.blockers.length,0,'no visual/browser observation must produce no fabricated blockers');
 assert.ok(sourceOnly.unverified.some(x=>x.includes('source-only')));
