@@ -73,42 +73,35 @@ with sync_playwright() as playwright:
     page.wait_for_url(re.compile(r'/results\.html'),timeout=55000)
     check('launch-check.md' in page.locator('#reportSubject').inner_text(),
           'Report identifies uploaded product')
-    check(page.locator('#rvReport').is_visible(),
-          'Reference five-card Results visible on production')
-    check(page.locator('#rvReport .rv-card').count()==5,
-          'Exactly five buyer-facing cards, no extra sections')
-    check(not page.locator('.nav-actions').is_visible() and
+    check(page.locator('#signalReport').is_visible(),
+          'New short buyer-signal Results is visible on production')
+    check(page.locator('#signalReport .signal-item').count()==5,
+          'Five signal lines appear in the free preview')
+    check(page.locator('#signalReport .signal-perk').count()==5,
+          'Five full-report benefits without a long dashboard')
+    check(not page.locator('#rvReport').is_visible() and
           not page.locator('#fiveReport').is_visible(),
-          'No top extra icons, sidebar or old report sections')
-    check(page.locator('.rv-overview').is_visible() and
-          page.locator('.rv-signal-grid .rv-signal').count()==4 and
-          not page.locator('.rv-confidence-ring').count(),
-          'Buyer evidence shown without invented buyer confidence score')
-    check(page.locator('.rv-risk').count()>=1,
-          'Real product TODO issue appears among prioritized blockers')
-    first=page.locator('.rv-risk').first
-    first.locator('summary').click()
-    check(first.evaluate('(e)=>e.open') and 'TODO' in first.inner_text(),
-          'The affected product evidence is visible on expansion')
-    check(first.locator('.rv-risk-fact').count()==4,
-          'Evidence, buyer concern, change and verification visible')
-    check(1<=page.locator('.rv-change-col').count()<=3 and
-          page.locator('.rv-change-none').count()==0,
-          'Only evidence-backed Change / Remove / Improve groups appear')
-    check(page.locator('#rvDownload').is_visible() and
-          page.locator('#rvNewCheck').is_visible(),
-          'Only two primary report actions')
-    with page.expect_download(timeout=16000) as download_event:
-        page.locator('#rvDownload').click()
-    downloaded=download_event.value
-    pdf=Path(downloaded.path()).read_bytes()
-    check(downloaded.suggested_filename.endswith('.pdf') and
-          pdf.startswith(b'%PDF-1.4') and b'%%EOF' in pdf[-40:] and len(pdf)>1800,
-          'Download PDF creates a valid document')
-    check(b'Buyer Journey Review' in pdf and b"What Couldn't Be Verified" in pdf,
-          'Full PDF retains detailed evidence and limitations')
+          'Old detailed report is not shown to free visitors')
+    check(page.locator('.signal-score-number strong').inner_text()=='—',
+          'File-only inspection does not invent a conversion score')
+    check(all(v=='—' for v in page.locator('.signal-item-value').all_inner_texts()),
+          'File-only inspection does not invent buyer ratings')
+    check(page.locator('.signal-unlock-cta').is_visible() and
+          '$9' in page.locator('.signal-unlock-cta').inner_text(),
+          'Full digital-product report offer shows the correct price')
+    check(not page.locator('#rvDownload').is_visible() and
+          not page.locator('#navDownload').is_visible(),
+          'Full PDF is not exposed through free download actions')
+    check(page.evaluate("() => JSON.parse(sessionStorage.getItem('vylens:result')).conversion.blockers.some(x => String(x.evidence||'').includes('TODO'))"),
+          'The original product evidence remains intact for future delivery')
+    page.locator('.signal-unlock-cta').click()
+    check('Nothing has been charged' in page.locator('.signal-checkout-state').inner_text(),
+          'Unavailable checkout is explained without pretending to charge')
+    pdf=page.evaluate("() => {const r=window.VylensPdfDownload?.build();return r ? {length:r.bytes.length,header:Array.from(r.bytes.slice(0,5))} : null}")
+    check(pdf and pdf['length']>1800 and pdf['header']==[37,80,68,70,45],
+          'Underlying report PDF generation still works')
     page.screenshot(path=str(CAPTURE/'results-desktop.png'),full_page=True,animations='disabled')
-    page.locator('#rvNewCheck').click()
+    page.locator('.signal-bottom-actions a').click()
     page.wait_for_url(re.compile(r'/index\.html'),timeout=25000)
     check(page.locator('#websiteTab').is_visible(),
           'Run New Check returns to the scanner')
