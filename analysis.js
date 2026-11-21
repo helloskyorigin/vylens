@@ -15,7 +15,7 @@
     connecting:['Opening the website…','Reaching the pages behind your offer.'],
     discovering:['Finding the buying pages…','Locating the product, pricing, and purchase steps.'],
     rendering:['Checking the buyer experience…','Reviewing the offer and how visitors take the next step.'],
-    source:['Checking what we can access…','Some pages couldn't be fully checked. We will show what was verified.'],
+    source:['Checking what we can access…','Some pages could not be fully checked. We will show what was verified.'],
     links:['Checking key links and buttons…','Looking for broken or confusing next steps.'],
     diagnosing:['Building your buyer report…','Connecting the findings to practical changes.']
   };
