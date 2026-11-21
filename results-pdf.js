@@ -180,6 +180,34 @@
         String(coverage.rendered??0)+' with browser evidence. '+
         String(coverage.sourceOnly??0)+' with source-only information.',
         {size:9,gap:9});
+      // The five report sections stay focused on buying decisions. The optional
+      // appendix keeps the other recorded scan work discoverable in the PDF.
+      const extraIssues=Array.isArray(report.issues)?report.issues.filter(x=>x&&x.title):[];
+      const scanChecks=Array.isArray(report.checks)?report.checks.filter(x=>x&&x.name):[];
+      if(extraIssues.length||scanChecks.length){
+        section('Appendix: Other Recorded Page Checks');
+        paragraph('These are extra site observations, not automatically reasons someone would not buy.',
+          {size:9,gap:10,color:'0.40 0.46 0.39'});
+      }
+      if(extraIssues.length){
+        paragraph(extraIssues.length+' additional site observations',
+          {size:11,bold:true,gap:10});
+        extraIssues.forEach((issue,i)=>entry((i+1)+'. '+issue.title,[
+          'Page: '+String(issue.location||'Public page'),
+          issue.evidence?'Observed: '+issue.evidence:'',
+          issue.fix?'Suggested check: '+issue.fix:''
+        ]));
+      }
+      if(scanChecks.length){
+        paragraph(scanChecks.length+' recorded inspection checks',
+          {size:11,bold:true,gap:9});
+        scanChecks.forEach((check,i)=>{
+          paragraph((i+1)+'. '+check.name+' - '+String(check.status||'unverified'),
+            {size:8.5,gap:3});
+          if(check.status==='attention'||check.status==='unverified')
+            paragraph(String(check.detail||''),{size:8,indent:11,gap:8});
+        });
+      }
     }else{
       pageStart();
     paragraph(subject,{size:11,bold:true,color:'0.34 0.43 0.30'});
