@@ -12,12 +12,12 @@
   let retryUntil = 0;
   let elapsedTimer = null;
   const stages={
-    connecting:['Opening your website…','Connecting to the public URL you entered.'],
-    discovering:['Finding relevant public pages…','Looking for offer, pricing and policy links.'],
-    rendering:['Checking desktop and phone views…','Reading visible content and measuring buying controls.'],
-    source:['Reading available HTML…','Browser views are unavailable. The report will show what could still be checked.'],
-    links:['Verifying public destinations…','Checking selected internal links for repeatable errors.'],
-    diagnosing:['Putting the evidence together…','Ranking findings and recording gaps in coverage.']
+    connecting:['Opening the website…','Reaching the pages behind your offer.'],
+    discovering:['Finding the buying pages…','Locating the product, pricing, and purchase steps.'],
+    rendering:['Checking the buyer experience…','Reviewing the offer and how visitors take the next step.'],
+    source:['Checking what we can access…','Some pages couldn't be fully checked. We will show what was verified.'],
+    links:['Checking key links and buttons…','Looking for broken or confusing next steps.'],
+    diagnosing:['Building your buyer report…','Connecting the findings to practical changes.']
   };
   let lastStageAt=0;
   function readableError(error) {
