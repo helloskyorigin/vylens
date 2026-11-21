@@ -421,7 +421,12 @@ async function captureCommerceSignals(page){
       return st.visibility!=='hidden'&&st.display!=='none'&&Number(st.opacity)>0&&
         r.width>2&&r.height>2;
     };
-    const main=document.querySelector('main,[role="main"]')||document.body;
+    // Some SPA templates retain an empty <main> while mounting the actual
+    // offer in #app or another body container. Use readable body copy rather
+    // than recording an empty offer from the shell.
+    const designated=document.querySelector('main,[role="main"]');
+    const main=designated&&String(designated.innerText||'').trim().length>=32?
+      designated:document.body;
     const visibleCopy=main.innerText||'';
     const content=trim(visibleCopy,14000);
     const locator=el=>el.id?'#'+el.id.slice(0,65):el.tagName.toLowerCase()+
@@ -678,7 +683,9 @@ function blockedOrChallenge(commerce){
 }
 async function waitForContent(page,timeout){
   const ready=await page.waitForFunction(()=>{
-    const content=document.querySelector('main,[role="main"],article,#root,#__next,#app')||document.body;
+    const selected=document.querySelector('main,[role="main"],article,#root,#__next,#app');
+    const content=selected&&String(selected.innerText||'').trim().length>=32?
+      selected:document.body;
     const text=(content?.innerText||'').replace(/\s+/g,' ').trim();
     if(/^.{0,24}\b(?:loading|initializing|please wait)\b[ .…!]*$/i.test(text))return false;
     return text.length>=75||text.length>=12&&!!content?.querySelector('h1,h2,canvas,video,form');
@@ -700,7 +707,10 @@ async function rendered(session,url,{freshMobile=true}={}){
     const status=response?.status()||0;
     if(status>=400)return {status,html:'',links:[],browser:false};
     if(!response)return {status:0,html:'',links:[],browser:false};
-    const ready=await waitForContent(page,3000);
+    // A second short check catches delayed client-side hydration without
+    // allowing unlimited waits or silently calling an empty shell "checked".
+    const initialReady=await waitForContent(page,3000);
+    const ready=initialReady||await waitForContent(page,1300);
     if(ready)await page.waitForLoadState('load',{timeout:650}).catch(()=>{});
     const desktop=await withDeadline(async ()=>{
       const [signals,commerce,html,links]=await Promise.all([
