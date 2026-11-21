@@ -23,6 +23,77 @@
     return parent;
   };
   const tidy = (text, max = 220) => String(text ?? '').replace(/\s+/g,' ').trim().slice(0,max);
+  const openNoData=report.mode==='website'&&(
+    data.scanDiagnostic?.status==='insufficient-offer-evidence'||
+    (Number(data.inspectedOfferPages)===0&&data.blockers.length===0));
+  if(openNoData){
+    // A failed content capture is an incomplete scan, not "zero problems".
+    // Never show five empty cards or offer a "full PDF" with no buyer analysis.
+    const diagnostic=data.scanDiagnostic||{};
+    const count=Math.max(0,Number(diagnostic.openedPages??report.coverage?.inspected??0));
+    const analyzed=Math.max(0,Number(diagnostic.offerEvidencePages??data.inspectedOfferPages??0));
+    const root=el('section','signal-report signal-no-data');
+    root.id='signalReport';
+    root.setAttribute('aria-label','Incomplete website inspection');
+    const top=el('div','signal-topline');
+    add(top,el('span','signal-eyebrow','WEBSITE INSPECTION'),
+      el('span','signal-top-mark','Incomplete scan'));
+    root.append(top);
+    add(root,el('h1','signal-title','We couldn’t inspect the buying experience.'),
+      el('p','signal-subject',tidy(report.subject||report.url||'Website',140)));
+    const box=el('section','signal-diagnostic-panel');
+    add(box,el('div','signal-diagnostic-kicker','NO BUYER ASSESSMENT AVAILABLE'),
+      el('h2','','The website opened, but the offer wasn’t verified.'),
+      el('p','',tidy(diagnostic.reason||
+        'The scanner did not capture enough readable sales-page content to produce buyer findings.',260)));
+    const counts=el('div','signal-diagnostic-stats');
+    const opened=el('div','');
+    add(opened,el('strong','',String(count)),el('span','',count===1?'page opened':'pages opened'));
+    const usable=el('div','');
+    add(usable,el('strong','',String(analyzed)),el('span','','offer pages analyzed'));
+    add(counts,opened,usable);
+    box.append(counts);
+    const warnings=Array.isArray(diagnostic.examples)?diagnostic.examples:[];
+    if(warnings.length){
+      const more=el('details','signal-diagnostic-reasons');
+      add(more,el('summary','','See why some pages could not be checked'));
+      warnings.slice(0,4).forEach(item=>
+        more.append(el('p','',tidy(item.page||'Page',85)+': '+
+          tidy(item.reason||'Could not fully inspect',170))));
+      box.append(more);
+    }
+    const preview=data.sourcePreview;
+    if(Array.isArray(preview?.observations)&&preview.observations.length){
+      const source=el('div','signal-diagnostic-source');
+      add(source,el('h3','','What we could read from the page source'),
+        el('p','',
+          'These are limited observations—not a verified buying analysis.'));
+      preview.observations.slice(0,3).forEach(ob=>
+        add(source,el('strong','',tidy(ob.title,90)),
+          el('p','',tidy(ob.evidence,230))));
+      box.append(source);
+    }
+    root.append(box);
+    const actions=el('div','signal-diagnostic-actions');
+    const retry=el('button','signal-download','Try this scan again');
+    retry.type='button';
+    retry.addEventListener('click',()=>{
+      try{
+        sessionStorage.setItem('vylens:pending',
+          JSON.stringify({mode:'website',url:report.url}));
+        window.location.assign('./inspect.html');
+      }catch{window.location.assign('./index.html#audit-tool');}
+    });
+    const specific=el('a','','Check a specific offer or pricing page');
+    specific.href='./index.html#audit-tool';
+    add(actions,retry,specific);
+    root.append(actions);
+    root.append(el('p','signal-no-data-foot',
+      'A successful page load does not mean its content was inspected. No score, buying blockers, or fixes were invented.'));
+    main.prepend(root);
+    document.body.classList.add('signal-ui','signal-incomplete');
+    return;
+  }
   const riskRank = issue => issue.priority === 'high' ? 0 : issue.priority === 'low' ? 2 : 1;
   const issues = data.blockers.filter(x => x && typeof x === 'object' && tidy(x.title))
     .slice(0, 120).sort((a,b) => riskRank(a) - riskRank(b));
@@ -179,10 +250,13 @@
   // without dumping dozens of technical checks into the five-card experience.
   if(report.mode==='website'&&Number(report.coverage?.inspected)>0){
     const inspected=Math.max(0,Math.floor(Number(report.coverage.inspected)));
+    const analyzed=Math.max(0,Math.floor(Number(report.coverage?.buyerEvidencePages??
+      data.inspectedOfferPages??0)));
     const received=Math.max(0,Math.floor(Number(report.coverage?.rendered||0)));
-    const note=inspected+' '+(inspected===1?'page':'pages')+' checked'+
-      (received<inspected?' · some pages could not be fully viewed':'')+
-      ' · '+uniqueIssues.length+' buyer '+(uniqueIssues.length===1?'concern':'concerns')+' found';
+    const note=inspected+' '+(inspected===1?'page':'pages')+' opened · '+
+      analyzed+' offer '+(analyzed===1?'page':'pages')+' analyzed'+
+      (received<inspected?' · some pages were only partially checked':'')+
+      ' · '+uniqueIssues.length+' possible buyer '+(uniqueIssues.length===1?'concern':'concerns');
     signals.append(el('p','signal-coverage-note',note));
   }
   root.append(signals);
