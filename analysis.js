@@ -133,19 +133,30 @@
   // Keep product-delivery findings distinct from public offer findings. Neither proves why a visitor left.
   function combineProductAndOffer(fileReview,salesReview,{sourceOnly=false}={}){
     if(!fileReview||!salesReview)return fileReview;
-    const unique=new Map();
-    const add=(items,origin)=>items.forEach(item=>{
-      if(!item||!item.title)return;
-      const key=[origin,item.fingerprint||item.stage,item.title,item.location].join('|').toLowerCase();
-      if(!unique.has(key))unique.set(key,{...item,source:item.source||
-        (origin==='file'?'Locally inspected product file':'Public sales page')});
-    });
-    add(salesReview.blockers||[],'sales');add(fileReview.blockers||[],'file');
-    const blockers=[...unique.values()].sort((a,b)=>(
-      {high:0,review:1,medium:1,low:2}[a.priority]??1)-(
-      {high:0,review:1,medium:1,low:2}[b.priority]??1)).slice(0,20);
+    const rank=item=>({high:0,review:1,medium:1,low:2}[item.priority]??1);
+    const dedupe=(items,origin)=>{
+      const unique=new Map();
+      for(const item of items){
+        if(!item||!item.title)continue;
+        const key=[origin,item.fingerprint||item.stage,item.title,item.location].join('|').toLowerCase();
+        if(!unique.has(key))unique.set(key,{...item,source:item.source||
+          (origin==='file'?'Locally inspected product file':'Public sales page')});
+      }
+      return [...unique.values()].sort((a,b)=>rank(a)-rank(b));
+    };
+    const sales=dedupe(salesReview.blockers||[],'sales');
+    const files=dedupe(fileReview.blockers||[],'file');
+    // Reserve room for both the published offer and the actual deliverable.
+    // A long sales audit must never hide every file-delivery finding.
+    const reserved=[...sales.slice(0,12),...files.slice(0,8)];
+    const extras=[...sales.slice(12),...files.slice(8)].sort((a,b)=>rank(a)-rank(b));
+    const blockers=[...reserved,...extras.slice(0,Math.max(0,20-reserved.length))]
+      .sort((a,b)=>rank(a)-rank(b));
     blockers.forEach((item,i)=>item.id='buyer-'+(i+1));
-    const strengths=[...(salesReview.strengths||[]),...(fileReview.strengths||[])].slice(0,12);
+    const salesGood=(salesReview.strengths||[]).slice(0,6);
+    const fileGood=(fileReview.strengths||[]).slice(0,6);
+    const strengths=[...salesGood,...fileGood,...(salesReview.strengths||[]).slice(6),
+      ...(fileReview.strengths||[]).slice(6)].slice(0,12);
     const labels=[['clarity','Offer clarity'],['value','Price & delivered value'],
       ['trust','Buyer confidence'],['action','Purchase & use']];
     const journey=labels.map(([id,label])=>({
