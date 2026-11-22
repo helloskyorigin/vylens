@@ -332,6 +332,32 @@
       addMore(body,rows,5);
     });
 
+  // Optional AI review never affects the measured/observed score above.
+  // Display only verbatim-anchored second-opinion hypotheses from the server.
+  const aiReview=data.aiReview;
+  if(report.mode==='website'&&aiReview?.status==='completed'&&
+      Array.isArray(aiReview.signals)&&aiReview.signals.length){
+    const reviewed=aiReview.signals.slice(0,5);
+    card('AI Evidence Review','Page-linked improvement suggestions',
+      reviewed.length+' '+(reviewed.length===1?'suggestion':'suggestions'),
+      'yellow',(body)=>{
+        body.append(el('p','signal-section-note',
+          'AI suggestions based on captured public text. These are hypotheses, not confirmed reasons for lost sales.'));
+        const rows=reviewed.map(item=>{
+          const row=createRow('yellow',small(item.title,130),
+            small(item.evidence,230),small(item.location,115));
+          const copy=row.querySelector('.signal-mini-text');
+          if(copy){
+            copy.append(el('p','','Buyer concern: '+small(item.buyerConcern,270)));
+            copy.append(el('p','','Suggested fix: '+small(item.fix,330)));
+            copy.append(el('small','','Verify: '+small(item.verify,215)));
+          }
+          return row;
+        });
+        addMore(body,rows,5);
+      });
+  }
+
   const questionItems=[];
   const seenQuestions=new Set();
   uniqueIssues.forEach(item=>{
