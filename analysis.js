@@ -211,6 +211,11 @@
       price:String(payload?.price||'').slice(0,30),
       salesPageUrl:String(payload?.salesPage||'').slice(0,400),
       salesCoverage:salesReview?.renderedPages>0?'rendered':salesReview?'source-only':'none',
+      fileSamples:Array.isArray(fileReview?.aiEvidenceSamples)?
+        fileReview.aiEvidenceSamples.slice(0,3).map(item=>({
+          location:String(item?.location||'Product content').slice(0,120),
+          excerpt:String(item?.excerpt||'').slice(0,1500)
+        })):[],
       fileIssues:pick(fileReview?.conversion?.blockers),
       fileStrengths:pick(fileReview?.conversion?.strengths),
       salesIssues:pick(salesReview?.blockers),
@@ -286,6 +291,8 @@
         window.VylensCore.onProgress = (headline,description) => { if(!isFinished)changeMessage(headline,description); };
         result=await window.VylensCore.productReview(file,payload);
         const localReview={...result,conversion:{...result.conversion}};
+        // Do not persist sampled file content with the permanent report.
+        delete result.aiEvidenceSamples;
         let salesReview=null;
         // The file always remains in the browser. A sales URL is inspected separately.
         if(payload.salesPage&&/^https?:\/\//i.test(payload.salesPage)){
