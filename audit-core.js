@@ -131,10 +131,14 @@
       `${total} pages were found with no top-level bookmark outline.`,
       'Consider PDF bookmarks or a linked table of contents to help readers navigate long guides.','PDF navigation','Open the bookmark sidebar and verify navigation.');
     const words=extracted.reduce((n,p)=>n+p.words,0);
+    const nonempty=extracted.filter(p=>p.text.trim().length>=50);
+    const sampleIndices=[0,Math.floor((nonempty.length-1)/2),nonempty.length-1];
+    const aiEvidenceSamples=[...new Set(sampleIndices)].map(index=>nonempty[index]).filter(Boolean)
+      .map(p=>({location:'PDF page '+p.page,excerpt:p.text.replace(/\\s+/g,' ').trim().slice(0,900)}));
     await doc.destroy();
     return {issues,checks,summary:`${total} PDF pages. Extracted text from ${pages.length} page(s), with ${words.toLocaleString()} words.`,
       meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation',
-      textSample:all.slice(0,4200)};
+      textSample:all.slice(0,4200),aiEvidenceSamples};
   }
   function unsafeZipPath(name){
     const normalized=String(name).replace(/\\/g,'/');
@@ -228,7 +232,10 @@
       `${(total/1048576).toFixed(1)} MB uncompressed from a ${(file.size/1048576).toFixed(1)} MB ZIP.`,
       'Mention the expanded size and test extraction on common devices.','ZIP download','Extract and inspect available storage requirements.');
     return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${readable!==null?' and read the included guide':guide?' (guide content unavailable)':''}.`,
-      meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions'};
+      meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions',
+      aiEvidenceSamples:readable&&readable.trim()?[
+        {location:'ZIP guide: '+guide.name,excerpt:readable.replace(/\\s+/g,' ').trim().slice(0,1400)}
+      ]:[]};
   }
   async function imageReview(file){
     progress('Reading image properties…','Checking dimensions and file integrity locally.');
@@ -347,14 +354,25 @@
       const raw=await file.text(); const r=inspectText(raw,ext==='md'?'markdown':'text',file.name);
       result={issues:r.issues,checks:r.checks,summary:`Read ${r.words.toLocaleString()} words in ${file.name}.`,
         meta:`${r.words.toLocaleString()} words · ${ext.toUpperCase()}`,coverageLabel:'Readable text + structure',
-        textSample:raw.slice(0,4200)};
+        textSample:raw.slice(0,4200),
+        aiEvidenceSamples:[
+          {location:file.name+' · opening content',excerpt:raw.replace(/\\s+/g,' ').trim().slice(0,1100)},
+          ...(raw.length>1450?[{location:file.name+' · ending content',excerpt:raw.replace(/\\s+/g,' ').trim().slice(-900)}]:[])
+        ]};
     }else result=await imageReview(file);
     const issues=result.issues,checks=result.checks;
     check(checks,'Original file accessible','passed',`Read the selected ${ext.toUpperCase()} file locally (${(file.size/1048576).toFixed(2)} MB).`);
     const rank={critical:0,high:1,note:2};issues.sort((a,b)=>(rank[a.severity]??2)-(rank[b.severity]??2));
     issues.forEach((item,i)=>item.id=i+1);
     const conversion=productConversion(issues,checks,ext,{...payload,textSample:result.textSample||''});
-    return {mode:'product',conversion,subject:file.name,pageTitle:file.name,summary:result.summary,
+    // Ephemeral, bounded samples only for the separate opt-in AI comparison.
+    // Caller removes them before persisting the report in sessionStorage.
+    const aiEvidenceSamples=payload.aiProductConsent===true?
+      (result.aiEvidenceSamples||[]).slice(0,3).map(p=>({
+        location:String(p.location||'Product content').slice(0,120),
+        excerpt:String(p.excerpt||'').slice(0,1500)
+      })).filter(p=>p.excerpt.trim().length>=40):[];
+    return {mode:'product',conversion,aiEvidenceSamples,subject:file.name,pageTitle:file.name,summary:result.summary,
       meta:result.meta+(payload.price?` · Listed price: ${String(payload.price).slice(0,30)}`:''),coverageLabel:result.coverageLabel,checkedAt:new Date().toISOString(),
       checked:checks.map(x=>x.name),checks,checksRun:checks.length,issues,totalDetected:issues.length,
       scope:'Local file inspection only; files are not uploaded to VYLENS. PDF text, file structure, ZIP metadata, instruction files and image properties are examined where supported. Visual layout, claim accuracy, buyer intent and sales conversion cannot be determined from these checks alone.',
