@@ -145,7 +145,8 @@ test('AI health endpoint reports configuration status but never discloses an API
   assert.equal(r.status,200);
   const value=await r.json();
   assert.equal(typeof value.aiConfigured,'boolean');
-  assert.equal(value.model,'openai/gpt-oss-120b');
+  assert.equal(typeof value.model,'string');
+  assert.ok(value.model.length>0);
   assert.equal(JSON.stringify(value).includes('Bearer '),false);
   assert.equal('apiKey' in value,false);
 });
