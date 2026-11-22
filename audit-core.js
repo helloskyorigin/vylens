@@ -182,7 +182,7 @@
       return new TextDecoder().decode(out).slice(0,250_000);
     }catch{return null}
   }
-  async function zipReview(file){
+  async function zipReview(file,{sampleForAi=false}={}){
     progress('Inspecting product bundle…','Reading file names, sizes and usage instructions.');
     const buffer=await file.arrayBuffer(),entries=parseZip(buffer),regular=entries.filter(e=>!e.name.endsWith('/'));
     const issues=[],checks=[];
@@ -233,26 +233,29 @@
       'Mention the expanded size and test extraction on common devices.','ZIP download','Extract and inspect available storage requirements.');
     // For opt-in AI: show what the bundle lists, then sample at most two safe
     // text deliverables. This never uploads or unpacks the archive on a server.
-    const manifest=regular.slice(0,36).map(e=>
-      e.name.slice(0,115)+' ('+e.uncompressed+' bytes)').join('; ').slice(0,1350);
-    const aiEvidenceSamples=manifest?[{
-      location:'ZIP manifest ('+regular.length+' listed deliverables)',
-      excerpt:'Files listed in the archive: '+manifest
-    }]:[];
-    if(readable?.trim())aiEvidenceSamples.push({
-      location:'ZIP guide: '+guide.name,
-      excerpt:readable.replace(/\s+/g,' ').trim().slice(0,1250)
-    });
-    const textCandidates=regular.filter(e=>
-      e!==guide&&!unsafeZipPath(e.name)&&/\.(?:txt|md)$/i.test(e.name)&&
-      e.uncompressed>=60&&e.uncompressed<=100_000).slice(0,4);
-    for(const entry of textCandidates){
-      if(aiEvidenceSamples.length>=3)break;
-      const content=await getZipText(buffer,entry);
-      if(content?.trim().length>=60)aiEvidenceSamples.push({
-        location:'ZIP file: '+entry.name.slice(0,100),
-        excerpt:content.replace(/\s+/g,' ').trim().slice(0,1000)
+    const aiEvidenceSamples=[];
+    if(sampleForAi){
+      const manifest=regular.slice(0,36).map(e=>
+        e.name.slice(0,115)+' ('+e.uncompressed+' bytes)').join('; ').slice(0,1350);
+      if(manifest)aiEvidenceSamples.push({
+        location:'ZIP manifest ('+regular.length+' listed deliverables)',
+        excerpt:'Files listed in the archive: '+manifest
       });
+      if(readable?.trim())aiEvidenceSamples.push({
+        location:'ZIP guide: '+guide.name,
+        excerpt:readable.replace(/\s+/g,' ').trim().slice(0,1250)
+      });
+      const textCandidates=regular.filter(e=>
+        e!==guide&&!unsafeZipPath(e.name)&&/\.(?:txt|md)$/i.test(e.name)&&
+        e.uncompressed>=60&&e.uncompressed<=100_000).slice(0,4);
+      for(const entry of textCandidates){
+        if(aiEvidenceSamples.length>=3)break;
+        const content=await getZipText(buffer,entry);
+        if(content?.trim().length>=60)aiEvidenceSamples.push({
+          location:'ZIP file: '+entry.name.slice(0,100),
+          excerpt:content.replace(/\s+/g,' ').trim().slice(0,1000)
+        });
+      }
     }
     return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${readable!==null?' and read the included guide':guide?' (guide content unavailable)':''}.`,
       meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions',
@@ -369,7 +372,7 @@
     if(!['pdf','txt','md','zip','png','jpg','jpeg','webp'].includes(ext))throw new Error('Choose a supported PDF, TXT, Markdown, ZIP or image file.');
     let result;
     if(ext==='pdf')result=await pdfReview(file);
-    else if(ext==='zip')result=await zipReview(file);
+    else if(ext==='zip')result=await zipReview(file,{sampleForAi:payload.aiProductConsent===true});
     else if(['txt','md'].includes(ext)){
       progress('Reading your content…','Checking the real text and structure.');
       const raw=await file.text(); const r=inspectText(raw,ext==='md'?'markdown':'text',file.name);
