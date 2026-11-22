@@ -161,6 +161,23 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.ok(zipChecks.samples.some(x=>/social-posts/.test(x.excerpt)));
     assert.ok(zipChecks.samples.length<=3);
     assert.equal(zipChecks.privateSampleCount,0);
+
+    // A local-file-only report must not pretend it assessed real buyers or public checkout.
+    await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
+    await page.locator('#productTab').click();
+    await page.locator('#productFile').setInputFiles({
+      name:'file-only.md',mimeType:'text/markdown',buffer:Buffer.from(asset)
+    });
+    await page.locator('#submitAudit').click();
+    await page.waitForURL(/\/results\.html$/,{timeout:30000});
+    await page.locator('#signalReport').waitFor();
+    const fileOnly=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('vylens:result')));
+    assert.equal(fileOnly.mode,'product');
+    assert.equal(fileOnly.salesPageCoverage,undefined);
+    assert.equal(fileOnly.aiEvidenceSamples,undefined);
+    assert.ok((await page.locator('#signalReport .signal-title').innerText()).includes(
+      'verify in your product'));
+    assert.equal(await page.locator('#signalReport .signal-detail-card').count(),5);
   }finally{
     if(browser)await browser.close();
     await new Promise(resolve=>server.close(resolve));
