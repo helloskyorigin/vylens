@@ -12,6 +12,7 @@ import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
 import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
 import {analyzeWebsiteConversion,analyzeSourceOffer} from '../lib/conversion-engine.mjs';
+import {reviewEvidenceWithGroq} from '../lib/ai-conversion-signals.mjs';
 import {isDirectAction,isPurchaseAction} from '../lib/action-intent.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
@@ -1252,6 +1253,17 @@ async function scanSite(input,progress=()=>{}){
     };
     conversion.unverified.push(reason);
   }
+  // AI is an optional, second-opinion review of captured public evidence.
+  // Never let it rewrite the verified scanner's findings or editorial score.
+  // Keep a hard deadline and preserve the rule-based report during API failure.
+  let aiReview={status:'skipped',signals:[],pagesConsidered:0};
+  if(!noOfferEvidence&&process.env.GROQ_API_KEY&&remainingTime()>2000){
+    progress('ai-review');
+    aiReview=await reviewEvidenceWithGroq(commerceSnapshots,{
+      timeoutMs:Math.min(10000,Math.max(1000,remainingTime()-450))
+    });
+  }
+  conversion.aiReview=aiReview;
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     conversion,
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,coverage,
