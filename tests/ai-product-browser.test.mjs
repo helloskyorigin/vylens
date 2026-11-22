@@ -106,7 +106,11 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.ok(received.fileEvidence.fileSamples[0].excerpt.includes('Product guide'));
     assert.equal('aiEvidenceSamples' in combined,false,'Private text samples must not be saved with report');
     assert.equal(JSON.stringify(received).includes(asset),false,'Original file body must not be forwarded');
-    assert.ok(await page.locator('#signalReport').innerText().then(t=>t.includes('AI Evidence Review')));
+    assert.equal(await page.locator('#signalReport .signal-detail-card').count(),5,
+      'AI suggestions must not create a sixth top-level card');
+    const changeCard=page.locator('#signalReport .signal-detail-card').nth(2);
+    await changeCard.locator('summary').first().click();
+    assert.ok((await changeCard.innerText()).includes('AI Evidence Review'));
     const event=page.waitForEvent('download',{timeout:14000});
     await page.locator('.signal-download').click();
     const download=await event;
