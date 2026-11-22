@@ -118,6 +118,17 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     const changeCard=page.locator('#signalReport .signal-detail-card').nth(2);
     await changeCard.locator('summary').first().click();
     assert.ok((await changeCard.innerText()).includes('AI Evidence Review'));
+    // Check the expanded AI evidence on narrow phones and desktop, not just a closed summary.
+    for(const width of [320,390,768,1440]){
+      await page.setViewportSize({width,height:840});
+      const dimensions=await page.evaluate(()=>({
+        doc:document.documentElement.scrollWidth,
+        viewport:document.documentElement.clientWidth
+      }));
+      assert.ok(dimensions.doc<=dimensions.viewport+5,
+        'No horizontal overflow with AI fix details at '+width+'px: '+JSON.stringify(dimensions));
+    }
+    await page.setViewportSize({width:390,height:800});
     const event=page.waitForEvent('download',{timeout:14000});
     await page.locator('.signal-download').click();
     const download=await event;
@@ -133,6 +144,23 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.equal(sourceOnly.conversion.renderedPages,0);
     assert.ok(sourceOnly.conversion.unverified.some(t=>/rendering was unavailable/i.test(t)));
     assert.deepEqual(errors,[],'No unhandled browser script failures');
+    // The original ZIP stays in the browser. Only opt-in file names / guide samples
+    // may be exposed to the optional model comparison layer.
+    await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({content:await readFile(join(ROOT,'audit-core.js'),'utf8')});
+    const zipFile='UEsDBBQAAAAIAFAddl0kS1nFZwAAAH8AAAANAAAAU1RBUlQgSEVSRS5tZC2MMQoDMQwE+3vFQvr7RL4QSC3LylmcbJlIbvL6XCDdMANzw1OMvQvSkU1Q1qgm26Np/Bk62FaVQDgrGaZHIqVPo7wsjQoCU5+kxwA34dM0csd9RXrXj/zOHUVe/hbMVa7cdBz79gVQSwMEFAAAAAgAUB12Xa/zKSVbAAAAZQAAAA8AAABzb2NpYWwtcG9zdHMubWQdzMsJgDAQRdG9VTxwK/Yggg1oA2PyxIGYhEz8lK+4uJuzuC3m5FQCDnoV5GTVmkkvovA0WQN/Ax85cqBhS+XrjJ7FOtxad+Qirqr7JjvFB42ERI9xGVA1W9+8UEsDBBQAAAAIAFAddl3a2qmERwAAAE0AAAALAAAAcGxhbm5lci50eHQNxsERgCAMBMC/VVwBjgXYg0VEPCEDIhOitK/72k0s07VGBLmaaKxoRSrO2+CJGGReYewUC2lGe/ai/Y/xVQ5IPaBOE+cyfVBLAQIUAxQAAAAIAFAddl0kS1nFZwAAAH8AAAANAAAAAAAAAAAAAACAAQAAAABTVEFSVCBIRVJFLm1kUEsBAhQDFAAAAAgAUB12Xa/zKSVbAAAAZQAAAA8AAAAAAAAAAAAAAIABkgAAAHNvY2lhbC1wb3N0cy5tZFBLAQIUAxQAAAAIAFAddl3a2qmERwAAAE0AAAALAAAAAAAAAAAAAACAARoBAABwbGFubmVyLnR4dFBLBQYAAAAAAwADALEAAACKAQAAAAA=';
+    const zipChecks=await page.evaluate(async encoded=>{
+      const bytes=Uint8Array.from(atob(encoded),x=>x.charCodeAt(0));
+      const file=new File([bytes],'bundle.zip',{type:'application/zip'});
+      const opted=await window.VylensCore.productReview(file,{aiProductConsent:true});
+      const privateReview=await window.VylensCore.productReview(file,{aiProductConsent:false});
+      return {samples:opted.aiEvidenceSamples,privateSampleCount:privateReview.aiEvidenceSamples.length};
+    },zipFile);
+    assert.ok(zipChecks.samples.some(x=>/ZIP manifest/.test(x.location)));
+    assert.ok(zipChecks.samples.some(x=>/ZIP guide/.test(x.location)));
+    assert.ok(zipChecks.samples.some(x=>/social-posts/.test(x.excerpt)));
+    assert.ok(zipChecks.samples.length<=3);
+    assert.equal(zipChecks.privateSampleCount,0);
   }finally{
     if(browser)await browser.close();
     await new Promise(resolve=>server.close(resolve));
