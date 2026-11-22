@@ -1,0 +1,29 @@
+name: Groq evidence review safety tests
+on:
+  pull_request:
+    paths:
+      - 'lib/ai-conversion-signals.mjs'
+      - 'api/inspect-site.mjs'
+      - 'results-signal.js'
+      - 'analysis.js'
+      - 'tests/ai-conversion-signals.test.mjs'
+      - '.github/workflows/groq-evidence-review.yml'
+  push:
+    branches:
+      - 'feature/groq-evidence-verified-audit'
+jobs:
+  ai-evidence-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check lib/ai-conversion-signals.mjs
+          node --check api/inspect-site.mjs
+          node --check results-signal.js
+          node --check analysis.js
+      - name: Security and evidence grounding tests
+        run: node --test tests/ai-conversion-signals.test.mjs
