@@ -418,8 +418,12 @@
       if(aiSuggestions.length){
         const extras=el('section','signal-ai-review');
         extras.append(el('h4','','AI Evidence Review'));
-        extras.append(el('p','signal-section-note',
-          'Second-opinion ideas linked to captured evidence. Verify before changing your offer; they are not measured buyer behavior.'));
+        const aiNote=report.mode==='product'?
+          (aiReview?.comparedBoth?
+            'Opted-in product excerpts and public sales-page observations were available. Each idea cites its evidence; only explicitly linked quotes support a comparison.':
+            'AI reviewed public sales-page evidence or limited product findings. See each source label; private file samples are only shared with consent.'):
+          'AI reviewed captured public-page evidence, not real customer behavior. Verify each suggested change before publishing.';
+        extras.append(el('p','signal-section-note',aiNote));
         const rows=aiSuggestions.map(item=>{
           const row=createRow('yellow',small(item.title,135),
             small(item.evidence,230),small(item.location,115));
@@ -427,6 +431,8 @@
           if(copy){
             copy.append(el('p','','Concern: '+small(item.buyerConcern,260)));
             copy.append(el('p','','Try: '+small(item.fix,350)));
+            copy.append(el('small','','Evidence type: '+(
+              item.evidenceKind==='cross-source'?'Product + sales page':item.source||'Public page')));
             copy.append(el('small','','Verify: '+small(item.verify,225)));
             copy.append(copyButton(small(item.fix,1100)));
           }
