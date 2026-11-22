@@ -434,6 +434,18 @@
             copy.append(el('small','','Evidence type: '+(
               item.evidenceKind==='cross-source'?'Product + sales page':item.source||'Public page')));
             copy.append(el('small','','Verify: '+small(item.verify,225)));
+            const sourceLink=item.evidenceURL||(report.mode==='product'?report.salesPage:'');
+            if(sourceLink){
+              try{
+                const target=new URL(sourceLink);
+                if(['https:','http:'].includes(target.protocol)&&
+                    !target.username&&!target.password){
+                  const open=el('a','signal-ai-source','Open inspected sales page');
+                  open.href=target.href;open.target='_blank';open.rel='noopener noreferrer';
+                  copy.append(open);
+                }
+              }catch{}
+            }
             copy.append(copyButton(small(item.fix,1100)));
           }
           return row;
