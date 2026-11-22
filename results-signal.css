@@ -402,3 +402,19 @@ body.signal-ui #signalReport .signal-no-data-foot{
   body.signal-ui #signalReport .signal-diagnostic-stats{gap:9px}
   body.signal-ui #signalReport .signal-diagnostic-stats>div{padding:12px}
 }
+
+/* AI is a concise, evidence-linked subsection of the existing fixes card. */
+body.signal-ui #signalReport .signal-ai-review{
+  margin-top:18px;padding-top:17px;border-top:1px solid #e7eee4;
+  min-width:0;
+}
+body.signal-ui #signalReport .signal-ai-review h4{
+  color:#273427;font:800 13px/1.5 Manrope,'DM Sans',sans-serif;
+  letter-spacing:-.02em;margin:0 0 6px;
+}
+body.signal-ui #signalReport .signal-ai-review .signal-section-note{
+  margin-bottom:8px!important;
+}
+body.signal-ui #signalReport .signal-ai-review .signal-mini-row{
+  overflow-wrap:anywhere;
+}
