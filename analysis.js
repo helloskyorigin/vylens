@@ -178,11 +178,15 @@
     try{
       const response=await fetch('./api/inspect-site',{
         method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        headers:{'Content-Type':'application/json','Accept':'application/x-ndjson, application/json'},
         body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'
       });
-      const data=await response.json();
-      if(!response.ok)throw new Error(data.error||'Rendered sales-page scan unavailable.');
+      const type=response.headers.get('content-type')||'';
+      let data;
+      if(response.ok&&type.includes('application/x-ndjson'))data=await readScanStream(response);
+      else if(type.includes('application/json'))data=await response.json();
+      else throw new Error('Sales-page scanner returned an unexpected response.');
+      if(!response.ok)throw new Error(data?.error||'Rendered sales-page scan unavailable.');
       if(!data?.conversion||Number(data.conversion.inspectedOfferPages)<1)
         throw new Error('No readable rendered buying offer could be verified.');
       return {scan:data,sourceOnly:false};
