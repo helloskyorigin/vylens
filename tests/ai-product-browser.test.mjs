@@ -43,6 +43,16 @@ const reviewResult={status:'completed',comparedBoth:true,signals:[{
 
 test('browser verifies opt-in product + rendered sales-page + combined PDF and no-consent fallback',async()=>{
   let reviewCalls=0,received=null,deepMode='stream';
+  const largeSale={...sale,conversion:{...sale.conversion,
+    blockers:Array.from({length:40},(_,i)=>({...offerBlock,id:'offer-'+i,
+      title:'Observed offer concern '+i,
+      evidence:'The rendered public sales-page evidence shows a specific label and buyer choice. '.repeat(8)})),
+    strengths:Array.from({length:20},(_,i)=>({
+      stage:'value',title:'Observed public offer detail '+i,
+      evidence:'Public pricing and deliverable explanation observed. '.repeat(9),
+      location:'/item'
+    }))
+  }};
   const server=createServer(async(req,res)=>{
     const url=new URL(req.url,'http://localhost');
     if(req.method==='POST'&&url.pathname==='/api/inspect-site'){
@@ -52,9 +62,10 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
         res.write(JSON.stringify({stage:'diagnosing'})+'\n');
         res.end(JSON.stringify({report:sale})+'\n');
       }else{
-        res.statusCode=deepMode==='rendered'?200:422;
+        res.statusCode=['rendered','large'].includes(deepMode)?200:422;
         res.setHeader('content-type','application/json');
-        res.end(JSON.stringify(deepMode==='rendered'?sale:{error:'Rendered buyer offer blocked.'}));
+        res.end(JSON.stringify(deepMode==='large'?largeSale:
+          deepMode==='rendered'?sale:{error:'Rendered buyer offer blocked.'}));
       }
       return;
     }
@@ -140,10 +151,20 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     const {stat}=await import('node:fs/promises');
     assert.ok((await stat(await download.path())).size>900,'PDF must contain actual content');
 
+    // Large real-world audits must not exceed the server's 23 KB byte ceiling.
+    deepMode='large';
+    const heavy=await submit(true);
+    assert.equal(heavy.conversion.aiReview.status,'completed');
+    assert.ok(JSON.stringify(received).length<23000,
+      'AI payload remains bounded on large product + sales-page reports');
+    assert.equal(received.fileEvidence.salesIssues.length,7);
+    assert.equal(received.fileEvidence.salesStrengths.length,5);
+    assert.equal(reviewCalls,2);
+
     deepMode='blocked';
     const sourceOnly=await submit(false);
     assert.equal(sourceOnly.salesPageCoverage.mode,'source-only');
-    assert.equal(reviewCalls,1,'No private file summary should be sent without opt-in');
+    assert.equal(reviewCalls,2,'No private file summary should be sent without opt-in');
     assert.equal('aiEvidenceSamples' in sourceOnly,false);
     assert.equal(sourceOnly.conversion.renderedPages,0);
     assert.ok(sourceOnly.conversion.unverified.some(t=>/rendering was unavailable/i.test(t)));
