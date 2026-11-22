@@ -1343,5 +1343,6 @@ function streamScan(url){
   return new Response(stream,{headers:{'content-type':'application/x-ndjson; charset=utf-8','cache-control':'no-store',
     'x-content-type-options':'nosniff','x-accel-buffering':'no'}});
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,
+  aiConfigured:Boolean(process.env.GROQ_API_KEY),deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
 export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion,rendered,browserResource,waitForContent,blockedOrChallenge};
