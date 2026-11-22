@@ -83,3 +83,17 @@ test('upstream errors never prevent rule-based audit',async()=>{
   assert.equal(result.status,'unavailable');
   assert.deepEqual(result.signals,[]);
 });
+
+test('AI cannot claim a price, policy or checkout is missing from a partial captured excerpt',()=>{
+  const packet=buildEvidencePacket([page]);
+  for(const title of [
+    'Refund policy is missing from this website',
+    'The checkout link is broken and stops buyers',
+    'No price is provided to prospective customers'
+  ]){
+    const advice={...supported,title};
+    assert.equal(verifyAiSignals({signals:[advice]},packet).length,0,title);
+  }
+  const valid=verifyAiSignals({signals:[supported]},packet);
+  assert.equal(valid.length,1);
+});
