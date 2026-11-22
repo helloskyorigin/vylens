@@ -54,4 +54,5 @@ export async function POST(request){
   const result=await reviewProductContext(body.fileEvidence);
   return reply(result);
 }
-export function GET(){return reply({status:'ok',processing:'opt-in-derived-audit-evidence-only'});}
+export function GET(){return reply({status:'ok',processing:'opt-in-derived-audit-evidence-only',
+  aiConfigured:Boolean(process.env.GROQ_API_KEY),model:process.env.GROQ_MODEL||'openai/gpt-oss-120b'});}
