@@ -128,3 +128,14 @@ test('text excerpts are treated as specific cited product evidence rather than p
     evidenceQuote:'The workbook promises 500 pages of done-for-you templates.'}]},packet);
   assert.equal(falseQuote.length,0);
 });
+
+test('AI cannot call a single sampled excerpt a sales-promise mismatch or proof of missing content',()=>{
+  const packet=buildProductEvidencePacket(input);
+  const oneSided={...comparison,relatedSourceId:'',relatedEvidenceQuote:'',
+    title:'The sales page promises content but the delivered file mismatches'};
+  assert.equal(verifyProductSignals({signals:[oneSided]},packet).length,0);
+  const missing={...oneSided,sourceId:'content-0',
+    title:'The workbook lacks important deliverables',
+    evidenceQuote:'This workbook contains twenty daily prompts and a reusable daily planning worksheet for creators.'};
+  assert.equal(verifyProductSignals({signals:[missing]},packet).length,0);
+});
