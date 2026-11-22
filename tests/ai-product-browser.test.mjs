@@ -115,6 +115,10 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.equal(JSON.stringify(received).includes(asset),false,'Original file body must not be forwarded');
     assert.equal(await page.locator('#signalReport .signal-detail-card').count(),5,
       'AI suggestions must not create a sixth top-level card');
+    assert.equal(await page.locator('#rvReport').isVisible(),false,
+      'Legacy result renderer must not show a duplicate report');
+    assert.equal(await page.locator('#fiveReport').isVisible(),false,
+      'Older result shell must not duplicate the current Signal report');
     const changeCard=page.locator('#signalReport .signal-detail-card').nth(2);
     await changeCard.locator('summary').first().click();
     assert.ok((await changeCard.innerText()).includes('AI Evidence Review'));
