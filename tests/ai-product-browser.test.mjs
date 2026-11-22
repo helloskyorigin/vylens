@@ -155,6 +155,10 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     deepMode='large';
     const heavy=await submit(true);
     assert.equal(heavy.conversion.aiReview.status,'completed');
+    assert.ok(heavy.conversion.blockers.some(x=>/local/i.test(x.source)),
+      'A long public audit may not bury local product problems');
+    assert.ok(heavy.conversion.blockers.some(x=>/public page/i.test(x.source)),
+      'Keep public sales-page problems alongside local findings');
     assert.ok(JSON.stringify(received).length<23000,
       'AI payload remains bounded on large product + sales-page reports');
     assert.equal(received.fileEvidence.salesIssues.length,7);
