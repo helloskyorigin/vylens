@@ -285,7 +285,7 @@
         if (!file) throw new Error('The selected file is no longer available. Please select it again from the homepage.');
         window.VylensCore.onProgress = (headline,description) => { if(!isFinished)changeMessage(headline,description); };
         result=await window.VylensCore.productReview(file,payload);
-        const localReview=result;
+        const localReview={...result,conversion:{...result.conversion}};
         let salesReview=null;
         // The file always remains in the browser. A sales URL is inspected separately.
         if(payload.salesPage&&/^https?:\/\//i.test(payload.salesPage)){
