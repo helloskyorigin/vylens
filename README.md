@@ -76,6 +76,19 @@ The GitHub workflows also run targeted browser and scanner checks. After any rel
 
 The Results interface uses the dedicated `results-lime.js` and `results-lime.css` layers. The design has a screenshot-matched desktop hierarchy and separate narrow-phone, tablet, and print layouts. Live release still requires a successful Vercel build and confirmation that the production deployment serves the current commit.
 
+
+## Optional Groq evidence review (feature branch, not yet live)
+
+The public website inspector can optionally send **bounded, browser-captured public offer excerpts** to Groq after the deterministic crawl completes. It produces up to five AI-authored, **hypothesis-only** recommendations. The server rejects suggestions without a verbatim quote from that exact rendered page and keeps its existing measured/observed rule-based report unchanged.
+
+- Set `GROQ_API_KEY` as a **server-side Vercel environment secret**. Never use a `NEXT_PUBLIC_` variable or embed a key in HTML/JS.
+- Model defaults to `openai/gpt-oss-120b`. Override only with `GROQ_MODEL` set to a Groq model supporting strict JSON Schema outputs.
+- Calls are deadline-limited. No key, no readable rendered offer, timeout, or Groq failure → deterministic report only. No fake AI signals.
+- Only selected visible public text, offer headings, price snippets, action labels and related public-page evidence are shared; not credentials, sessions, screenshots, submitted forms or uploaded product files.
+- **Before production enablement**, update the public privacy policy to disclose Groq processing, retention and data handling, including that public website content is forwarded to a third-party model provider. Review applicable consent requirements.
+- Run `node --test tests/ai-conversion-signals.test.mjs` and the existing browser/scanner regression suite before merging. Verify a real Groq response in staging, and test with the key removed.
+- Source-based quote verification does not prove a commercial claim is correct or that buyers actually churn. AI signals must always be presented as suggestions, never confirmed lost-sales diagnoses.
+
 ## Production limitations
 
 The current per-IP throttle is **in-memory, best-effort only** in a serverless environment. A shared durable rate limiter, abuse monitoring, clear operating limits and additional real-site regression samples are important before sending heavy traffic. Do not treat the scan as a full performance, security or conversion audit.
