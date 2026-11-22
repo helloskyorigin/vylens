@@ -418,3 +418,10 @@ body.signal-ui #signalReport .signal-ai-review .signal-section-note{
 body.signal-ui #signalReport .signal-ai-review .signal-mini-row{
   overflow-wrap:anywhere;
 }
+
+body.signal-ui #signalReport .signal-ai-source{
+  display:inline-block;margin:9px 12px 0 0;
+  color:#356d38;font:750 11.5px/1.5 'DM Sans',sans-serif;
+  text-decoration:underline;text-underline-offset:3px;
+  overflow-wrap:anywhere;
+}
