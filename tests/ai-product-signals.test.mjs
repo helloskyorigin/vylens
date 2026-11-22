@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildProductEvidencePacket,verifyProductSignals,reviewProductContext} from '../lib/ai-product-signals.mjs';
-import {POST} from '../api/review-product.mjs';
+import {POST,GET} from '../api/review-product.mjs';
 
 const input={
   fileType:'pdf',price:'$19',salesPageUrl:'https://store.example/pricing',salesCoverage:'rendered',
@@ -138,4 +138,14 @@ test('AI cannot call a single sampled excerpt a sales-promise mismatch or proof 
     title:'The workbook lacks important deliverables',
     evidenceQuote:'This workbook contains twenty daily prompts and a reusable daily planning worksheet for creators.'};
   assert.equal(verifyProductSignals({signals:[missing]},packet).length,0);
+});
+
+test('AI health endpoint reports configuration status but never discloses an API key',async()=>{
+  const r=await GET();
+  assert.equal(r.status,200);
+  const value=await r.json();
+  assert.equal(typeof value.aiConfigured,'boolean');
+  assert.equal(value.model,'openai/gpt-oss-120b');
+  assert.equal(JSON.stringify(value).includes('Bearer '),false);
+  assert.equal('apiKey' in value,false);
 });
