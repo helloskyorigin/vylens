@@ -103,7 +103,7 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.ok(received.fileEvidence.fileIssues.length>=1);
     assert.ok(received.fileEvidence.salesIssues.length>=1);
     assert.equal(JSON.stringify(received).includes(asset),false,'Original file body must not be forwarded');
-    assert.ok(await page.locator('#signalReport').inner_text().then(t=>t.includes('AI Evidence Review')));
+    assert.ok(await page.locator('#signalReport').innerText().then(t=>t.includes('AI Evidence Review')));
     const event=page.waitForEvent('download',{timeout:14000});
     await page.locator('.signal-download').click();
     const download=await event;
