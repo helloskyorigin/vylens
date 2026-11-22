@@ -42,13 +42,20 @@ const reviewResult={status:'completed',comparedBoth:true,signals:[{
 }]};
 
 test('browser verifies opt-in product + rendered sales-page + combined PDF and no-consent fallback',async()=>{
-  let reviewCalls=0,received=null,deepMode='rendered';
+  let reviewCalls=0,received=null,deepMode='stream';
   const server=createServer(async(req,res)=>{
     const url=new URL(req.url,'http://localhost');
     if(req.method==='POST'&&url.pathname==='/api/inspect-site'){
-      res.statusCode=deepMode==='rendered'?200:422;
-      res.setHeader('content-type','application/json');
-      res.end(JSON.stringify(deepMode==='rendered'?sale:{error:'Rendered buyer offer blocked.'}));
+      if(deepMode==='stream'){
+        res.setHeader('content-type','application/x-ndjson; charset=utf-8');
+        res.write(JSON.stringify({stage:'rendering'})+'\n');
+        res.write(JSON.stringify({stage:'diagnosing'})+'\n');
+        res.end(JSON.stringify({report:sale})+'\n');
+      }else{
+        res.statusCode=deepMode==='rendered'?200:422;
+        res.setHeader('content-type','application/json');
+        res.end(JSON.stringify(deepMode==='rendered'?sale:{error:'Rendered buyer offer blocked.'}));
+      }
       return;
     }
     if(req.method==='POST'&&url.pathname==='/api/inspect'){
