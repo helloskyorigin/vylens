@@ -55,7 +55,7 @@ jobs:
           python -m playwright install chromium
       - name: Existing local digital-product and ZIP regression
         run: python qa_product_browser.py
-      - name: Existing multi-width conversion results and PDF regression
+      - name: Current Signal report: multi-width, error states and PDF regression
         run: |
           python -m http.server 8765 --bind 127.0.0.1 >/tmp/vylens-local-http.log 2>&1 &
-          VYLENS_BASE=http://127.0.0.1:8765 python qa_conversion_results.py
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_signal_results.py
