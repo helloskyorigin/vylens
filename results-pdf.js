@@ -100,8 +100,9 @@
       paragraph('Checked: '+String(report.checkedAt||'Not recorded').slice(0,10)+
         '   Type: '+(report.mode==='product'?'Digital product':'Website'),
         {size:9,gap:14,color:'0.38 0.46 0.37'});
-      section(report.mode==='product'&&data.kind==='product+offer'?
-        '1. Public Sales-Page Assessment':'1. Overall Offer Assessment');
+      section(report.mode==='product'?
+        (data.kind==='product+offer'?'1. Public Sales-Page Assessment':'1. Product Delivery Assessment'):
+        '1. Overall Offer Assessment');
       paragraph(score===null?'Score: Not enough evidence to assess':
         (report.mode==='product'?'Public sales-page offer score: ':'Estimated offer score: ')+score+' / 100',
         {size:13,bold:true,gap:9});
