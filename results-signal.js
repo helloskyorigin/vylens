@@ -178,7 +178,7 @@
   // One visual score, only when enough buyer-facing evidence exists.
   const scoreBox=el('section','signal-score');
   scoreBox.setAttribute('aria-label','Overall conversion score');
-  scoreBox.append(el('div','signal-score-heading','OVERALL CONVERSION SCORE'));
+  scoreBox.append(el('div','signal-score-heading',report.mode==='product'&&data.kind==='product+offer'?'PUBLIC SALES PAGE ASSESSMENT':'OVERALL CONVERSION SCORE'));
   const scoreBody=el('div','signal-score-body');
   const circle=el('div','signal-score-ring signal-tone-'+smartTone(overall));
   circle.style.setProperty('--score-fill',(overall===null?0:overall)+'%');
@@ -202,7 +202,7 @@
       (assessment?.explanation || (report.mode==='product'?
         'We checked the file, but could not confirm how its sales page looks to buyers.':
         'There was not enough visible information to give a fair score.')) :
-       isLimited?'Based on the sections we could check.':
+       (report.mode==='product'&&data.kind==='product+offer')?'Public sales-page assessment only. Delivered-product findings are listed separately.':isLimited?'Based on the sections we could check.':
         'A quick assessment of the offer, not actual sales.'));
   add(scoreBody,circle,scoreCopy);
   scoreBox.append(scoreBody);
@@ -335,14 +335,14 @@
   // Optional AI review never affects the measured/observed score above.
   // Display only verbatim-anchored second-opinion hypotheses from the server.
   const aiReview=data.aiReview;
-  if(report.mode==='website'&&aiReview?.status==='completed'&&
+  if(aiReview?.status==='completed'&&
       Array.isArray(aiReview.signals)&&aiReview.signals.length){
     const reviewed=aiReview.signals.slice(0,5);
-    card('AI Evidence Review','Page-linked improvement suggestions',
+    card('AI Evidence Review',report.mode==='product'?'Product and sales-page suggestions':'Page-linked improvement suggestions',
       reviewed.length+' '+(reviewed.length===1?'suggestion':'suggestions'),
       'yellow',(body)=>{
         body.append(el('p','signal-section-note',
-          'AI suggestions based on captured public text. These are hypotheses, not confirmed reasons for lost sales.'));
+          report.mode==='product'?'AI suggestions based on limited file findings and public sales-page observations. No product file bytes were sent. These are hypotheses.' : 'AI suggestions based on captured public text. These are hypotheses, not confirmed reasons for lost sales.'));
         const rows=reviewed.map(item=>{
           const row=createRow('yellow',small(item.title,130),
             small(item.evidence,230),small(item.location,115));
