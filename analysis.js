@@ -206,10 +206,10 @@
     }finally{clearTimeout(fallbackTimer);}
   }
   function productAiEvidence(fileReview,salesReview,payload){
-    const pick=items=>Array.isArray(items)?items.slice(0,14).map(x=>({
-      title:String(x?.title||'').slice(0,140),
-      evidence:String(x?.evidence||'').slice(0,500),
-      location:String(x?.location||'').slice(0,140)
+    const pick=(items,max=7)=>Array.isArray(items)?items.slice(0,max).map(x=>({
+      title:String(x?.title||'').slice(0,115),
+      evidence:String(x?.evidence||'').slice(0,310),
+      location:String(x?.location||'').slice(0,105)
     })):[];
     return {fileType:String(fileReview?.subject||'').split('.').pop().slice(0,16),
       price:String(payload?.price||'').slice(0,30),
@@ -218,12 +218,12 @@
       fileSamples:Array.isArray(fileReview?.aiEvidenceSamples)?
         fileReview.aiEvidenceSamples.slice(0,3).map(item=>({
           location:String(item?.location||'Product content').slice(0,120),
-          excerpt:String(item?.excerpt||'').slice(0,1500)
+          excerpt:String(item?.excerpt||'').slice(0,1150)
         })):[],
-      fileIssues:pick(fileReview?.conversion?.blockers),
-      fileStrengths:pick(fileReview?.conversion?.strengths),
-      salesIssues:pick(salesReview?.blockers),
-      salesStrengths:pick(salesReview?.strengths)};
+      fileIssues:pick(fileReview?.conversion?.blockers,7),
+      fileStrengths:pick(fileReview?.conversion?.strengths,4),
+      salesIssues:pick(salesReview?.blockers,7),
+      salesStrengths:pick(salesReview?.strengths,5)};
   }
   async function compareProductWithAi(fileReview,salesReview,payload){
     if(payload?.aiProductConsent!==true)return null;
