@@ -130,22 +130,110 @@
     // The source inspection is limited; no conversion score is calculated or invented.
     return {...data, issues:data.issues, completedAt:Date.now()};
   }
-  function combineProductAndOffer(fileReview,salesReview){
+  // Keep product-delivery findings distinct from public offer findings. Neither proves why a visitor left.
+  function combineProductAndOffer(fileReview,salesReview,{sourceOnly=false}={}){
     if(!fileReview||!salesReview)return fileReview;
-    const blockers=[...(salesReview.blockers||[]),...(fileReview.blockers||[])].slice(0,12);
-    blockers.forEach((item,i)=>{item.id='buyer-'+(i+1);});
-    const strengths=[...(salesReview.strengths||[]),...(fileReview.strengths||[])].slice(0,9);
+    const unique=new Map();
+    const add=(items,origin)=>items.forEach(item=>{
+      if(!item||!item.title)return;
+      const key=[origin,item.fingerprint||item.stage,item.title,item.location].join('|').toLowerCase();
+      if(!unique.has(key))unique.set(key,{...item,source:item.source||
+        (origin==='file'?'Locally inspected product file':'Public sales page')});
+    });
+    add(salesReview.blockers||[],'sales');add(fileReview.blockers||[],'file');
+    const blockers=[...unique.values()].sort((a,b)=>(
+      {high:0,review:1,medium:1,low:2}[a.priority]??1)-(
+      {high:0,review:1,medium:1,low:2}[b.priority]??1)).slice(0,20);
+    blockers.forEach((item,i)=>item.id='buyer-'+(i+1));
+    const strengths=[...(salesReview.strengths||[]),...(fileReview.strengths||[])].slice(0,12);
     const labels=[['clarity','Offer clarity'],['value','Price & delivered value'],
       ['trust','Buyer confidence'],['action','Purchase & use']];
     const journey=labels.map(([id,label])=>({
       id,label,status:blockers.some(x=>x.stage===id)?'attention':
         strengths.some(x=>x.stage===id)?'observed':'unverified',
-      detail:blockers.some(x=>x.stage===id)?'A possible blocker was identified':
-        strengths.some(x=>x.stage===id)?'Evidence was observed, not buyer behavior':'Not verified from supported evidence'
+      detail:blockers.some(x=>x.stage===id)?'A possible issue has supporting inspection evidence':
+        strengths.some(x=>x.stage===id)?'An observation was recorded':'Insufficient evidence for this area'
     }));
-    return {...fileReview,blockers,strengths,journey,inspectedOfferPages:1,renderedPages:0,
-      unverified:[...(fileReview.unverified||[]),...(salesReview.unverified||[])],
-      scope:'Local delivered-file assessment and initial public sales-page HTML. No rendered checkout or real buyer behavior tested.'};
+    const salesAssessment=sourceOnly?null:salesReview.assessment?.version===1?salesReview.assessment:null;
+    return {...fileReview,kind:'product+offer',blockers,strengths,journey,
+      renderedPages:Number(salesReview.renderedPages)||0,
+      inspectedOfferPages:sourceOnly?0:Number(salesReview.inspectedOfferPages)||0,
+      // This remains the PUBLIC OFFER assessment; it never rates quality of the private product.
+      assessment:salesAssessment?{...salesAssessment,
+        explanation:'Based on the public sales-page evidence only. Product delivery findings are listed separately.'}:null,
+      offerUnderstanding:salesReview.offerUnderstanding,
+      fixKit:Array.isArray(salesReview.fixKit)?salesReview.fixKit:[],
+      aiReview:salesReview.aiReview||null,
+      unverified:[...(fileReview.unverified||[]),...(salesReview.unverified||[]),
+        'The public offer assessment does not measure satisfaction with the delivered product or real checkout conversions.'],
+      scope:'Local digital-product diagnostics + '+(sourceOnly?'initial public sales-page HTML':'rendered public sales-page evidence')+
+        '. Neither view establishes actual buyer decisions or sales losses.'};
+  }
+  async function inspectAttachedSalesPage(url){
+    // Prefer the SAME rendered buyer journey used for website audits.
+    // Explicitly fall back to source-only analysis when a store blocks rendering.
+    let deepError='';
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),126000);
+    try{
+      const response=await fetch('./api/inspect-site',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({url}),signal:controller.signal,cache:'no-store'
+      });
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||'Rendered sales-page scan unavailable.');
+      if(!data?.conversion||Number(data.conversion.inspectedOfferPages)<1)
+        throw new Error('No readable rendered buying offer could be verified.');
+      return {scan:data,sourceOnly:false};
+    }catch(error){deepError=String(error?.message||'rendering unavailable').slice(0,175);}
+    finally{clearTimeout(timer);}
+    // Shallow fallback is correctly labelled and must never imply the rendered buy flow was checked.
+    const fallback=new AbortController();
+    const fallbackTimer=setTimeout(()=>fallback.abort(),18000);
+    try{
+      const response=await fetch('./api/inspect',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({url}),signal:fallback.signal,cache:'no-store'
+      });
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||'The public sales page could not be checked.');
+      return {scan:data,sourceOnly:true,deepError};
+    }finally{clearTimeout(fallbackTimer);}
+  }
+  function productAiEvidence(fileReview,salesReview,payload){
+    const pick=items=>Array.isArray(items)?items.slice(0,14).map(x=>({
+      title:String(x?.title||'').slice(0,140),
+      evidence:String(x?.evidence||'').slice(0,500),
+      location:String(x?.location||'').slice(0,140)
+    })):[];
+    return {fileType:String(fileReview?.subject||'').split('.').pop().slice(0,16),
+      price:String(payload?.price||'').slice(0,30),
+      salesPageUrl:String(payload?.salesPage||'').slice(0,400),
+      salesCoverage:salesReview?.renderedPages>0?'rendered':salesReview?'source-only':'none',
+      fileIssues:pick(fileReview?.conversion?.blockers),
+      fileStrengths:pick(fileReview?.conversion?.strengths),
+      salesIssues:pick(salesReview?.blockers),
+      salesStrengths:pick(salesReview?.strengths)};
+  }
+  async function compareProductWithAi(fileReview,salesReview,payload){
+    if(payload?.aiProductConsent!==true)return null;
+    changeMessage('Comparing the evidence with AI…',
+      'Reviewing limited product findings alongside the public sales-page observations.');
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),17500);
+    try{
+      const response=await fetch('./api/review-product',{
+        method:'POST',cache:'no-store',signal:controller.signal,
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({consent:true,fileEvidence:productAiEvidence(fileReview,salesReview,payload)})
+      });
+      if(!response.ok)throw new Error('The optional AI comparison was unavailable.');
+      const review=await response.json();
+      if(!review||!Array.isArray(review.signals))throw Error('Invalid AI comparison response.');
+      return review;
+    }catch{return {status:'unavailable',signals:[]};}
+    finally{clearTimeout(timer);}
   }
   async function run() {
     if (inspecting) return;
@@ -197,44 +285,67 @@
         if (!file) throw new Error('The selected file is no longer available. Please select it again from the homepage.');
         window.VylensCore.onProgress = (headline,description) => { if(!isFinished)changeMessage(headline,description); };
         result=await window.VylensCore.productReview(file,payload);
-        // An optional sales URL is audited separately; the file itself is NEVER uploaded.
-        if (payload.salesPage && /^https?:\/\//i.test(payload.salesPage)) {
-          changeMessage('Checking your sales page…', 'Comparing the public offer page with your product file.');
-          const salesTimeout=new AbortController();
-          const salesTimer=setTimeout(()=>salesTimeout.abort(),18000);
-          try {
-            const response=await fetch('./api/inspect', {
-              method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({url:payload.salesPage}),signal:salesTimeout.signal,cache:'no-store'
-            });
-            const scan=await response.json();
-            if (!response.ok) throw new Error(scan.error||'The sales page could not be checked.');
-            const url=new URL(scan.url).hostname;
-            if(scan.conversion)result.conversion=combineProductAndOffer(result.conversion,scan.conversion);
-            result.issues.push(...scan.issues.map(item=>({
-              ...item,id:result.issues.length+item.id,
-              category:'Sales page · '+item.category,
-              location:`${url} · ${item.location||'public page source'}`
+        const localReview=result;
+        let salesReview=null;
+        // The file always remains in the browser. A sales URL is inspected separately.
+        if(payload.salesPage&&/^https?:\/\//i.test(payload.salesPage)){
+          changeMessage('Checking your public sales page…',
+            'Inspecting the offer, important linked pages and phone buying steps.');
+          try{
+            const {scan,sourceOnly,deepError}=await inspectAttachedSalesPage(payload.salesPage);
+            salesReview=scan.conversion||null;
+            if(salesReview)result.conversion=combineProductAndOffer(
+              result.conversion,salesReview,{sourceOnly});
+            result.issues.push(...(scan.issues||[]).map(item=>({
+              ...item,category:'Sales page · '+String(item.category||'Other'),
+              location:'Sales page · '+String(item.location||'Public page')
             })));
-            result.checks.push(...scan.checks.map(item=>({...item,name:'Sales page · '+item.name})));
-            result.checked.push('Public sales page checks');
-            result.checksRun=result.checks.length;
-            result.scope+=' Optional sales page was also checked using public HTML source and selected same-origin links. No actual purchase was attempted or conversion analytics measured.';
-            result.salesPage=scan.url;
-            result.summary+=' Public sales-page source checks completed.';
-            result.issues.sort((a,b)=>( {critical:0,high:1,note:2}[a.severity]??2)-({critical:0,high:1,note:2}[b.severity]??2));
-            result.issues.forEach((item,index)=>item.id=index+1);
+            result.checks.push(...(scan.checks||[]).map(item=>({
+              ...item,name:'Sales page · '+String(item.name||'Check')
+            })));
+            result.checked.push('Public sales-page checks');
+            result.salesPage=scan.url||payload.salesPage;
+            result.salesPageCoverage={
+              mode:sourceOnly?'source-only':'rendered',
+              inspected:scan.coverage?.inspected||1,
+              rendered:scan.coverage?.rendered||0,
+              complete:scan.coverage?.complete===true
+            };
+            result.scope+=' The supplied public sales page was independently inspected '+
+              (sourceOnly?'through initial HTML only.':'with supported browser rendering.')+
+              ' The private product file was not uploaded.';
+            result.summary+=' Public sales-page '+(sourceOnly?'source':'rendered')+' checks completed.';
+            if(sourceOnly){
+              result.conversion.unverified.push(
+                'Full sales-page rendering was unavailable: '+(deepError||'not fully verified')+
+                '. Checkout flow and visible dynamic content were not confirmed.');
+            }
+            result.issues.sort((a,b)=>(
+              {critical:0,high:1,note:2}[a.severity]??2)-(
+              {critical:0,high:1,note:2}[b.severity]??2));
             result.issues.length=Math.min(result.issues.length,250);
+            result.issues.forEach((item,index)=>item.id=index+1);
             result.totalDetected=result.issues.length;
-            result.passed=result.issues.length===0;
-          } catch (error) {
-            result.checks.push({name:'Optional sales page fetch',status:'unverified',detail:
-              `Sales URL could not be inspected: ${String(error?.message||'request failed').slice(0,160)}. No conclusions about sales performance were made.`});
-            result.checksRun=result.checks.length;
-            result.scope+=' The optional sales page could not be verified.';
-            result.conversion?.unverified?.push('The optional public sales page could not be inspected; pre-purchase observations remain unverified.');
-          } finally {clearTimeout(salesTimer)}
+            result.passed=result.passed&&result.issues.length===0&&
+              !sourceOnly&&scan.coverage?.complete===true;
+          }catch(error){
+            result.checks.push({name:'Public sales-page inspection',status:'unverified',
+              detail:'Sales page could not be inspected: '+
+                String(error?.message||'request failed').slice(0,140)});
+            result.scope+=' The public sales page could not be verified.';
+            result.conversion.unverified.push('The public sales page could not be verified; '+
+              'the file report cannot establish why shoppers did not buy.');
+            result.passed=false;
+          }
         }
+        result.checksRun=result.checks.length;
+        // Consent applies only to limited extracted findings; never send original file bytes.
+        if(payload.aiProductConsent===true){
+          const reviewed=await compareProductWithAi(localReview,salesReview,payload);
+          if(reviewed?.status==='completed')result.conversion.aiReview=reviewed;
+          else if(reviewed)result.conversion.aiProductStatus=reviewed.status;
+        }
+
       }
       const report = normalizeResults(result);
       stopWaitingMessages();
