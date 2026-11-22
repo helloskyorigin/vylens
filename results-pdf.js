@@ -211,11 +211,21 @@
           item.verify?'Verify: '+item.verify:''
         ]));
       }
-      const coverage=report.coverage||{};
-      paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
-        String(coverage.rendered??0)+' with browser evidence. '+
-        String(coverage.sourceOnly??0)+' with source-only information.',
-        {size:9,gap:9});
+      const coverage=report.mode==='product'?
+        (report.salesPageCoverage||null):(report.coverage||{});
+      if(report.mode==='product'){
+        paragraph(coverage?
+          'Public sales-page coverage: '+String(coverage.inspected||0)+
+          ' pages opened; '+String(coverage.rendered||0)+' with browser evidence. '+
+          (coverage.mode==='source-only'?'Only HTML source could be assessed.':'Rendered offer review attempted.'):
+          'No public sales-page audit was supplied. Only the product file was inspected locally.',
+          {size:9,gap:9});
+      }else{
+        paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
+          String(coverage.rendered??0)+' with browser evidence. '+
+          String(coverage.sourceOnly??0)+' with source-only information.',
+          {size:9,gap:9});
+      }
       // The five report sections stay focused on buying decisions. The optional
       // appendix keeps the other recorded scan work discoverable in the PDF.
       const extraIssues=Array.isArray(report.issues)?report.issues.filter(x=>x&&x.title):[];
