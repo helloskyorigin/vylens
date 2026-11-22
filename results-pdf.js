@@ -100,11 +100,14 @@
       paragraph('Checked: '+String(report.checkedAt||'Not recorded').slice(0,10)+
         '   Type: '+(report.mode==='product'?'Digital product':'Website'),
         {size:9,gap:14,color:'0.38 0.46 0.37'});
-      section('1. Overall Conversion Assessment');
+      section(report.mode==='product'&&data.kind==='product+offer'?
+        '1. Public Sales-Page Assessment':'1. Overall Offer Assessment');
       paragraph(score===null?'Score: Not enough evidence to assess':
-        'Estimated offer score: '+score+' / 100',
+        (report.mode==='product'?'Public sales-page offer score: ':'Estimated offer score: ')+score+' / 100',
         {size:13,bold:true,gap:9});
-      paragraph('A review of available offer evidence, NOT recorded sales or buyer behavior.',
+      paragraph(report.mode==='product'?
+        'Any number shown assesses only available public offer evidence, not the quality of the delivered product, actual sales or buyer behavior.':
+        'A review of available public offer evidence, NOT recorded sales or buyer behavior.',
         {size:9,gap:10});
       // Preserve the substantive offer context used by the current evaluator.
       // All descriptions below are excerpts from the inspected public pages.
