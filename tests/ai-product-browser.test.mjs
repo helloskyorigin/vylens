@@ -46,9 +46,9 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
   const server=createServer(async(req,res)=>{
     const url=new URL(req.url,'http://localhost');
     if(req.method==='POST'&&url.pathname==='/api/inspect-site'){
+      res.statusCode=deepMode==='rendered'?200:422;
       res.setHeader('content-type','application/json');
       res.end(JSON.stringify(deepMode==='rendered'?sale:{error:'Rendered buyer offer blocked.'}));
-      res.statusCode=deepMode==='rendered'?200:422;
       return;
     }
     if(req.method==='POST'&&url.pathname==='/api/inspect'){
