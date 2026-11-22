@@ -7,6 +7,25 @@ const reply=(data,status=200)=>new Response(JSON.stringify(data),{
   status,headers:{'content-type':'application/json; charset=utf-8',
     'cache-control':'no-store','x-content-type-options':'nosniff'}
 });
+async function boundedBody(request,maxBytes=23000){
+  if(!request.body)throw new Error('empty');
+  const reader=request.body.getReader();
+  const decoder=new TextDecoder('utf-8',{fatal:true});
+  let bytes=0,text='';
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      bytes+=value?.byteLength||0;
+      if(bytes>maxBytes){
+        await reader.cancel('Request too large').catch(()=>{});
+        throw new Error('too-large');
+      }
+      text+=decoder.decode(value,{stream:true});
+    }
+    return text+decoder.decode();
+  }finally{try{reader.releaseLock();}catch{}}
+}
 export async function POST(request){
   if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')||''))
     return reply({error:'JSON request required.'},415);
@@ -18,8 +37,11 @@ export async function POST(request){
   }
   if(Number(request.headers.get('content-length')||0)>23000)return reply({error:'Request too large.'},413);
   let raw;
-  try{raw=await request.text();}catch{return reply({error:'Could not read request.'},400);}
-  if(raw.length>23000)return reply({error:'Request too large.'},413);
+  try{raw=await boundedBody(request);}catch(error){
+    return /too-large/.test(String(error?.message))?
+      reply({error:'Request too large.'},413):
+      reply({error:'Could not read request.'},400);
+  }
   let body;
   try{body=JSON.parse(raw);}catch{return reply({error:'Invalid JSON.'},400);}
   if(body?.consent!==true)return reply({error:'AI file-evidence processing requires explicit opt-in.'},400);
