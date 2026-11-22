@@ -102,6 +102,9 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     assert.equal(received.consent,true);
     assert.ok(received.fileEvidence.fileIssues.length>=1);
     assert.ok(received.fileEvidence.salesIssues.length>=1);
+    assert.ok(received.fileEvidence.fileSamples.length>=1,'Opted-in product excerpts sent');
+    assert.ok(received.fileEvidence.fileSamples[0].excerpt.includes('Product guide'));
+    assert.equal('aiEvidenceSamples' in combined,false,'Private text samples must not be saved with report');
     assert.equal(JSON.stringify(received).includes(asset),false,'Original file body must not be forwarded');
     assert.ok(await page.locator('#signalReport').innerText().then(t=>t.includes('AI Evidence Review')));
     const event=page.waitForEvent('download',{timeout:14000});
@@ -115,6 +118,7 @@ test('browser verifies opt-in product + rendered sales-page + combined PDF and n
     const sourceOnly=await submit(false);
     assert.equal(sourceOnly.salesPageCoverage.mode,'source-only');
     assert.equal(reviewCalls,1,'No private file summary should be sent without opt-in');
+    assert.equal('aiEvidenceSamples' in sourceOnly,false);
     assert.equal(sourceOnly.conversion.renderedPages,0);
     assert.ok(sourceOnly.conversion.unverified.some(t=>/rendering was unavailable/i.test(t)));
     assert.deepEqual(errors,[],'No unhandled browser script failures');
