@@ -231,11 +231,32 @@
     if(total>200*1024*1024)issue(issues,'Delivery','note','Bundle expands to a large download',
       `${(total/1048576).toFixed(1)} MB uncompressed from a ${(file.size/1048576).toFixed(1)} MB ZIP.`,
       'Mention the expanded size and test extraction on common devices.','ZIP download','Extract and inspect available storage requirements.');
+    // For opt-in AI: show what the bundle lists, then sample at most two safe
+    // text deliverables. This never uploads or unpacks the archive on a server.
+    const manifest=regular.slice(0,36).map(e=>
+      e.name.slice(0,115)+' ('+e.uncompressed+' bytes)').join('; ').slice(0,1350);
+    const aiEvidenceSamples=manifest?[{
+      location:'ZIP manifest ('+regular.length+' listed deliverables)',
+      excerpt:'Files listed in the archive: '+manifest
+    }]:[];
+    if(readable?.trim())aiEvidenceSamples.push({
+      location:'ZIP guide: '+guide.name,
+      excerpt:readable.replace(/\s+/g,' ').trim().slice(0,1250)
+    });
+    const textCandidates=regular.filter(e=>
+      e!==guide&&!unsafeZipPath(e.name)&&/\.(?:txt|md)$/i.test(e.name)&&
+      e.uncompressed>=60&&e.uncompressed<=100_000).slice(0,4);
+    for(const entry of textCandidates){
+      if(aiEvidenceSamples.length>=3)break;
+      const content=await getZipText(buffer,entry);
+      if(content?.trim().length>=60)aiEvidenceSamples.push({
+        location:'ZIP file: '+entry.name.slice(0,100),
+        excerpt:content.replace(/\s+/g,' ').trim().slice(0,1000)
+      });
+    }
     return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${readable!==null?' and read the included guide':guide?' (guide content unavailable)':''}.`,
       meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions',
-      aiEvidenceSamples:readable&&readable.trim()?[
-        {location:'ZIP guide: '+guide.name,excerpt:readable.replace(/\s+/g,' ').trim().slice(0,1400)}
-      ]:[]};
+      aiEvidenceSamples};
   }
   async function imageReview(file){
     progress('Reading image properties…','Checking dimensions and file integrity locally.');
