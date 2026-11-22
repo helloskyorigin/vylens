@@ -134,7 +134,7 @@
     const nonempty=extracted.filter(p=>p.text.trim().length>=50);
     const sampleIndices=[0,Math.floor((nonempty.length-1)/2),nonempty.length-1];
     const aiEvidenceSamples=[...new Set(sampleIndices)].map(index=>nonempty[index]).filter(Boolean)
-      .map(p=>({location:'PDF page '+p.page,excerpt:p.text.replace(/\\s+/g,' ').trim().slice(0,900)}));
+      .map(p=>({location:'PDF page '+p.page,excerpt:p.text.replace(/\s+/g,' ').trim().slice(0,900)}));
     await doc.destroy();
     return {issues,checks,summary:`${total} PDF pages. Extracted text from ${pages.length} page(s), with ${words.toLocaleString()} words.`,
       meta:`${total} pages · ${words.toLocaleString()} words`,coverageLabel:'PDF page text & navigation',
@@ -234,7 +234,7 @@
     return {issues,checks,summary:`Inspected ${regular.length} file(s) in the ZIP directory${readable!==null?' and read the included guide':guide?' (guide content unavailable)':''}.`,
       meta:`${regular.length} files · ${(total/1048576).toFixed(1)} MB unpacked`,coverageLabel:'ZIP entries + instructions',
       aiEvidenceSamples:readable&&readable.trim()?[
-        {location:'ZIP guide: '+guide.name,excerpt:readable.replace(/\\s+/g,' ').trim().slice(0,1400)}
+        {location:'ZIP guide: '+guide.name,excerpt:readable.replace(/\s+/g,' ').trim().slice(0,1400)}
       ]:[]};
   }
   async function imageReview(file){
@@ -356,8 +356,8 @@
         meta:`${r.words.toLocaleString()} words · ${ext.toUpperCase()}`,coverageLabel:'Readable text + structure',
         textSample:raw.slice(0,4200),
         aiEvidenceSamples:[
-          {location:file.name+' · opening content',excerpt:raw.replace(/\\s+/g,' ').trim().slice(0,1100)},
-          ...(raw.length>1450?[{location:file.name+' · ending content',excerpt:raw.replace(/\\s+/g,' ').trim().slice(-900)}]:[])
+          {location:file.name+' · opening content',excerpt:raw.replace(/\s+/g,' ').trim().slice(0,1100)},
+          ...(raw.length>1450?[{location:file.name+' · ending content',excerpt:raw.replace(/\s+/g,' ').trim().slice(-900)}]:[])
         ]};
     }else result=await imageReview(file);
     const issues=result.issues,checks=result.checks;
