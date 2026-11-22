@@ -5,6 +5,8 @@ import {POST} from '../api/review-product.mjs';
 
 const input={
   fileType:'pdf',price:'$19',salesPageUrl:'https://store.example/pricing',salesCoverage:'rendered',
+  fileSamples:[{location:'PDF page 2',
+    excerpt:'This workbook contains twenty daily prompts and a reusable daily planning worksheet for creators.'}],
   fileIssues:[{title:'Getting-started guide missing',
     evidence:'The delivered ZIP includes five files but no named quick-start instructions.',
     location:'Local ZIP directory'}],
@@ -104,4 +106,25 @@ test('reject oversized requests even without content-length header',async()=>{
     body:JSON.stringify({consent:true,fileEvidence:input,extra:'a'.repeat(24000)})
   }));
   assert.equal(r.status,413);
+});
+
+test('text excerpts are treated as specific cited product evidence rather than proof of missing features',()=>{
+  const packet=buildProductEvidencePacket(input);
+  assert.ok(packet.sources.some(s=>s.sourceId==='content-0'&&s.kind==='content-excerpt'));
+  const comparison={
+    sourceId:'content-0',relatedSourceId:'sales-0',stage:'value',
+    title:'Explain the workbook deliverables more clearly',
+    evidenceQuote:'This workbook contains twenty daily prompts and a reusable daily planning worksheet for creators.',
+    relatedEvidenceQuote:'The offer says "Get instant access" without describing how files are delivered.',
+    buyerConcern:'The public offer may not explain how the delivered workbook should be used.',
+    suggestedFix:'Explain the twenty daily prompts and reusable worksheet within the public sales offer.',
+    howToVerify:'Compare the public offer wording with page two of the workbook.'
+  };
+  const verified=verifyProductSignals({signals:[comparison]},packet);
+  assert.equal(verified.length,1);
+  assert.equal(verified[0].evidenceKind,'cross-source');
+  assert.ok(verified[0].location.includes('PDF page 2'));
+  const falseQuote=verifyProductSignals({signals:[{...comparison,
+    evidenceQuote:'The workbook promises 500 pages of done-for-you templates.'}]},packet);
+  assert.equal(falseQuote.length,0);
 });
