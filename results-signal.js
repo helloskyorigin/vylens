@@ -172,7 +172,9 @@
   add(remark,el('span','signal-eyebrow','YOUR CONVERSION REPORT'),
     el('span','signal-top-mark',report.mode==='website'?'Website Audit':'Digital Product Audit'));
   root.append(remark);
-  root.append(el('h1','signal-title',"Here's what may be holding buyers back."));
+  const fileOnly=report.mode==='product'&&!report.salesPageCoverage;
+  root.append(el('h1','signal-title',fileOnly?
+    "Here's what we could verify in your product.":"Here's what may be holding buyers back."));
   root.append(el('p','signal-subject',tidy(report.subject||report.url||'Your offer',100)));
 
   // One visual score, only when enough buyer-facing evidence exists.
@@ -335,7 +337,8 @@
         foot?el('small','',foot):null));
     return row;
   };
-  card("What's Stopping Buyers?",'Most important concerns',issueCounter,
+  card(fileOnly?'What Needs Work?':"What's Stopping Buyers?",
+    fileOnly?'Observed file and delivery concerns':'Most important concerns',issueCounter,
     toneForFindings,(body)=>{
       if(!uniqueIssues.length){
         body.append(el('p','signal-empty',rendered?
@@ -365,7 +368,8 @@
     seenQuestions.add(question.toLowerCase());
     questionItems.push({question,tone:priorityTone(item)});
   });
-  card('Why People Hesitate','Possible buyer doubts',
+  card(fileOnly?'Questions to Check Before Selling':'Why People Hesitate',
+    fileOnly?'Delivery and usage questions':'Possible buyer doubts',
     questionItems.length+' '+(questionItems.length===1?'concern':'concerns'),
     questionItems.some(q=>q.tone==='red')?'yellow':
       questionItems.length?'yellow':'unknown',(body)=>{
