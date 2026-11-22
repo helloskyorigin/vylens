@@ -259,6 +259,14 @@
       ' · '+uniqueIssues.length+' possible buyer '+(uniqueIssues.length===1?'concern':'concerns');
     signals.append(el('p','signal-coverage-note',note));
   }
+  if(report.mode==='product'&&report.salesPageCoverage){
+    const coverage=report.salesPageCoverage;
+    signals.append(el('p','signal-coverage-note',
+      'Sales page: '+String(coverage.inspected||0)+' page(s) opened · '+
+      String(coverage.rendered||0)+' browser-rendered · '+
+      (coverage.mode==='source-only'?'Source-only fallback':'Browser assessment attempted')+
+      '. Product file inspected locally.'));
+  }
   root.append(signals);
 
 
