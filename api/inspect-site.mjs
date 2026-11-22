@@ -12,6 +12,7 @@ import zlib from 'node:zlib';
 import {_test as source} from './inspect.mjs';
 import {analyzeDeepSignals,analyzeVerifiedMedia,analyzeVerifiedLinks} from '../lib/problem-engine.mjs';
 import {analyzeWebsiteConversion,analyzeSourceOffer} from '../lib/conversion-engine.mjs';
+import {reviewEvidenceWithGroq} from '../lib/ai-conversion-signals.mjs';
 import {isDirectAction,isPurchaseAction} from '../lib/action-intent.mjs';
 
 const LIMIT=24, MAX_DISCOVERED=200, TIME_BUDGET=98000;
@@ -975,6 +976,10 @@ function aggregate(analyses){
 async function scanSite(input,progress=()=>{}){
   const started=Date.now();
   const remainingTime=()=>TIME_BUDGET-(Date.now()-started);
+  // Reserve a real execution window for Groq instead of exhausting the entire
+  // crawl budget, silently skipping AI on long sites.
+  const scanDeadline=TIME_BUDGET-(process.env.GROQ_API_KEY?13500:0);
+  const remainingScanTime=()=>scanDeadline-(Date.now()-started);
   const parsed=urlOf(input);
   if(!publicDocument(parsed))throw new Error('Use a public offer or homepage URL.');
   progress('connecting');
@@ -994,7 +999,7 @@ async function scanSite(input,progress=()=>{}){
   let renderedCount=0,sourceCount=0,browserRestarts=0;
   const entrySource=source.review(home.html,home.url,{status:home.status,headers:home.headers});
   try{
-    while(discoverer.queue.length&&pages.length<LIMIT&&remainingTime()>1800){
+    while(discoverer.queue.length&&pages.length<LIMIT&&remainingScanTime()>1800){
       discoverer.queue.sort((a,b)=>priority(a)-priority(b));
       const item=discoverer.queue.shift();
       if(done.has(item.url))continue;done.add(item.url);
@@ -1003,7 +1008,7 @@ async function scanSite(input,progress=()=>{}){
         pages.push({url:item.url,path,type:kind,status:'skipped',reason:'Blocked by robots.txt',findings:0});continue;
       }
       let visit=null,raw=null,fallbackReason='';
-      if(!session&&browserRestarts<1&&remainingTime()>26000){
+      if(!session&&browserRestarts<1&&remainingScanTime()>26000){
         browserRestarts++;
         try{session=await browserStart(root,discoverer.rules);}catch{}
       }
@@ -1011,10 +1016,10 @@ async function scanSite(input,progress=()=>{}){
         // Measure responsive layout first. A second live navigation is most useful
         // when the submitted page has only a script shell in its initial HTML.
         const freshMobile=item.via==='start'&&entrySource.jsShell;
-        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(freshMobile?29000:20000,remainingTime()-1100));
+        visit=await withDeadline(()=>rendered(session,item.url,{freshMobile}),Math.min(freshMobile?29000:20000,remainingScanTime()-1100));
       }catch(error){
         fallbackReason=error.message==='Inspection time budget reached'?'The browser exceeded its inspection budget.':'The browser could not load this page.';
-        if(session.browser.isConnected()&&remainingTime()>5000){
+        if(session.browser.isConnected()&&remainingScanTime()>5000){
           const previousPage=session.page;
           try{
             await withDeadline(()=>previousPage.close(),1300);
@@ -1028,20 +1033,20 @@ async function scanSite(input,progress=()=>{}){
           session=null;
         }
       }
-      if(!visit?.html&&!visit?.status&&remainingTime()>900){
+      if(!visit?.html&&!visit?.status&&remainingScanTime()>900){
         fallbackReason||='Browser rendering was unavailable.';
         try{
           raw=item.url===start?home:await withDeadline(()=>source.fetchPublic(item.url,{
             expectedOrigin:new URL(item.url).origin,timeout:3200,
             allowURL:u=>publicDocument(u)&&robotsAllow(u.pathname+u.search,discoverer.rules)
-          }),Math.min(5500,remainingTime()-500));
+          }),Math.min(5500,remainingScanTime()-500));
           visit={status:raw.status,html:raw.html,links:extractSourceLinks(raw.html),browser:false};
         }catch{visit={status:0,html:'',links:[],browser:false};}
       }
       if(!visit?.html){
         const status=visit?.status||0;
         let confirmedBroken=false;
-        if(item.via==='link'&&LINK_ERRORS.has(status)&&remainingTime()>4200){
+        if(item.via==='link'&&LINK_ERRORS.has(status)&&remainingScanTime()>4200){
           try{
             const verification=await withDeadline(()=>source.fetchPublic(item.url,{
               probe:true,timeout:2600,expectedOrigin:new URL(item.url).origin,
@@ -1066,7 +1071,7 @@ async function scanSite(input,progress=()=>{}){
       const mediaEvidence=[];
       if(visit.browser&&Array.isArray(visit.signals?.brokenImages)){
         for(const img of visit.signals.brokenImages.slice(0,4)){
-          if(Date.now()-started>TIME_BUDGET-11000)break;
+          if(Date.now()-started>scanDeadline-11000)break;
           let target;try{target=urlOf(img.url)}catch{continue;}
           if(!sameSite(target,root)||target.origin!==root.origin||!publicDocument(target))continue;
           if(!mediaCache.has(target.toString())){
@@ -1115,11 +1120,11 @@ async function scanSite(input,progress=()=>{}){
     !done.has(item.url)&&robotsAllow(new URL(item.url).pathname,discoverer.rules))
     .sort((a,b)=>priority(a)-priority(b)).slice(0,12);
   const linkEvidence=[];
-  if(pendingLinks.length&&remainingTime()>10000){
+  if(pendingLinks.length&&remainingScanTime()>10000){
     progress('links');
     // Avoid unbounded parallel traffic and repeat failed GETs before publishing a finding.
     for(let index=0;index<pendingLinks.length;index+=3){
-      if(Date.now()-started>TIME_BUDGET-9000)break;
+      if(Date.now()-started>scanDeadline-9000)break;
       const batch=await Promise.all(pendingLinks.slice(index,index+3).map(async item=>{
         let firstStatus=0,secondStatus=0;
         try{
@@ -1252,6 +1257,17 @@ async function scanSite(input,progress=()=>{}){
     };
     conversion.unverified.push(reason);
   }
+  // AI is an optional, second-opinion review of captured public evidence.
+  // Never let it rewrite the verified scanner's findings or editorial score.
+  // Keep a hard deadline and preserve the rule-based report during API failure.
+  let aiReview={status:'skipped',signals:[],pagesConsidered:0};
+  if(!noOfferEvidence&&process.env.GROQ_API_KEY&&remainingTime()>2000){
+    progress('ai-review');
+    aiReview=await reviewEvidenceWithGroq(commerceSnapshots,{
+      timeoutMs:Math.min(10000,Math.max(1000,remainingTime()-450))
+    });
+  }
+  conversion.aiReview=aiReview;
   return {mode:'website',url:home.url,subject:root.hostname,checkedAt:new Date().toISOString(),
     conversion,
     engine:renderedCount?'vylens-playwright-v1':'vylens-source-fallback',pages,coverage,
@@ -1327,5 +1343,6 @@ function streamScan(url){
   return new Response(stream,{headers:{'content-type':'application/x-ndjson; charset=utf-8','cache-control':'no-store',
     'x-content-type-options':'nosniff','x-accel-buffering':'no'}});
 }
-export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
+export function GET(){return respond({status:'ok',engine:'bounded-playwright-crawl',auditRevision:'conversion-intelligence-v5',pageLimit:LIMIT,
+  aiConfigured:Boolean(process.env.GROQ_API_KEY),deploymentCommit:process.env.VERCEL_GIT_COMMIT_SHA||null});}
 export const _test={normalize,legal,priority,robotsRules,robotsAllow,aggregate,policyContentReview,evaluateRenderedSignals,captureRenderedSignals,captureCommerceSignals,analyzeWebsiteConversion,rendered,browserResource,waitForContent,blockedOrChallenge};

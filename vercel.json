@@ -7,6 +7,9 @@
     "api/inspect-site.mjs": {
       "maxDuration": 160,
       "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    },
+    "api/review-product.mjs": {
+      "maxDuration": 20
     }
   },
   "headers": [

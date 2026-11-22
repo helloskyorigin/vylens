@@ -100,11 +100,15 @@
       paragraph('Checked: '+String(report.checkedAt||'Not recorded').slice(0,10)+
         '   Type: '+(report.mode==='product'?'Digital product':'Website'),
         {size:9,gap:14,color:'0.38 0.46 0.37'});
-      section('1. Overall Conversion Assessment');
+      section(report.mode==='product'?
+        (data.kind==='product+offer'?'1. Public Sales-Page Assessment':'1. Product Delivery Assessment'):
+        '1. Overall Offer Assessment');
       paragraph(score===null?'Score: Not enough evidence to assess':
-        'Estimated offer score: '+score+' / 100',
+        (report.mode==='product'?'Public sales-page offer score: ':'Estimated offer score: ')+score+' / 100',
         {size:13,bold:true,gap:9});
-      paragraph('A review of available offer evidence, NOT recorded sales or buyer behavior.',
+      paragraph(report.mode==='product'?
+        'Any number shown assesses only available public offer evidence, not the quality of the delivered product, actual sales or buyer behavior.':
+        'A review of available public offer evidence, NOT recorded sales or buyer behavior.',
         {size:9,gap:10});
       // Preserve the substantive offer context used by the current evaluator.
       // All descriptions below are excerpts from the inspected public pages.
@@ -197,11 +201,35 @@
       section('9. What Could Not Be Checked');
       if(!unverified.length)paragraph('No additional recorded limitations.');
       unverified.forEach(note=>paragraph('- '+note,{size:9,gap:7}));
-      const coverage=report.coverage||{};
-      paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
-        String(coverage.rendered??0)+' with browser evidence. '+
-        String(coverage.sourceOnly??0)+' with source-only information.',
-        {size:9,gap:9});
+      const ai=data.aiReview;
+      if(ai?.status==='completed'&&Array.isArray(ai.signals)&&ai.signals.length){
+        section('10. AI Evidence Review (Suggestions, Not Confirmed Problems)');
+        paragraph('Suggestions interpreted from specific public observations'+
+          (report.mode==='product'?' and limited locally extracted file findings':'')+
+          '. AI did not verify purchases, buyer decisions, or actual lost sales.',
+          {size:9,gap:9});
+        ai.signals.slice(0,5).forEach((item,i)=>entry((i+1)+'. '+String(item.title||'Suggested review'),[
+          item.evidence?'Captured evidence: '+item.evidence:'',
+          item.location?'Source: '+item.location:'',
+          item.fix?'Suggested change: '+item.fix:'',
+          item.verify?'Verify: '+item.verify:''
+        ]));
+      }
+      const coverage=report.mode==='product'?
+        (report.salesPageCoverage||null):(report.coverage||{});
+      if(report.mode==='product'){
+        paragraph(coverage?
+          'Public sales-page coverage: '+String(coverage.inspected||0)+
+          ' pages opened; '+String(coverage.rendered||0)+' with browser evidence. '+
+          (coverage.mode==='source-only'?'Only HTML source could be assessed.':'Rendered offer review attempted.'):
+          'No public sales-page audit was supplied. Only the product file was inspected locally.',
+          {size:9,gap:9});
+      }else{
+        paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
+          String(coverage.rendered??0)+' with browser evidence. '+
+          String(coverage.sourceOnly??0)+' with source-only information.',
+          {size:9,gap:9});
+      }
       // The five report sections stay focused on buying decisions. The optional
       // appendix keeps the other recorded scan work discoverable in the PDF.
       const extraIssues=Array.isArray(report.issues)?report.issues.filter(x=>x&&x.title):[];

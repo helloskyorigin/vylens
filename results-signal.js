@@ -172,13 +172,15 @@
   add(remark,el('span','signal-eyebrow','YOUR CONVERSION REPORT'),
     el('span','signal-top-mark',report.mode==='website'?'Website Audit':'Digital Product Audit'));
   root.append(remark);
-  root.append(el('h1','signal-title',"Here's what may be holding buyers back."));
+  const fileOnly=report.mode==='product'&&!report.salesPageCoverage;
+  root.append(el('h1','signal-title',fileOnly?
+    "Here's what we could verify in your product.":"Here's what may be holding buyers back."));
   root.append(el('p','signal-subject',tidy(report.subject||report.url||'Your offer',100)));
 
   // One visual score, only when enough buyer-facing evidence exists.
   const scoreBox=el('section','signal-score');
   scoreBox.setAttribute('aria-label','Overall conversion score');
-  scoreBox.append(el('div','signal-score-heading','OVERALL CONVERSION SCORE'));
+  scoreBox.append(el('div','signal-score-heading',report.mode==='product'&&data.kind==='product+offer'?'PUBLIC SALES PAGE ASSESSMENT':'OVERALL CONVERSION SCORE'));
   const scoreBody=el('div','signal-score-body');
   const circle=el('div','signal-score-ring signal-tone-'+smartTone(overall));
   circle.style.setProperty('--score-fill',(overall===null?0:overall)+'%');
@@ -202,7 +204,7 @@
       (assessment?.explanation || (report.mode==='product'?
         'We checked the file, but could not confirm how its sales page looks to buyers.':
         'There was not enough visible information to give a fair score.')) :
-       isLimited?'Based on the sections we could check.':
+       (report.mode==='product'&&data.kind==='product+offer')?'Public sales-page assessment only. Delivered-product findings are listed separately.':isLimited?'Based on the sections we could check.':
         'A quick assessment of the offer, not actual sales.'));
   add(scoreBody,circle,scoreCopy);
   scoreBox.append(scoreBody);
@@ -259,6 +261,24 @@
       ' · '+uniqueIssues.length+' possible buyer '+(uniqueIssues.length===1?'concern':'concerns');
     signals.append(el('p','signal-coverage-note',note));
   }
+  if(report.mode==='product'&&report.salesPageCoverage){
+    const coverage=report.salesPageCoverage;
+    signals.append(el('p','signal-coverage-note',
+      'Sales page: '+String(coverage.inspected||0)+' page(s) opened · '+
+      String(coverage.rendered||0)+' browser-rendered · '+
+      (coverage.mode==='source-only'?'Source-only fallback':'Browser assessment attempted')+
+      '. Product file inspected locally.'));
+  }
+  const aiStatus=data.aiProductStatus||
+    (data.aiReview?.status&&data.aiReview.status!=='completed'?data.aiReview.status:'');
+  if(aiStatus==='unavailable')signals.append(el('p','signal-coverage-note',
+    'The optional AI review was unavailable. Browser/file checks are still shown above.'));
+  else if(aiStatus==='not-configured'||aiStatus==='skipped')
+    signals.append(el('p','signal-coverage-note',
+      'AI review is not enabled for this scan. The report uses the observed audit evidence.'));
+  else if(data.aiReview?.status==='completed'&&!data.aiReview?.signals?.length)
+    signals.append(el('p','signal-coverage-note',
+      'AI review found no additional suggestions supported by the available evidence.'));
   root.append(signals);
 
 
@@ -317,7 +337,8 @@
         foot?el('small','',foot):null));
     return row;
   };
-  card("What's Stopping Buyers?",'Most important concerns',issueCounter,
+  card(fileOnly?'What Needs Work?':"What's Stopping Buyers?",
+    fileOnly?'Observed file and delivery concerns':'Most important concerns',issueCounter,
     toneForFindings,(body)=>{
       if(!uniqueIssues.length){
         body.append(el('p','signal-empty',rendered?
@@ -332,6 +353,13 @@
       addMore(body,rows,5);
     });
 
+  // AI suggestions are a labelled section inside the existing fix card,
+  // NOT a sixth top-level results card. Five focused cards remain.
+  const aiReview=data.aiReview;
+  const aiSuggestions=aiReview?.status==='completed'&&Array.isArray(aiReview.signals)?
+    aiReview.signals.filter(x=>x&&x.title&&x.fix&&x.evidence).slice(0,5):[];
+
+
   const questionItems=[];
   const seenQuestions=new Set();
   uniqueIssues.forEach(item=>{
@@ -340,7 +368,8 @@
     seenQuestions.add(question.toLowerCase());
     questionItems.push({question,tone:priorityTone(item)});
   });
-  card('Why People Hesitate','Possible buyer doubts',
+  card(fileOnly?'Questions to Check Before Selling':'Why People Hesitate',
+    fileOnly?'Delivery and usage questions':'Possible buyer doubts',
     questionItems.length+' '+(questionItems.length===1?'concern':'concerns'),
     questionItems.some(q=>q.tone==='red')?'yellow':
       questionItems.length?'yellow':'unknown',(body)=>{
@@ -368,23 +397,62 @@
     return btn;
   };
   card('Exactly What to Change','Specific, practical fixes',
-    fixItems.length+' '+(fixItems.length===1?'fix':'fixes')+' ready',
-    fixItems.length?'green':'unknown',(body)=>{
-      if(!fixItems.length){
-        body.append(el('p','signal-empty',
-          'We need clearer evidence before suggesting a change.'));
+    (fixItems.length+aiSuggestions.length)+' '+(fixItems.length+aiSuggestions.length===1?'suggestion':'suggestions')+' ready',
+    fixItems.length?'green':aiSuggestions.length?'yellow':'unknown',(body)=>{
+      if(!fixItems.length&&!aiSuggestions.length){
+        body.append(el('p','signal-empty','We need clearer evidence before suggesting a change.'));
         return;
       }
-      const rows=fixItems.map((item,i)=>{
-        const row=el('div','signal-fix-row signal-tone-'+priorityTone(item));
-        add(row,el('span','signal-fix-index',String(i+1).padStart(2,'0')),
-          add(el('div','signal-fix-body'),
-            el('strong','',small(item.fix,600)),
-            item.location?el('small','','Where: '+small(item.location,115)):null,
-            copyButton(small(item.fix,1100))));
-        return row;
-      });
-      addMore(body,rows,5);
+      if(fixItems.length){
+        const rows=fixItems.map((item,i)=>{
+          const row=el('div','signal-fix-row signal-tone-'+priorityTone(item));
+          add(row,el('span','signal-fix-index',String(i+1).padStart(2,'0')),
+            add(el('div','signal-fix-body'),
+              el('strong','',small(item.fix,600)),
+              item.location?el('small','','Where: '+small(item.location,115)):null,
+              copyButton(small(item.fix,1100))));
+          return row;
+        });
+        addMore(body,rows,5);
+      }
+      if(aiSuggestions.length){
+        const extras=el('section','signal-ai-review');
+        extras.append(el('h4','','AI Evidence Review'));
+        const aiNote=report.mode==='product'?
+          (aiReview?.comparedBoth?
+            'Opted-in product excerpts and public sales-page observations were available. Each idea cites its evidence; only explicitly linked quotes support a comparison.':
+            'AI reviewed public sales-page evidence or limited product findings. See each source label; private file samples are only shared with consent.'):
+          'AI reviewed captured public-page evidence, not real customer behavior. Verify each suggested change before publishing.';
+        extras.append(el('p','signal-section-note',aiNote));
+        const rows=aiSuggestions.map(item=>{
+          const row=createRow('yellow',small(item.title,135),
+            small(item.evidence,230),small(item.location,115));
+          const copy=row.querySelector('.signal-mini-text');
+          if(copy){
+            copy.append(el('p','','Concern: '+small(item.buyerConcern,260)));
+            copy.append(el('p','','Try: '+small(item.fix,350)));
+            copy.append(el('small','','Evidence type: '+(
+              item.evidenceKind==='cross-source'?'Product + sales page':item.source||'Public page')));
+            copy.append(el('small','','Verify: '+small(item.verify,225)));
+            const sourceLink=item.evidenceURL||(report.mode==='product'?report.salesPage:'');
+            if(sourceLink){
+              try{
+                const target=new URL(sourceLink);
+                if(['https:','http:'].includes(target.protocol)&&
+                    !target.username&&!target.password){
+                  const open=el('a','signal-ai-source','Open inspected sales page');
+                  open.href=target.href;open.target='_blank';open.rel='noopener noreferrer';
+                  copy.append(open);
+                }
+              }catch{}
+            }
+            copy.append(copyButton(small(item.fix,1100)));
+          }
+          return row;
+        });
+        addMore(extras,rows,2);
+        body.append(extras);
+      }
     });
 
   // Only real suggested wording belongs here. Other technical fixes stay in card 3.

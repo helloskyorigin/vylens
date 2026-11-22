@@ -1,0 +1,69 @@
+name: Evidence-verified Groq audit tests
+on:
+  pull_request:
+    paths:
+      - 'lib/ai-conversion-signals.mjs'
+      - 'lib/ai-product-signals.mjs'
+      - 'api/inspect-site.mjs'
+      - 'api/review-product.mjs'
+      - 'results-signal.js'
+      - 'results-signal.css'
+      - 'theme.css'
+      - 'results.html'
+      - 'results-pdf.js'
+      - 'index.html'
+      - 'inspect.html'
+      - 'audit-core.js'
+      - 'script.js'
+      - 'analysis.js'
+      - 'qa_signal_results.py'
+      - 'qa_product_browser.py'
+      - 'vercel.json'
+      - 'tests/ai-conversion-signals.test.mjs'
+      - 'tests/ai-product-signals.test.mjs'
+      - 'tests/ai-product-browser.test.mjs'
+      - '.github/workflows/groq-evidence-review.yml'
+  push:
+    branches:
+      - 'feature/groq-evidence-verified-audit'
+permissions:
+  contents: read
+jobs:
+  ai-evidence-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check lib/ai-conversion-signals.mjs
+          node --check lib/ai-product-signals.mjs
+          node --check api/inspect-site.mjs
+          node --check api/review-product.mjs
+          node --check results-signal.js
+          node --check results-pdf.js
+          node --check script.js
+          node --check analysis.js
+      - name: Grounding and security regression tests
+        run: node --test tests/ai-conversion-signals.test.mjs tests/ai-product-signals.test.mjs
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --no-save --ignore-scripts playwright-core@1.65.1
+          node node_modules/playwright-core/cli.js install chromium
+      - name: Full browser product + sales-page + PDF journey
+        run: node --test tests/ai-product-browser.test.mjs
+      - name: Install Python Playwright for existing scanner/UI QA
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.65.1'
+          python -m playwright install chromium
+      - name: Existing local digital-product and ZIP regression
+        run: python qa_product_browser.py
+      - name: Current Signal report: multi-width, error states and PDF regression
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/vylens-local-http.log 2>&1 &
+          VYLENS_BASE=http://127.0.0.1:8765 python qa_signal_results.py

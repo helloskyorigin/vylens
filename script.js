@@ -180,7 +180,8 @@
     try {
       const pending = mode === 'website'
         ? {mode: 'website', url: $('#websiteUrl').value.trim()}
-        : {mode: 'product', price: $('#productPrice').value.trim(), salesPage: $('#salesPageUrl').value.trim()};
+        : {mode: 'product', price: $('#productPrice').value.trim(), salesPage: $('#salesPageUrl').value.trim(),
+          aiProductConsent: $('#aiProductConsent').checked === true};
       if (mode === 'product') await stageLocalFile(selectedFile);
       sessionStorage.removeItem('vylens:result');
       sessionStorage.setItem('vylens:pending', JSON.stringify(pending));

@@ -285,3 +285,14 @@ body.signal-ui #signalReport .signal-status{padding:7px 11px}
  body.signal-ui #signalReport .signal-item-top{grid-template-columns:1fr}
  body.signal-ui #signalReport .signal-item-right{justify-self:start}
 }
+
+html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-review{
+  border-color:#344436!important;
+}
+html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-review h4{
+  color:#ecf5e8!important;
+}
+
+html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-source{
+  color:#c7f36a!important;
+}

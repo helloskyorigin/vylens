@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./theme.css?v=1">
-  <script src="./script.js" defer></script>
+  <script src="./script.js?v=2" defer></script>
   <script src="./theme.js?v=1" defer></script>
 </head>
 <body>
@@ -93,6 +93,10 @@
                 <label for="productPrice">Product price <span>(optional)</span></label>
                 <input type="text" id="productPrice" inputmode="decimal" placeholder="e.g. $19" maxlength="30" />
               </div>
+              <label class="ai-consent-choice" for="aiProductConsent" style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:12px;line-height:1.5;cursor:pointer">
+                <input type="checkbox" id="aiProductConsent" style="width:17px;height:17px;flex-shrink:0;margin-top:2px;accent-color:#c7f36a" />
+                <span><strong>Optional AI comparison.</strong> Share up to three short text excerpts and limited diagnostic findings from your product, together with public sales-page evidence, with Groq for AI suggestions. Your original file stays on your device; leave unchecked for local-only file analysis. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Privacy details</a>.</span>
+              </label>
             </div>
             <button type="submit" class="button button-lime hero-submit" id="submitAudit"><span id="ctaLabel">Find My Conversion Leaks</span><svg class="icon"><use href="#i-arrow-up-right" /></svg></button>
             <p class="form-assurance"><svg class="icon"><use href="#i-check-circle" /></svg> Free first look <span class="separator-dot">·</span> No card needed</p>
