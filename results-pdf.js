@@ -197,6 +197,20 @@
       section('9. What Could Not Be Checked');
       if(!unverified.length)paragraph('No additional recorded limitations.');
       unverified.forEach(note=>paragraph('- '+note,{size:9,gap:7}));
+      const ai=data.aiReview;
+      if(ai?.status==='completed'&&Array.isArray(ai.signals)&&ai.signals.length){
+        section('10. AI Evidence Review (Suggestions, Not Confirmed Problems)');
+        paragraph('Suggestions interpreted from specific public observations'+
+          (report.mode==='product'?' and limited locally extracted file findings':'')+
+          '. AI did not verify purchases, buyer decisions, or actual lost sales.',
+          {size:9,gap:9});
+        ai.signals.slice(0,5).forEach((item,i)=>entry((i+1)+'. '+String(item.title||'Suggested review'),[
+          item.evidence?'Captured evidence: '+item.evidence:'',
+          item.location?'Source: '+item.location:'',
+          item.fix?'Suggested change: '+item.fix:'',
+          item.verify?'Verify: '+item.verify:''
+        ]));
+      }
       const coverage=report.coverage||{};
       paragraph('Coverage: '+String(coverage.inspected??0)+' pages checked. '+
         String(coverage.rendered??0)+' with browser evidence. '+
