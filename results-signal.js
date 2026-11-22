@@ -267,6 +267,16 @@
       (coverage.mode==='source-only'?'Source-only fallback':'Browser assessment attempted')+
       '. Product file inspected locally.'));
   }
+  const aiStatus=data.aiProductStatus||
+    (data.aiReview?.status&&data.aiReview.status!=='completed'?data.aiReview.status:'');
+  if(aiStatus==='unavailable')signals.append(el('p','signal-coverage-note',
+    'The optional AI review was unavailable. Browser/file checks are still shown above.'));
+  else if(aiStatus==='not-configured'||aiStatus==='skipped')
+    signals.append(el('p','signal-coverage-note',
+      'AI review is not enabled for this scan. The report uses the observed audit evidence.'));
+  else if(data.aiReview?.status==='completed'&&!data.aiReview?.signals?.length)
+    signals.append(el('p','signal-coverage-note',
+      'AI review found no additional suggestions supported by the available evidence.'));
   root.append(signals);
 
 
