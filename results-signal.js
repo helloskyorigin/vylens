@@ -340,31 +340,12 @@
       addMore(body,rows,5);
     });
 
-  // Optional AI review never affects the measured/observed score above.
-  // Display only verbatim-anchored second-opinion hypotheses from the server.
+  // AI suggestions are a labelled section inside the existing fix card,
+  // NOT a sixth top-level results card. Five focused cards remain.
   const aiReview=data.aiReview;
-  if(aiReview?.status==='completed'&&
-      Array.isArray(aiReview.signals)&&aiReview.signals.length){
-    const reviewed=aiReview.signals.slice(0,5);
-    card('AI Evidence Review',report.mode==='product'?'Product and sales-page suggestions':'Page-linked improvement suggestions',
-      reviewed.length+' '+(reviewed.length===1?'suggestion':'suggestions'),
-      'yellow',(body)=>{
-        body.append(el('p','signal-section-note',
-          report.mode==='product'?'AI suggestions based on limited file findings and public sales-page observations. No product file bytes were sent. These are hypotheses.' : 'AI suggestions based on captured public text. These are hypotheses, not confirmed reasons for lost sales.'));
-        const rows=reviewed.map(item=>{
-          const row=createRow('yellow',small(item.title,130),
-            small(item.evidence,230),small(item.location,115));
-          const copy=row.querySelector('.signal-mini-text');
-          if(copy){
-            copy.append(el('p','','Buyer concern: '+small(item.buyerConcern,270)));
-            copy.append(el('p','','Suggested fix: '+small(item.fix,330)));
-            copy.append(el('small','','Verify: '+small(item.verify,215)));
-          }
-          return row;
-        });
-        addMore(body,rows,5);
-      });
-  }
+  const aiSuggestions=aiReview?.status==='completed'&&Array.isArray(aiReview.signals)?
+    aiReview.signals.filter(x=>x&&x.title&&x.fix&&x.evidence).slice(0,5):[];
+
 
   const questionItems=[];
   const seenQuestions=new Set();
@@ -402,23 +383,44 @@
     return btn;
   };
   card('Exactly What to Change','Specific, practical fixes',
-    fixItems.length+' '+(fixItems.length===1?'fix':'fixes')+' ready',
-    fixItems.length?'green':'unknown',(body)=>{
-      if(!fixItems.length){
-        body.append(el('p','signal-empty',
-          'We need clearer evidence before suggesting a change.'));
+    (fixItems.length+aiSuggestions.length)+' '+(fixItems.length+aiSuggestions.length===1?'suggestion':'suggestions')+' ready',
+    fixItems.length?'green':aiSuggestions.length?'yellow':'unknown',(body)=>{
+      if(!fixItems.length&&!aiSuggestions.length){
+        body.append(el('p','signal-empty','We need clearer evidence before suggesting a change.'));
         return;
       }
-      const rows=fixItems.map((item,i)=>{
-        const row=el('div','signal-fix-row signal-tone-'+priorityTone(item));
-        add(row,el('span','signal-fix-index',String(i+1).padStart(2,'0')),
-          add(el('div','signal-fix-body'),
-            el('strong','',small(item.fix,600)),
-            item.location?el('small','','Where: '+small(item.location,115)):null,
-            copyButton(small(item.fix,1100))));
-        return row;
-      });
-      addMore(body,rows,5);
+      if(fixItems.length){
+        const rows=fixItems.map((item,i)=>{
+          const row=el('div','signal-fix-row signal-tone-'+priorityTone(item));
+          add(row,el('span','signal-fix-index',String(i+1).padStart(2,'0')),
+            add(el('div','signal-fix-body'),
+              el('strong','',small(item.fix,600)),
+              item.location?el('small','','Where: '+small(item.location,115)):null,
+              copyButton(small(item.fix,1100))));
+          return row;
+        });
+        addMore(body,rows,5);
+      }
+      if(aiSuggestions.length){
+        const extras=el('section','signal-ai-review');
+        extras.append(el('h4','','AI Evidence Review'));
+        extras.append(el('p','signal-section-note',
+          'Second-opinion ideas linked to captured evidence. Verify before changing your offer; they are not measured buyer behavior.'));
+        const rows=aiSuggestions.map(item=>{
+          const row=createRow('yellow',small(item.title,135),
+            small(item.evidence,230),small(item.location,115));
+          const copy=row.querySelector('.signal-mini-text');
+          if(copy){
+            copy.append(el('p','','Concern: '+small(item.buyerConcern,260)));
+            copy.append(el('p','','Try: '+small(item.fix,350)));
+            copy.append(el('small','','Verify: '+small(item.verify,225)));
+            copy.append(copyButton(small(item.fix,1100)));
+          }
+          return row;
+        });
+        addMore(extras,rows,2);
+        body.append(extras);
+      }
     });
 
   // Only real suggested wording belongs here. Other technical fixes stay in card 3.
