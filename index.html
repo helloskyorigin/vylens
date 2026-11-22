@@ -93,6 +93,10 @@
                 <label for="productPrice">Product price <span>(optional)</span></label>
                 <input type="text" id="productPrice" inputmode="decimal" placeholder="e.g. $19" maxlength="30" />
               </div>
+              <label class="ai-consent-choice" for="aiProductConsent" style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:12px;line-height:1.5;cursor:pointer">
+                <input type="checkbox" id="aiProductConsent" style="width:17px;height:17px;flex-shrink:0;margin-top:2px;accent-color:#c7f36a" />
+                <span><strong>Optional AI comparison.</strong> Share limited findings extracted from your file and public sales-page evidence with Groq to suggest improvements. Your original file is never uploaded. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Privacy details</a>.</span>
+              </label>
             </div>
             <button type="submit" class="button button-lime hero-submit" id="submitAudit"><span id="ctaLabel">Find My Conversion Leaks</span><svg class="icon"><use href="#i-arrow-up-right" /></svg></button>
             <p class="form-assurance"><svg class="icon"><use href="#i-check-circle" /></svg> Free first look <span class="separator-dot">·</span> No card needed</p>
