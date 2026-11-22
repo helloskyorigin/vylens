@@ -292,3 +292,7 @@ html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-review{
 html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-review h4{
   color:#ecf5e8!important;
 }
+
+html[data-theme="dark"] body.signal-ui #signalReport .signal-ai-source{
+  color:#c7f36a!important;
+}
